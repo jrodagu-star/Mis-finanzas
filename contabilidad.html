@@ -10,6 +10,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Finanzas">
   <link rel="apple-touch-icon" href="icons/icon.svg">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="firebase-sync.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     :root {
@@ -2807,11 +2810,16 @@ function importarTodo(input) {
   input.value = '';
 }
 
-loadData();
-seedFromCSV();
-updatePeriodUI();
-populateCatSelect('GASTO');
-renderResumen();
+function _initContabilidad() {
+  loadData();
+  seedFromCSV();
+  loadGE();
+  updatePeriodUI();
+  populateCatSelect('GASTO');
+  renderResumen();
+}
+window.fbRefresh = _initContabilidad;
+_initContabilidad();
 
 // ─────────────────────────────────────────────
 //  GASTOS ESPERADOS
