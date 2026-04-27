@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hacienda – Declaraciones IRPF</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#6c63ff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Finanzas">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <style>
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #252836;
+      --border: #2e3248; --accent: #6c63ff; --accent2: #38bdf8;
+      --green: #22c55e; --red: #ef4444; --yellow: #f59e0b;
+      --orange: #f97316; --purple: #a855f7;
+      --text: #e2e8f0; --muted: #94a3b8; --sidebar-w: 220px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+
+    #sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; z-index: 10; }
+    .sidebar-logo { padding: 20px 16px 14px; font-size: 1.05rem; font-weight: 700; color: var(--accent); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+    .sidebar-section { padding: 12px 8px 4px; font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; margin: 2px 6px; border-radius: 8px; cursor: pointer; font-size: .875rem; color: var(--muted); transition: background .15s, color .15s; text-decoration: none; }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: var(--accent); color: #fff; }
+    .nav-item .icon { font-size: 1rem; width: 20px; text-align: center; }
+    .sidebar-footer { margin-top: auto; padding: 14px 12px; border-top: 1px solid var(--border); font-size: .72rem; color: var(--muted); text-align: center; }
+
+    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 11px 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    #topbar h1 { font-size: 1.05rem; font-weight: 600; }
+    #content { flex: 1; overflow-y: auto; padding: 22px; }
+
+    /* Year tabs */
+    .year-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .year-tab { padding: 8px 20px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; font-size: .88rem; font-weight: 600; transition: all .15s; display: flex; align-items: center; gap: 6px; }
+    .year-tab:hover { border-color: var(--accent); color: var(--text); }
+    .year-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .year-tab .draft-badge { font-size: .65rem; background: rgba(245,158,11,.2); color: var(--yellow); padding: 1px 6px; border-radius: 4px; font-weight: 700; }
+    .year-tab.active .draft-badge { background: rgba(255,255,255,.2); color: #fff; }
+
+    .year-panel { display: none; }
+    .year-panel.active { display: block; }
+
+    /* Banners */
+    .banner { border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 16px; }
+    .banner-green { background: rgba(34,197,94,.08); border: 1px solid rgba(34,197,94,.3); }
+    .banner-yellow { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.3); }
+    .banner-icon { font-size: 2rem; flex-shrink: 0; }
+    .banner-title { font-size: 1.4rem; font-weight: 800; }
+    .banner-title.green { color: var(--green); }
+    .banner-title.yellow { color: var(--yellow); }
+    .banner-sub { font-size: .8rem; color: var(--muted); margin-top: 3px; }
+    .banner-right { text-align: right; flex-shrink: 0; font-size: .72rem; color: var(--muted); }
+    .banner-right strong { font-size: .78rem; color: var(--text); }
+
+    /* KPI grid */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 14px; margin-bottom: 20px; }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; position: relative; overflow: hidden; }
+    .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+    .kpi-card.c-accent::before  { background: var(--accent); }
+    .kpi-card.c-green::before   { background: var(--green); }
+    .kpi-card.c-red::before     { background: var(--red); }
+    .kpi-card.c-yellow::before  { background: var(--yellow); }
+    .kpi-card.c-orange::before  { background: var(--orange); }
+    .kpi-card.c-purple::before  { background: var(--purple); }
+    .kpi-card.c-blue::before    { background: var(--accent2); }
+    .kpi-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+    .kpi-value { font-size: 1.3rem; font-weight: 700; line-height: 1.2; }
+    .kpi-sub { font-size: .72rem; color: var(--muted); margin-top: 5px; line-height: 1.4; }
+    .kpi-delta { font-size: .72rem; margin-top: 4px; font-weight: 600; }
+    .kpi-delta.pos { color: var(--green); }
+    .kpi-delta.neg { color: var(--red); }
+    .kpi-delta.neu { color: var(--muted); }
+    .kpi-badge { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: .65rem; font-weight: 700; margin-top: 4px; }
+    .badge-green  { background: rgba(34,197,94,.15); color: var(--green); }
+    .badge-red    { background: rgba(239,68,68,.15);  color: var(--red); }
+    .badge-yellow { background: rgba(245,158,11,.15); color: var(--yellow); }
+
+    /* Section boxes */
+    .section-grid { display: grid; gap: 16px; margin-bottom: 16px; }
+    .cols2 { grid-template-columns: 1fr 1fr; }
+    .box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+    .box h3 { font-size: .78rem; color: var(--muted); margin-bottom: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; display: flex; align-items: center; gap: 6px; }
+    .box h3 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+    .row-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: .85rem; }
+    .row-item:last-child { border-bottom: none; }
+    .row-item .label { color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .row-item .value { font-weight: 600; }
+    .row-item .value.pos { color: var(--green); }
+    .row-item .value.neg { color: var(--red); }
+    .row-item .note { font-size: .7rem; color: var(--muted); margin-top: 2px; }
+
+    .funnel { display: flex; flex-direction: column; gap: 3px; }
+    .funnel-step { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); font-size: .82rem; }
+    .funnel-step .fs-icon { font-size: 1rem; width: 22px; text-align: center; }
+    .funnel-step .fs-label { flex: 1; color: var(--muted); }
+    .funnel-step .fs-value { font-weight: 700; font-size: .88rem; }
+    .funnel-step.highlight { border-color: var(--accent); background: rgba(108,99,255,.08); }
+    .funnel-step.result-pos { border-color: var(--green); background: rgba(34,197,94,.08); }
+    .funnel-arrow { text-align: center; color: var(--muted); font-size: .72rem; padding: 0; }
+
+    table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+    th { background: var(--surface2); color: var(--muted); font-weight: 600; padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+    td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+
+    .prog-bar { height: 6px; border-radius: 3px; background: var(--surface2); overflow: hidden; margin-top: 6px; }
+    .prog-fill { height: 100%; border-radius: 3px; }
+
+    /* Tips */
+    .tips { display: flex; flex-direction: column; gap: 10px; }
+    .tip { display: flex; gap: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px; }
+    .tip-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+    .tip-body { flex: 1; }
+    .tip-title { font-size: .85rem; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+    .tip-text { font-size: .8rem; color: var(--muted); line-height: 1.55; }
+    .tip.tip-ok    { border-color: rgba(34,197,94,.3); }
+    .tip.tip-warn  { border-color: rgba(245,158,11,.3); }
+    .tip.tip-info  { border-color: rgba(108,99,255,.3); }
+    .tip.tip-alert { border-color: rgba(239,68,68,.3); }
+    .tip.tip-action{ border-color: rgba(56,189,248,.3); background: rgba(56,189,248,.05); }
+
+    /* Action box */
+    .action-box { background: rgba(56,189,248,.06); border: 1px solid rgba(56,189,248,.3); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    .action-box-title { font-size: .88rem; font-weight: 700; color: var(--accent2); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .action-list { display: flex; flex-direction: column; gap: 8px; }
+    .action-item { display: flex; gap: 10px; padding: 11px 13px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+    .action-num { width: 22px; height: 22px; border-radius: 50%; background: var(--accent2); color: #000; font-size: .72rem; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    .action-body { flex: 1; }
+    .action-title { font-size: .83rem; font-weight: 700; margin-bottom: 3px; }
+    .action-desc { font-size: .78rem; color: var(--muted); line-height: 1.5; }
+    .action-saving { font-size: .75rem; font-weight: 700; color: var(--green); margin-top: 4px; }
+
+    /* Comparison table */
+    .cmp-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    .cmp-table th { background: var(--surface2); color: var(--muted); padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: .72rem; text-transform: uppercase; }
+    .cmp-table th.year { color: var(--text); font-size: .8rem; }
+    .cmp-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); }
+    .cmp-table tr:last-child td { border-bottom: none; }
+    .cmp-table tr:hover td { background: var(--surface2); }
+    .cmp-table .label-col { color: var(--muted); }
+    .cmp-delta { font-size: .75rem; font-weight: 700; }
+    .cmp-delta.pos { color: var(--green); }
+    .cmp-delta.neg { color: var(--red); }
+    .cmp-delta.neu { color: var(--muted); }
+
+    ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<nav id="sidebar">
+  <div class="sidebar-logo">🏛️ Hacienda</div>
+  <div class="sidebar-section">Declaraciones</div>
+  <a class="nav-item active" href="hacienda.html"><span class="icon">📋</span> IRPF 2024 / 2025</a>
+  <div class="sidebar-section">Otros</div>
+  <a class="nav-item" href="index.html"><span class="icon">🏠</span> Inicio</a>
+  <a class="nav-item" href="dashboard.html"><span class="icon">📈</span> Inversiones</a>
+  <a class="nav-item" href="contabilidad.html"><span class="icon">💳</span> Contabilidad</a>
+  <a class="nav-item" href="nominas.html"><span class="icon">💼</span> Nóminas</a>
+  <div class="sidebar-footer">Datos fiscales</div>
+</nav>
+
+<div id="main">
+  <div id="topbar">
+    <h1>🏛️ Declaraciones IRPF — Jorge A. Rodríguez Aguirregabiria</h1>
+  </div>
+
+  <div id="content">
+
+    <!-- YEAR TABS -->
+    <div class="year-tabs">
+      <div class="year-tab" id="tab-2024" onclick="showYear('2024')">📋 Ejercicio 2024 <span style="font-size:.7rem;color:var(--green);font-weight:700">✓ Presentada</span></div>
+      <div class="year-tab active" id="tab-2025" onclick="showYear('2025')">📝 Ejercicio 2025 <span class="draft-badge">BORRADOR</span></div>
+      <div class="year-tab" id="tab-cmp" onclick="showYear('cmp')">📊 Comparativa</div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!--  2024                                       -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="year-panel" id="panel-2024">
+
+      <div class="banner banner-green">
+        <div class="banner-icon">💰</div>
+        <div style="flex:1">
+          <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Resultado — Ejercicio 2024</div>
+          <div class="banner-title green">Te devolvieron 1.798,95 €</div>
+          <div class="banner-sub">Hacienda retuvo de más en nómina. Transferido en junio de 2025.</div>
+        </div>
+        <div class="banner-right">
+          <div>Presentada el <strong>10/06/2025</strong></div>
+          <div style="margin-top:4px">Justificante <strong>1005083410676</strong></div>
+          <div style="margin-top:4px">CVS <strong>TQX488K4ZK3LA4UM</strong></div>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card c-accent">
+          <div class="kpi-label">Salario bruto</div>
+          <div class="kpi-value">112.274 €</div>
+          <div class="kpi-sub">Retribuciones dinerarias del hospital</div>
+        </div>
+        <div class="kpi-card c-blue">
+          <div class="kpi-label">Base liquidable general</div>
+          <div class="kpi-value">105.465 €</div>
+          <div class="kpi-sub">Ingresos sobre los que se aplica el impuesto, tras restar gastos y plan de pensiones</div>
+        </div>
+        <div class="kpi-card c-orange">
+          <div class="kpi-label">Impuesto total pagado</div>
+          <div class="kpi-value">35.999 €</div>
+          <div class="kpi-sub">Cuota final tras todas las deducciones</div>
+        </div>
+        <div class="kpi-card c-yellow">
+          <div class="kpi-label">Tipo efectivo</div>
+          <div class="kpi-value">30,5 %</div>
+          <div class="kpi-sub">% real de impuesto sobre el total de ingresos</div>
+        </div>
+        <div class="kpi-card c-purple">
+          <div class="kpi-label">Retenciones pagadas</div>
+          <div class="kpi-value">37.798 €</div>
+          <div class="kpi-sub">IRPF descontado mes a mes en nómina</div>
+        </div>
+        <div class="kpi-card c-green">
+          <div class="kpi-label">Ahorro en deducciones</div>
+          <div class="kpi-value">~1.240 €</div>
+          <div class="kpi-sub">Plan pensiones + donaciones + colegio</div>
+        </div>
+      </div>
+
+      <div class="section-grid cols2">
+        <div class="box">
+          <h3><span class="dot" style="background:var(--accent)"></span> ¿De dónde vienen los ingresos?</h3>
+          <div class="row-item">
+            <div><div class="label">💼 Salario</div><div class="note">Nómina hospital</div></div>
+            <div style="text-align:right"><div class="value">112.274 €</div><span class="kpi-badge badge-yellow">95,3 %</span></div>
+          </div>
+          <div class="prog-bar"><div class="prog-fill" style="width:95.3%;background:var(--accent)"></div></div>
+          <div class="row-item" style="margin-top:8px">
+            <div><div class="label">₿ Cripto (BTC + ETH)</div><div class="note">Ganancias por venta</div></div>
+            <div style="text-align:right"><div class="value">4.363 €</div><span class="kpi-badge badge-yellow">3,7 %</span></div>
+          </div>
+          <div class="prog-bar"><div class="prog-fill" style="width:3.7%;background:var(--orange)"></div></div>
+          <div class="row-item" style="margin-top:8px">
+            <div><div class="label">🏦 Intereses + Letras Tesoro</div><div class="note">Capital mobiliario</div></div>
+            <div style="text-align:right"><div class="value">524 €</div><span class="kpi-badge badge-yellow">0,4 %</span></div>
+          </div>
+          <div class="prog-bar"><div class="prog-fill" style="width:0.4%;background:var(--accent2)"></div></div>
+          <div class="row-item" style="margin-top:8px">
+            <div><div class="label">🏠 Imputación piso Esquilache (50%)</div><div class="note">Aunque no lo alquiles, Hacienda te imputa una renta</div></div>
+            <div style="text-align:right"><div class="value">596 €</div><span class="kpi-badge badge-yellow">0,5 %</span></div>
+          </div>
+          <div class="prog-bar"><div class="prog-fill" style="width:0.5%;background:var(--purple)"></div></div>
+          <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:.87rem">
+            <span style="color:var(--muted);font-weight:600">TOTAL INGRESOS</span><span style="font-weight:700">117.757 €</span>
+          </div>
+        </div>
+
+        <div class="box">
+          <h3><span class="dot" style="background:var(--orange)"></span> ¿Cómo se calcula el impuesto?</h3>
+          <div class="funnel">
+            <div class="funnel-step"><span class="fs-icon">💼</span><span class="fs-label">Ingresos brutos del trabajo</span><span class="fs-value">112.274 €</span></div>
+            <div class="funnel-arrow">↓ −3.665 € SS · −241 € colegio · −2.000 € otros gastos</div>
+            <div class="funnel-step"><span class="fs-icon">📊</span><span class="fs-label">Rendimiento neto trabajo + piso (596 €)</span><span class="fs-value">106.965 €</span></div>
+            <div class="funnel-arrow">↓ −1.500 € plan de pensiones</div>
+            <div class="funnel-step highlight"><span class="fs-icon">📋</span><span class="fs-label">Base liquidable general</span><span class="fs-value">105.465 €</span></div>
+            <div class="funnel-arrow">↓ se aplican tipos 19–47% (estatal + Madrid) · base ahorro: 4.887 € al 19%</div>
+            <div class="funnel-step"><span class="fs-icon">🏛️</span><span class="fs-label">Cuota íntegra total</span><span class="fs-value">36.596 €</span></div>
+            <div class="funnel-arrow">↓ −597 € donaciones (ACNUR, Cáritas, MSF) · −27 € partido</div>
+            <div class="funnel-step highlight"><span class="fs-icon">✅</span><span class="fs-label">Cuota líquida (impuesto real a pagar)</span><span class="fs-value">35.999 €</span></div>
+            <div class="funnel-arrow">↓ −37.798 € ya retenidos en nómina todo el año</div>
+            <div class="funnel-step result-pos"><span class="fs-icon">💚</span><span class="fs-label"><strong>RESULTADO: DEVUELVEN</strong></span><span class="fs-value" style="color:var(--green)">1.799 €</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-grid cols2">
+        <div class="box">
+          <h3><span class="dot" style="background:var(--orange)"></span> Ganancias cripto (BTC + ETH)</h3>
+          <p style="font-size:.78rem;color:var(--muted);margin-bottom:12px;line-height:1.5">Tributan como <strong style="color:var(--text)">ganancia patrimonial</strong> al tipo fijo del <strong style="color:var(--text)">19%</strong> — mucho mejor que el 43–47% de tu tramo salarial.</p>
+          <table>
+            <thead><tr><th>Moneda</th><th>Compra</th><th>Venta</th><th>Ganancia</th><th>%</th></tr></thead>
+            <tbody>
+              <tr><td><strong>BTC</strong></td><td>3.682 €</td><td>7.512 €</td><td style="color:var(--green);font-weight:700">+3.830 €</td><td style="color:var(--green)">+104%</td></tr>
+              <tr><td><strong>ETH</strong></td><td>1.597 €</td><td>2.130 €</td><td style="color:var(--green);font-weight:700">+533 €</td><td style="color:var(--green)">+33%</td></tr>
+              <tr style="background:var(--surface2)"><td colspan="3"><strong>Total</strong></td><td style="color:var(--green);font-weight:700">+4.363 €</td><td></td></tr>
+            </tbody>
+          </table>
+          <div style="margin-top:10px;padding:9px 11px;background:var(--surface2);border-radius:8px;font-size:.77rem;color:var(--muted)">
+            💶 Impuesto estimado por cripto: <strong style="color:var(--text)">~829 €</strong> (19% × 4.363 €)
+          </div>
+        </div>
+
+        <div class="box">
+          <h3><span class="dot" style="background:var(--green)"></span> Deducciones aplicadas</h3>
+          <div class="row-item">
+            <div><div class="label">🏦 Plan Pensiones Finanbest</div><div class="note">Aportación: 1.500 € (máximo legal)</div></div>
+            <div style="text-align:right"><div class="value pos">−645 € de impuesto</div><span class="kpi-badge badge-green">~43% ahorro</span></div>
+          </div>
+          <div class="row-item">
+            <div><div class="label">❤️ Donaciones (ACNUR, Cáritas, MSF)</div><div class="note">Total: 1.071 € · Ley 49/2002</div></div>
+            <div style="text-align:right"><div class="value pos">−597 € de impuesto</div><span class="kpi-badge badge-green">75% hasta 250€, 35% resto</span></div>
+          </div>
+          <div class="row-item">
+            <div><div class="label">🏛️ Partido político</div><div class="note">Cuotas: 135 €</div></div>
+            <div style="text-align:right"><div class="value pos">−27 € de impuesto</div></div>
+          </div>
+          <div class="row-item">
+            <div><div class="label">🩺 Colegio profesional</div><div class="note">Cuota: 241 € — gasto deducible</div></div>
+            <div style="text-align:right"><div class="value pos">~−103 € de impuesto</div></div>
+          </div>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:.87rem">
+            <span style="color:var(--muted);font-weight:600">AHORRO TOTAL</span><span style="font-weight:700;color:var(--green)">~1.372 €</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="box" style="margin-bottom:16px">
+        <h3><span class="dot" style="background:var(--yellow)"></span> 💡 Observaciones — Ejercicio 2024</h3>
+        <div class="tips">
+          <div class="tip tip-ok"><div class="tip-icon">✅</div><div class="tip-body"><div class="tip-title">Plan de pensiones al máximo (1.500 €)</div><div class="tip-text">Aprovechaste el límite individual completo. Al tipo marginal ~43%, cada euro cotizado solo te "costó" 57 céntimos reales. Es la mejor deducción disponible para rentas altas.</div></div></div>
+          <div class="tip tip-ok"><div class="tip-icon">❤️</div><div class="tip-body"><div class="tip-title">Donaciones muy eficientes fiscalmente</div><div class="tip-text">Donaste 1.071 € a ACNUR, Cáritas y MSF (Ley 49/2002). Los primeros 250 € desgravan al 75%, el resto al 35%. Resultado: 597 € menos de impuesto por donaciones que en realidad te costaron solo ~474 € netos.</div></div></div>
+          <div class="tip tip-warn"><div class="tip-icon">⚠️</div><div class="tip-body"><div class="tip-title">Retuvieron 1.799 € de más todo el año</div><div class="tip-text">Cada mes te faltaron ~150 € que Hacienda te devolvió después. Puedes pedir al hospital que ajuste tu tipo de retención para no prestarle dinero al Estado sin intereses.</div></div></div>
+          <div class="tip tip-info"><div class="tip-icon">🏠</div><div class="tip-body"><div class="tip-title">El piso de Esquilache genera renta aunque no lo alquiles</div><div class="tip-text">Al ser propietario del 50% de un inmueble no habitual y sin alquilar, Hacienda imputa el 1,1% del valor catastral (596 €) como ingreso real. Tributa al tipo marginal del trabajo.</div></div></div>
+          <div class="tip tip-info"><div class="tip-icon">₿</div><div class="tip-body"><div class="tip-title">Las cripto tributan mucho menos que el salario</div><div class="tip-text">Tus ganancias de BTC (+3.830 €) y ETH (+533 €) tributaron al 19%, frente al 43–47% de tu tramo salarial. Si tienes pérdidas y ganancias en el mismo año, se compensan entre sí.</div></div></div>
+        </div>
+      </div>
+
+    </div><!-- end panel-2024 -->
+
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!--  2025 BORRADOR                              -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="year-panel active" id="panel-2025">
+
+      <div class="banner banner-yellow">
+        <div class="banner-icon">📝</div>
+        <div style="flex:1">
+          <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Borrador — Ejercicio 2025 — <span style="color:var(--yellow);font-weight:700">PENDIENTE DE PRESENTAR</span></div>
+          <div class="banner-title yellow">Devolución prevista: 2.618,89 €</div>
+          <div class="banner-sub">Puedes modificar el borrador antes de presentarlo. Plazo: hasta el 30 de junio de 2026.</div>
+        </div>
+        <div class="banner-right">
+          <div>Plazo presentación</div>
+          <div style="margin-top:4px"><strong>Hasta 30/06/2026</strong></div>
+          <div style="margin-top:4px">IBAN devolución</div>
+          <div style="margin-top:2px;font-size:.7rem"><strong>ES35 2100 2539 0813 0076 9966</strong></div>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card c-accent">
+          <div class="kpi-label">Salario bruto</div>
+          <div class="kpi-value">116.387 €</div>
+          <div class="kpi-delta pos">▲ +4.113 € vs 2024</div>
+          <div class="kpi-sub">+3,7% respecto al año anterior</div>
+        </div>
+        <div class="kpi-card c-blue">
+          <div class="kpi-label">Base liquidable general</div>
+          <div class="kpi-value">109.925 €</div>
+          <div class="kpi-delta neg">▲ +4.460 € vs 2024</div>
+          <div class="kpi-sub">Sube porque el salario subió y se aportó menos al plan de pensiones</div>
+        </div>
+        <div class="kpi-card c-orange">
+          <div class="kpi-label">Impuesto total</div>
+          <div class="kpi-value">36.955 €</div>
+          <div class="kpi-delta neg">▲ +956 € vs 2024</div>
+          <div class="kpi-sub">Más alto por mayor salario y menor deducción de pensiones</div>
+        </div>
+        <div class="kpi-card c-yellow">
+          <div class="kpi-label">Tipo efectivo</div>
+          <div class="kpi-value">31,6 %</div>
+          <div class="kpi-delta neg">▲ +1,1 pp vs 2024</div>
+          <div class="kpi-sub">Sube levemente. Sin cripto este año no hay "alivio" de la base ahorro</div>
+        </div>
+        <div class="kpi-card c-purple">
+          <div class="kpi-label">Retenciones pagadas</div>
+          <div class="kpi-value">39.574 €</div>
+          <div class="kpi-delta neg">▲ +1.776 € vs 2024</div>
+          <div class="kpi-sub">El hospital retuvo aún más de lo necesario</div>
+        </div>
+        <div class="kpi-card c-green">
+          <div class="kpi-label">Ahorro en deducciones</div>
+          <div class="kpi-value">~1.069 €</div>
+          <div class="kpi-delta neg">▼ −303 € vs 2024</div>
+          <div class="kpi-sub">Menos porque se aportaron solo 1.000 € al plan (vs 1.500 € en 2024)</div>
+        </div>
+      </div>
+
+      <!-- WHAT CAN YOU STILL CHANGE -->
+      <div class="action-box">
+        <div class="action-box-title">🎯 ¿Qué puedes modificar antes de presentar el borrador?</div>
+        <div class="action-list">
+
+          <div class="action-item">
+            <div class="action-num">1</div>
+            <div class="action-body">
+              <div class="action-title">Verificar las aportaciones al plan de pensiones</div>
+              <div class="action-desc">El borrador recoge 1.000 € al plan de pensiones. El límite legal individual es 1.500 €. Si realmente hiciste más aportaciones en 2025 (p.ej. 1.200 € en 12 meses a 100 €/mes) y no aparecen, revísalo con Finanbest: ellos envían el certificado a Hacienda y puede que alguna aportación haya quedado fuera del borrador. <strong style="color:var(--text)">No puedes aportar ahora para el ejercicio 2025</strong> — esas aportaciones debieron hacerse antes del 31/12/2025.</div>
+              <div class="action-saving">Si faltaran 500 €: ahorro fiscal potencial ~215 € (43% de 500 €)</div>
+            </div>
+          </div>
+
+          <div class="action-item">
+            <div class="action-num">2</div>
+            <div class="action-body">
+              <div class="action-title">Comprobar que no faltan operaciones de cripto</div>
+              <div class="action-desc">El borrador <strong style="color:var(--text)">no recoge ninguna operación con criptomonedas en 2025</strong>. Si en 2025 vendiste, intercambiaste o usaste BTC, ETH u otras monedas (incluyendo swap entre criptos, usar cripto para pagar, staking rewards, airdrops), <strong style="color:var(--red)">debes declararlas aunque Hacienda no las incluya en el borrador</strong>. Las plataformas tienen la obligación de informar, pero el borrador no siempre lo recoge correctamente.</div>
+              <div class="action-saving">⚠️ No declarar operaciones cripto puede generar sanciones del 50–150% de la cuota defraudada</div>
+            </div>
+          </div>
+
+          <div class="action-item">
+            <div class="action-num">3</div>
+            <div class="action-body">
+              <div class="action-title">Revisar si hay intereses o rendimientos de inversiones sin declarar</div>
+              <div class="action-desc">En 2024 declaraste 552 € en intereses y Letras del Tesoro. En 2025 el borrador solo muestra 85 € de intereses. Si tuviste Letras del Tesoro venciendo en 2025, MyInvestor o DeGiro pagando dividendos, o cualquier otro rendimiento financiero, verifica que estén incluidos. Las entidades los declaran a Hacienda pero puede haber omisiones.</div>
+              <div class="action-saving">No añadir ingresos te expone a una paralela posterior de Hacienda con recargos</div>
+            </div>
+          </div>
+
+          <div class="action-item">
+            <div class="action-num">4</div>
+            <div class="action-body">
+              <div class="action-title">Confirmar las donaciones (1.236 €)</div>
+              <div class="action-desc">El borrador recoge 1.236,40 € en donaciones a entidades de la Ley 49/2002, generando una deducción de 639 €. Comprueba que todas las donaciones de 2025 (ACNUR, Cáritas, Médicos Sin Fronteras...) estén incluidas. Si hiciste alguna donación a una entidad calificada que no aparece, puedes añadirla manualmente al presentar.</div>
+              <div class="action-saving">Cada 100 € adicionales donados a Ley 49/2002 generan ~35 € de deducción</div>
+            </div>
+          </div>
+
+          <div class="action-item">
+            <div class="action-num">5</div>
+            <div class="action-body">
+              <div class="action-title">Solicitar reducción de retención para 2026</div>
+              <div class="action-desc">Llevas dos años consecutivos con grandes devoluciones: 1.799 € en 2024 y ahora 2.619 € en 2025. Esto significa que el hospital te retiene ~218 € extra al mes que no recuperas hasta junio del año siguiente. Puedes presentar un modelo en RRHH del hospital solicitando un tipo de retención menor, y tendrás ese dinero disponible cada mes en lugar de esperar un año.</div>
+              <div class="action-saving">Beneficio en liquidez inmediata: ~218 €/mes adicionales en tu nómina</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="section-grid cols2">
+        <div class="box">
+          <h3><span class="dot" style="background:var(--accent)"></span> ¿De dónde vienen los ingresos en 2025?</h3>
+          <div class="row-item">
+            <div><div class="label">💼 Salario</div><div class="note">Nómina hospital</div></div>
+            <div style="text-align:right"><div class="value">116.387 €</div><span class="kpi-badge badge-yellow">99,1 %</span></div>
+          </div>
+          <div class="prog-bar"><div class="prog-fill" style="width:99.1%;background:var(--accent)"></div></div>
+          <div class="row-item" style="margin-top:8px">
+            <div><div class="label">₿ Cripto</div><div class="note">Sin operaciones declaradas en 2025</div></div>
+            <div style="text-align:right"><div class="value" style="color:var(--muted)">0 €</div><span class="kpi-badge" style="background:rgba(148,163,184,.1);color:var(--muted)">vs 4.363 € en 2024</span></div>
+          </div>
+          <div class="prog-bar"><div class="prog-fill" style="width:0%;background:var(--orange)"></div></div>
+          <div class="row-item" style="margin-top:8px">
+            <div><div class="label">🏦 Intereses bancarios</div><div class="note">Capital mobiliario</div></div>
+            <div style="text-align:right"><div class="value">47 €</div><span class="kpi-badge badge-yellow">0,04 %</span></div>
+          </div>
+          <div class="prog-bar"><div class="prog-fill" style="width:0.04%;background:var(--accent2)"></div></div>
+          <div class="row-item" style="margin-top:8px">
+            <div><div class="label">🏠 Imputación piso Esquilache (50%)</div><div class="note">Sin cambios respecto a 2024</div></div>
+            <div style="text-align:right"><div class="value">596 €</div><span class="kpi-badge badge-yellow">0,5 %</span></div>
+          </div>
+          <div class="prog-bar"><div class="prog-fill" style="width:0.5%;background:var(--purple)"></div></div>
+          <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:.87rem">
+            <span style="color:var(--muted);font-weight:600">TOTAL INGRESOS</span><span style="font-weight:700">117.030 €</span>
+          </div>
+        </div>
+
+        <div class="box">
+          <h3><span class="dot" style="background:var(--orange)"></span> ¿Cómo se calcula el impuesto?</h3>
+          <div class="funnel">
+            <div class="funnel-step"><span class="fs-icon">💼</span><span class="fs-label">Ingresos brutos del trabajo</span><span class="fs-value">116.387 €</span></div>
+            <div class="funnel-arrow">↓ −3.818 € SS · −241 € colegio · −2.000 € otros gastos</div>
+            <div class="funnel-step"><span class="fs-icon">📊</span><span class="fs-label">Rendimiento neto trabajo + piso (596 €)</span><span class="fs-value">110.925 €</span></div>
+            <div class="funnel-arrow">↓ −1.000 € plan de pensiones (solo 1.000 €, no el máximo de 1.500 €)</div>
+            <div class="funnel-step highlight"><span class="fs-icon">📋</span><span class="fs-label">Base liquidable general</span><span class="fs-value">109.925 €</span></div>
+            <div class="funnel-arrow">↓ tipos 19–47% · base ahorro: 47 € al 19% (casi nada)</div>
+            <div class="funnel-step"><span class="fs-icon">🏛️</span><span class="fs-label">Cuota íntegra total</span><span class="fs-value">37.594 €</span></div>
+            <div class="funnel-arrow">↓ −639 € donaciones (ACNUR, Cáritas, MSF)</div>
+            <div class="funnel-step highlight"><span class="fs-icon">✅</span><span class="fs-label">Cuota líquida (impuesto real)</span><span class="fs-value">36.955 €</span></div>
+            <div class="funnel-arrow">↓ −39.574 € ya retenidos en nómina todo el año</div>
+            <div class="funnel-step result-pos"><span class="fs-icon">💚</span><span class="fs-label"><strong>RESULTADO: DEVUELVEN</strong></span><span class="fs-value" style="color:var(--green)">2.619 €</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="box" style="margin-bottom:16px">
+        <h3><span class="dot" style="background:var(--yellow)"></span> 💡 Observaciones — Borrador 2025</h3>
+        <div class="tips">
+          <div class="tip tip-alert"><div class="tip-icon">🔴</div><div class="tip-body"><div class="tip-title">No aportaste el máximo al plan de pensiones (quedaron 500 € sin aprovechar)</div><div class="tip-text">En 2025 solo constan 1.000 € de aportación al plan de pensiones Finanbest, cuando el límite individual es 1.500 €. Esos 500 € sin aportar supusieron dejar de ahorrar ~215 € en impuestos. Para 2026, programa una aportación mensual de 125 € (= 1.500 € anuales) para llegar al máximo.</div></div></div>
+          <div class="tip tip-warn"><div class="tip-icon">⚠️</div><div class="tip-body"><div class="tip-title">Sin operaciones cripto declaradas — verifica que es correcto</div><div class="tip-text">En 2024 tuviste 4.363 € de ganancias con BTC y ETH. En 2025 el borrador no refleja ninguna operación cripto. Si efectivamente no vendiste ni intercambiaste cripto en 2025, perfecto. Pero si hiciste alguna operación (venta, swap, pago), debes añadirla manualmente.</div></div></div>
+          <div class="tip tip-ok"><div class="tip-icon">✅</div><div class="tip-body"><div class="tip-title">Las donaciones siguen funcionando muy bien</div><div class="tip-text">Donaste 1.236 € en 2025 (más que en 2024) y la deducción resultante fue de 639 €. Sigues aprovechando eficientemente el régimen de Ley 49/2002. A este ritmo, si los primeros 250 € de cada año desgravan al 75%, merece la pena planificar las donaciones para no perder ese tramo.</div></div></div>
+          <div class="tip tip-info"><div class="tip-icon">📈</div><div class="tip-body"><div class="tip-title">Tu salario sube pero también el impuesto</div><div class="tip-text">El bruto subió +4.113 € (+3,7%), pero el impuesto subió +956 €. Eso significa que de cada euro extra ganado, Hacienda se llevó ~23 céntimos adicionales. Es el efecto normal de los tramos progresivos: a mayor salario, mayor tipo marginal en los tramos más altos.</div></div></div>
+          <div class="tip tip-info"><div class="tip-icon">🏦</div><div class="tip-body"><div class="tip-title">Intereses muy bajos: ¿has cambiado tu estrategia de ahorro?</div><div class="tip-text">En 2024 generaste 552 € en intereses (con Letras del Tesoro). En 2025 solo 85 €. Si el dinero está ahora en inversiones indexadas (MyInvestor, Finanbest) en lugar de Letras, es normal — los fondos no tributan hasta que los vendes, lo que fiscalmente es más eficiente.</div></div></div>
+        </div>
+      </div>
+
+    </div><!-- end panel-2025 -->
+
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!--  COMPARATIVA                               -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="year-panel" id="panel-cmp">
+
+      <div class="box" style="margin-bottom:16px">
+        <h3><span class="dot" style="background:var(--accent)"></span> Comparativa 2024 vs 2025</h3>
+        <table class="cmp-table">
+          <thead>
+            <tr>
+              <th style="width:40%">Concepto</th>
+              <th class="year" style="text-align:right">2024 <span style="color:var(--green);font-size:.65rem">✓</span></th>
+              <th class="year" style="text-align:right">2025 <span style="color:var(--yellow);font-size:.65rem">BORRADOR</span></th>
+              <th style="text-align:right">Diferencia</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="label-col">💼 Salario bruto</td><td style="text-align:right">112.274 €</td><td style="text-align:right">116.387 €</td><td style="text-align:right"><span class="cmp-delta pos">+4.113 € (+3,7%)</span></td></tr>
+            <tr><td class="label-col">🏦 Intereses / capital mobiliario</td><td style="text-align:right">524 €</td><td style="text-align:right">47 €</td><td style="text-align:right"><span class="cmp-delta neg">−477 €</span></td></tr>
+            <tr><td class="label-col">₿ Ganancias cripto</td><td style="text-align:right">4.363 €</td><td style="text-align:right">0 €</td><td style="text-align:right"><span class="cmp-delta neg">−4.363 €</span></td></tr>
+            <tr><td class="label-col">🏠 Imputación inmueble</td><td style="text-align:right">596 €</td><td style="text-align:right">596 €</td><td style="text-align:right"><span class="cmp-delta neu">sin cambio</span></td></tr>
+            <tr style="background:var(--surface2);font-weight:600"><td class="label-col">📊 Total ingresos</td><td style="text-align:right">117.757 €</td><td style="text-align:right">117.030 €</td><td style="text-align:right"><span class="cmp-delta neg">−727 €</span></td></tr>
+            <tr><td class="label-col" style="padding-top:14px">🏦 Aportación plan pensiones</td><td style="text-align:right">1.500 €</td><td style="text-align:right">1.000 €</td><td style="text-align:right"><span class="cmp-delta neg">−500 €</span></td></tr>
+            <tr><td class="label-col">❤️ Donaciones</td><td style="text-align:right">1.071 €</td><td style="text-align:right">1.236 €</td><td style="text-align:right"><span class="cmp-delta pos">+165 €</span></td></tr>
+            <tr><td class="label-col">📋 Base liquidable general</td><td style="text-align:right">105.465 €</td><td style="text-align:right">109.925 €</td><td style="text-align:right"><span class="cmp-delta neg">+4.460 €</span></td></tr>
+            <tr><td class="label-col">💹 Base liquidable ahorro</td><td style="text-align:right">4.887 €</td><td style="text-align:right">47 €</td><td style="text-align:right"><span class="cmp-delta pos">−4.840 € (menos)</span></td></tr>
+            <tr style="background:var(--surface2);font-weight:600"><td class="label-col">🏛️ Cuota íntegra total</td><td style="text-align:right">36.596 €</td><td style="text-align:right">37.594 €</td><td style="text-align:right"><span class="cmp-delta neg">+998 €</span></td></tr>
+            <tr><td class="label-col">✂️ Deducción donaciones</td><td style="text-align:right">−597 €</td><td style="text-align:right">−639 €</td><td style="text-align:right"><span class="cmp-delta pos">−42 € (mejor)</span></td></tr>
+            <tr><td class="label-col">✂️ Deducción partido político</td><td style="text-align:right">−27 €</td><td style="text-align:right">0 €</td><td style="text-align:right"><span class="cmp-delta neg">−27 €</span></td></tr>
+            <tr style="background:var(--surface2);font-weight:700"><td class="label-col">💰 Cuota líquida (impuesto real)</td><td style="text-align:right">35.999 €</td><td style="text-align:right">36.955 €</td><td style="text-align:right"><span class="cmp-delta neg">+956 €</span></td></tr>
+            <tr><td class="label-col">📤 Retenciones pagadas en nómina</td><td style="text-align:right">37.798 €</td><td style="text-align:right">39.574 €</td><td style="text-align:right"><span class="cmp-delta neg">+1.776 €</span></td></tr>
+            <tr style="background:var(--surface2);font-weight:700;font-size:.92rem"><td class="label-col" style="color:var(--green)">✅ DEVOLUCIÓN</td><td style="text-align:right;color:var(--green)">1.799 €</td><td style="text-align:right;color:var(--green)">2.619 €</td><td style="text-align:right"><span class="cmp-delta pos">+820 € (mejor)</span></td></tr>
+            <tr><td class="label-col">📈 Tipo efectivo global</td><td style="text-align:right">30,5 %</td><td style="text-align:right">31,6 %</td><td style="text-align:right"><span class="cmp-delta neg">+1,1 pp</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="box">
+        <h3><span class="dot" style="background:var(--yellow)"></span> 🗺️ Hoja de ruta fiscal — próximos años</h3>
+        <div class="tips">
+          <div class="tip tip-action"><div class="tip-icon">🎯</div><div class="tip-body"><div class="tip-title">Para la declaración de 2025 (antes del 30/06/2026)</div><div class="tip-text">Verifica las aportaciones al plan de pensiones (si son 1.200 € reales y solo constan 1.000 €, corrígelo). Confirma que no hay operaciones cripto pendientes de declarar. Revisa si hay más donaciones del año 2025 que no aparezcan en el borrador.</div></div></div>
+          <div class="tip tip-action"><div class="tip-icon">📅</div><div class="tip-body"><div class="tip-title">Para el ejercicio 2026 (planificación ahora)</div><div class="tip-text"><strong>Plan de pensiones:</strong> aumenta a 125 €/mes para llegar al máximo de 1.500 €. Con tu tipo marginal del ~43%, el ahorro fiscal anual será de ~645 € solo por esto. · <strong>Reducción de retención:</strong> presenta el modelo de reducción al hospital para recuperar ~200 €/mes en lugar de esperar hasta junio. · <strong>Cripto:</strong> anota cada operación de compra/venta durante el año para la declaración.</div></div></div>
+          <div class="tip tip-info"><div class="tip-icon">📊</div><div class="tip-body"><div class="tip-title">Tendencia: el impuesto sube más que el salario</div><div class="tip-text">En 2 años, el salario subió +3,7% pero el impuesto efectivo subió +1,1 puntos porcentuales. Esto es normal en la parte alta de la escala progresiva — cada euro extra tributa más. La única palanca real para compensarlo es maximizar las deducciones disponibles: plan de pensiones, donaciones, y cualquier gasto profesional justificable.</div></div></div>
+        </div>
+      </div>
+
+    </div><!-- end panel-cmp -->
+
+  </div>
+</div>
+
+<script>
+function showYear(y) {
+  ['2024','2025','cmp'].forEach(id => {
+    document.getElementById('panel-' + id).classList.toggle('active', id === y);
+    document.getElementById('tab-'   + id).classList.toggle('active', id === y);
+  });
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mis Finanzas</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6c63ff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Finanzas">
+<link rel="apple-touch-icon" href="icons/icon.svg">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    padding: 2rem;
+  }
+  h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: -.5px;
+  }
+  .cards {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+    max-width: 360px;
+  }
+  a.card {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    padding: 1.2rem 1.4rem;
+    text-decoration: none;
+    color: inherit;
+    transition: background .15s, border-color .15s;
+  }
+  a.card:hover, a.card:active {
+    background: #263348;
+    border-color: #6c63ff;
+  }
+  .icon {
+    font-size: 2rem;
+    width: 2.5rem;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .card-text strong {
+    display: block;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #f1f5f9;
+  }
+  .card-text span {
+    font-size: .8rem;
+    color: #94a3b8;
+  }
+</style>
+</head>
+<body>
+  <h1>Mis Finanzas</h1>
+  <div class="cards">
+    <a class="card" href="dashboard.html">
+      <div class="icon">📈</div>
+      <div class="card-text">
+        <strong>Inversiones</strong>
+        <span>Cartera, fondos y criptomonedas</span>
+      </div>
+    </a>
+    <a class="card" href="contabilidad.html">
+      <div class="icon">💳</div>
+      <div class="card-text">
+        <strong>Contabilidad</strong>
+        <span>Transacciones y gastos esperados</span>
+      </div>
+    </a>
+    <a class="card" href="nominas.html">
+      <div class="icon">💼</div>
+      <div class="card-text">
+        <strong>Nóminas</strong>
+        <span>Nóminas y ganancias esperadas</span>
+      </div>
+    </a>
+    <a class="card" href="hacienda.html">
+      <div class="icon">🏛️</div>
+      <div class="card-text">
+        <strong>Hacienda</strong>
+        <span>Declaraciones IRPF y fiscalidad</span>
+      </div>
+    </a>
+  </div>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>

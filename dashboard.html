@@ -1,0 +1,2707 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard de Inversiones</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#6c63ff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Finanzas">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #252836;
+      --border: #2e3248;
+      --accent: #6c63ff;
+      --accent2: #38bdf8;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --sidebar-w: 240px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+
+    /* ── SIDEBAR ── */
+    #sidebar {
+      width: var(--sidebar-w); min-width: var(--sidebar-w);
+      background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow-y: auto; z-index: 10;
+    }
+    .sidebar-logo {
+      padding: 20px 16px 12px;
+      font-size: 1.1rem; font-weight: 700; color: var(--accent);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .sidebar-logo span { font-size: 1.4rem; }
+    .sidebar-section { padding: 12px 8px 4px; font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 14px; margin: 2px 6px; border-radius: 8px;
+      cursor: pointer; font-size: .875rem; color: var(--muted);
+      transition: background .15s, color .15s;
+    }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: var(--accent); color: #fff; }
+    .nav-item .icon { font-size: 1rem; width: 20px; text-align: center; }
+
+    /* FILTER PANEL */
+    .filter-panel { padding: 12px; border-top: 1px solid var(--border); margin-top: auto; }
+    .filter-panel h4 { font-size: .75rem; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .06em; }
+    .filter-group { margin-bottom: 10px; }
+    .filter-group label { font-size: .78rem; color: var(--muted); display: block; margin-bottom: 4px; }
+    .filter-group select, .filter-group input[type=range] {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 6px; padding: 5px 8px; font-size: .8rem;
+    }
+    .filter-group select option { background: var(--surface2); }
+
+    /* ── MAIN ── */
+    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #topbar {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 12px 24px; display: flex; align-items: center; justify-content: space-between;
+    }
+    #topbar h1 { font-size: 1.1rem; font-weight: 600; }
+    #topbar .date { font-size: .8rem; color: var(--muted); }
+    #content { flex: 1; overflow-y: auto; padding: 24px; }
+
+    /* ── CARDS ── */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .kpi-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 16px; position: relative; overflow: hidden;
+    }
+    .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent); }
+    .kpi-card.green::before { background: var(--green); }
+    .kpi-card.yellow::before { background: var(--yellow); }
+    .kpi-card.red::before { background: var(--red); }
+    .kpi-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+    .kpi-value { font-size: 1.5rem; font-weight: 700; }
+    .kpi-sub { font-size: .78rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── GRID ── */
+    .chart-grid { display: grid; gap: 16px; }
+    .chart-grid.cols2 { grid-template-columns: 1fr 1fr; }
+    .chart-grid.cols3 { grid-template-columns: 1fr 1fr 1fr; }
+    .chart-box {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 16px;
+    }
+    .chart-box h3 { font-size: .85rem; font-weight: 600; margin-bottom: 14px; color: var(--text); }
+    .chart-box canvas { max-height: 280px; }
+
+    /* ── TABLE ── */
+    .table-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    .table-box h3 { font-size: .85rem; font-weight: 600; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    th { padding: 8px 12px; text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-bottom: 1px solid var(--border); }
+    td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: .72rem; font-weight: 600;
+    }
+    .badge-rv { background: #3730a3; color: #a5b4fc; }
+    .badge-rf { background: #065f46; color: #6ee7b7; }
+    .badge-alt { background: #78350f; color: #fcd34d; }
+    .badge-mix { background: #1e3a5f; color: #93c5fd; }
+    .badge-cash { background: #374151; color: #d1d5db; }
+    .badge-pp { background: #4a1d96; color: #c4b5fd; }
+
+    /* ── VIEWS ── */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* Editable note */
+    .note-area { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 10px; font-size: .82rem; resize: vertical; min-height: 70px; margin-top: 8px; }
+
+    /* Edit modal */
+    #modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7);
+      z-index: 100; align-items: center; justify-content: center;
+    }
+    #modal-overlay.open { display: flex; }
+    #cripto-modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75);
+      z-index: 200; align-items: center; justify-content: center;
+    }
+    #cripto-modal-overlay.open { display: flex; }
+    #cripto-modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 24px; width: 500px; max-width: 95vw; max-height: 90vh; overflow-y: auto;
+    }
+    #modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 24px; width: 420px; max-width: 95vw;
+    }
+    #modal h3 { margin-bottom: 16px; font-size: 1rem; }
+    .form-row { margin-bottom: 12px; }
+    .form-row label { font-size: .78rem; color: var(--muted); display: block; margin-bottom: 4px; }
+    .form-row input, .form-row select, .form-row textarea {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 6px; padding: 7px 10px; font-size: .85rem;
+    }
+    .form-row textarea { resize: vertical; min-height: 60px; }
+    .btn { padding: 8px 16px; border-radius: 8px; font-size: .85rem; font-weight: 600; cursor: pointer; border: none; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-danger { background: var(--red); color: #fff; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+    .add-btn {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 12px;
+      padding: 7px 14px; background: var(--accent); color: #fff;
+      border: none; border-radius: 8px; cursor: pointer; font-size: .82rem; font-weight: 600;
+    }
+
+    .tag-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+    .tag {
+      padding: 4px 12px; border-radius: 20px; font-size: .75rem; cursor: pointer;
+      border: 1px solid var(--border); background: var(--surface2); color: var(--muted);
+      transition: all .15s;
+    }
+    .tag.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    @media (max-width: 900px) {
+      .chart-grid.cols2, .chart-grid.cols3 { grid-template-columns: 1fr; }
+      #sidebar { width: 60px; min-width: 60px; }
+      .nav-item span:not(.icon) { display: none; }
+      .sidebar-logo .logo-text { display: none; }
+      .filter-panel { display: none; }
+      .sidebar-section { display: none; }
+    }
+
+    /* ── FISCALIDAD CRIPTO ── */
+    .fiscal-year-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .fiscal-tab { padding: 6px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; font-size: .82rem; font-weight: 600; transition: all .15s; user-select: none; }
+    .fiscal-tab:hover { border-color: var(--accent); color: var(--text); }
+    .fiscal-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .fiscal-badge { font-size: .68rem; padding: 1px 7px; border-radius: 4px; margin-left: 6px; font-weight: 700; }
+    .fiscal-panel { display: none; }
+    .fiscal-panel.active { display: block; }
+    .fiscal-empty { text-align: center; padding: 36px; color: var(--muted); font-size: .88rem; }
+    .fiscal-empty .fe-icon { font-size: 2.2rem; margin-bottom: 10px; }
+    .fiscal-total-row td { font-weight: 700; background: rgba(108,99,255,.08); border-top: 2px solid var(--border); }
+    .fiscal-info-box { background: rgba(108,99,255,.07); border: 1px solid rgba(108,99,255,.25); border-radius: 10px; padding: 14px 18px; margin-top: 14px; }
+    .fiscal-info-box h4 { font-size: .82rem; color: var(--accent); margin-bottom: 8px; font-weight: 700; }
+    .fiscal-info-box p { font-size: .78rem; color: var(--muted); line-height: 1.7; }
+    .fiscal-info-box strong { color: var(--text); }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <span>📊</span>
+    <span class="logo-text">Inversiones</span>
+  </div>
+
+  <div class="sidebar-section">Vistas</div>
+  <div class="nav-item active" data-view="resumen">
+    <span class="icon">🏠</span><span>Resumen</span>
+  </div>
+  <div class="nav-item" data-view="por-tipo">
+    <span class="icon">📂</span><span>Por Tipo</span>
+  </div>
+  <div class="nav-item" data-view="por-region">
+    <span class="icon">🌍</span><span>Por Región</span>
+  </div>
+  <div class="nav-item" data-view="por-broker">
+    <span class="icon">🏦</span><span>Por Broker</span>
+  </div>
+  <div class="nav-item" data-view="detalle">
+    <span class="icon">📋</span><span>Detalle</span>
+  </div>
+  <div class="nav-item" data-view="evolucion">
+    <span class="icon">📈</span><span>Evolución</span>
+  </div>
+
+  <div class="nav-item" data-view="roboadvisor">
+    <span class="icon">🤖</span><span>Roboadvisor</span>
+  </div>
+  <div class="nav-item" data-view="cripto">
+    <span class="icon">₿</span><span>Criptomonedas</span>
+  </div>
+
+  <div class="sidebar-section">Herramientas</div>
+  <div class="nav-item" data-view="notas">
+    <span class="icon">📝</span><span>Notas</span>
+  </div>
+  <div class="sidebar-section">Otros</div>
+  <a href="contabilidad.html" style="display:flex;align-items:center;gap:10px;padding:9px 14px;margin:2px 6px;border-radius:8px;font-size:.875rem;color:var(--muted);text-decoration:none"><span style="font-size:1rem;width:20px;text-align:center">📒</span><span>Contabilidad</span></a>
+  <a href="nominas.html" style="display:flex;align-items:center;gap:10px;padding:9px 14px;margin:2px 6px;border-radius:8px;font-size:.875rem;color:var(--muted);text-decoration:none"><span style="font-size:1rem;width:20px;text-align:center">💼</span><span>Nóminas</span></a>
+  <a href="hacienda.html" style="display:flex;align-items:center;gap:10px;padding:9px 14px;margin:2px 6px;border-radius:8px;font-size:.875rem;color:var(--muted);text-decoration:none"><span style="font-size:1rem;width:20px;text-align:center">🏛️</span><span>Hacienda</span></a>
+  <a href="index.html" style="display:flex;align-items:center;gap:10px;padding:9px 14px;margin:2px 6px;border-radius:8px;font-size:.875rem;color:var(--muted);text-decoration:none"><span style="font-size:1rem;width:20px;text-align:center">🏠</span><span>Inicio</span></a>
+
+  <div class="filter-panel">
+    <h4>Filtros globales</h4>
+    <div class="filter-group">
+      <label>Tipo de activo</label>
+      <select id="filter-type" onchange="applyFilters()">
+        <option value="all">Todos</option>
+        <option value="RV">Renta Variable</option>
+        <option value="RF">Renta Fija</option>
+        <option value="ALT">Alternativos</option>
+        <option value="MIX">Mixtos</option>
+        <option value="PP">Plan Pensiones</option>
+        <option value="CASH">Liquidez</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Broker</label>
+      <select id="filter-broker" onchange="applyFilters()">
+        <option value="all">Todos</option>
+      </select>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="topbar">
+    <h1 id="page-title">Resumen de Cartera</h1>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="date" id="topbar-date"></div>
+      <button onclick="exportarTodo()" title="Exportar todos los datos a JSON" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer">⬇ Exportar</button>
+      <label style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer" title="Importar datos desde JSON">⬆ Importar<input type="file" accept=".json" style="display:none" onchange="importarTodo(this)"/></label>
+    </div>
+  </div>
+  <div id="content">
+
+    <!-- ── VIEW: RESUMEN ── -->
+    <div class="view active" id="view-resumen">
+      <div class="kpi-grid" id="kpi-grid"></div>
+      <div class="chart-grid cols2" style="margin-bottom:16px">
+        <div class="chart-box">
+          <h3>Distribución por Tipo de Activo</h3>
+          <canvas id="chart-pie-type"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Distribución por Broker</h3>
+          <canvas id="chart-pie-broker"></canvas>
+        </div>
+      </div>
+      <div class="chart-grid cols2">
+        <div class="chart-box">
+          <h3>Distribución Geográfica (RV)</h3>
+          <canvas id="chart-bar-region"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Posiciones (€)</h3>
+          <canvas id="chart-bar-positions"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: POR TIPO ── -->
+    <div class="view" id="view-por-tipo">
+      <div class="tag-row" id="tipo-tags"></div>
+      <div class="chart-grid cols2" style="margin-bottom:16px">
+        <div class="chart-box">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <h3 style="margin-bottom:0">Importe por Tipo</h3>
+            <div style="display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:6px;overflow:hidden">
+              <button id="toggle-valor" onclick="setTipoBarMode('valor')" style="padding:4px 12px;font-size:.75rem;font-weight:600;border:none;cursor:pointer;background:var(--accent);color:#fff">€</button>
+              <button id="toggle-pct" onclick="setTipoBarMode('pct')" style="padding:4px 12px;font-size:.75rem;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--muted)">%</button>
+            </div>
+          </div>
+          <canvas id="chart-tipo-bar"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>% de Cartera por Tipo</h3>
+          <canvas id="chart-tipo-doughnut"></canvas>
+        </div>
+      </div>
+      <div class="table-box">
+        <h3>Posiciones filtradas</h3>
+        <table id="table-tipo"></table>
+      </div>
+    </div>
+
+    <!-- ── VIEW: POR REGIÓN ── -->
+    <div class="view" id="view-por-region">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <span style="font-size:.82rem;color:var(--muted)">Desglose Roboadvisors:</span>
+        <div style="display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:6px;overflow:hidden">
+          <button id="toggle-region-directo" onclick="setRegionMode('directo')" style="padding:5px 14px;font-size:.78rem;font-weight:600;border:none;cursor:pointer;background:var(--accent);color:#fff">Sin desglose</button>
+          <button id="toggle-region-robo" onclick="setRegionMode('robo')" style="padding:5px 14px;font-size:.78rem;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--muted)">Con desglose RV</button>
+        </div>
+        <span id="region-mode-hint" style="font-size:.75rem;color:var(--muted)">Mostrando posiciones directas</span>
+      </div>
+      <div class="chart-grid cols2" style="margin-bottom:16px">
+        <div class="chart-box">
+          <h3>Exposición por Región</h3>
+          <canvas id="chart-region-bar"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Peso Regional (%)</h3>
+          <canvas id="chart-region-pie"></canvas>
+        </div>
+      </div>
+      <div class="table-box">
+        <h3>Detalle Regional</h3>
+        <table id="table-region"></table>
+      </div>
+    </div>
+
+    <!-- ── VIEW: POR BROKER ── -->
+    <div class="view" id="view-por-broker">
+      <div class="chart-grid cols2" style="margin-bottom:16px">
+        <div class="chart-box">
+          <h3>Importe por Broker (€)</h3>
+          <canvas id="chart-broker-bar"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>% por Broker</h3>
+          <canvas id="chart-broker-pie"></canvas>
+        </div>
+      </div>
+      <div class="table-box">
+        <h3>Posiciones por Broker</h3>
+        <table id="table-broker"></table>
+      </div>
+    </div>
+
+    <!-- ── VIEW: DETALLE ── -->
+    <div class="view" id="view-detalle">
+      <button class="add-btn" onclick="openModal()">+ Añadir posición</button>
+      <div class="table-box">
+        <h3>Todas las posiciones</h3>
+        <div style="overflow-x:auto">
+          <table id="table-detalle" style="min-width:900px"></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: EVOLUCIÓN ── -->
+    <div class="view" id="view-evolucion">
+      <div class="chart-box" style="margin-bottom:16px">
+        <h3>Evolución del Patrimonio Total (simulada)</h3>
+        <canvas id="chart-evolucion" style="max-height:320px"></canvas>
+      </div>
+      <div class="chart-grid cols2">
+        <div class="chart-box">
+          <h3>Ganancia / Pérdida por Posición</h3>
+          <canvas id="chart-pnl"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Rentabilidad % por Posición</h3>
+          <canvas id="chart-pct"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: ROBOADVISOR ── -->
+    <div class="view" id="view-roboadvisor">
+      <div class="kpi-grid" id="robo-kpis"></div>
+      <div class="chart-grid cols2" style="margin-bottom:16px">
+        <div class="chart-box">
+          <h3>RV vs RF combinado</h3>
+          <canvas id="chart-robo-rvrf"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Peso de cada cartera</h3>
+          <canvas id="chart-robo-carteras"></canvas>
+        </div>
+      </div>
+      <div class="chart-grid cols2" style="margin-bottom:16px">
+        <div class="chart-box">
+          <h3>Distribución geográfica combinada (RV)</h3>
+          <canvas id="chart-robo-geo"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Desarrollados vs Emergentes (RV)</h3>
+          <canvas id="chart-robo-devem"></canvas>
+        </div>
+      </div>
+      <div class="table-box">
+        <h3>Desglose detallado</h3>
+        <p style="font-size:.75rem;color:var(--muted);margin-bottom:10px">* Distribución interna estimada según composición típica de cada cartera indexada.</p>
+        <table id="table-robo-detalle"></table>
+      </div>
+    </div>
+
+    <!-- ── VIEW: CRIPTO ── -->
+    <div class="view" id="view-cripto">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <span style="font-size:.82rem;color:var(--muted)">Activo:</span>
+        <select id="cripto-selector" onchange="setCryptoView(this.value)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 12px;font-size:.82rem;font-weight:600;cursor:pointer">
+          <option value="BTC">₿ Bitcoin (BTC)</option>
+          <option value="ETH">Ξ Ethereum (ETH)</option>
+          <option value="XRP">◈ XRP</option>
+          <option value="USDC">$ USDC</option>
+          <option value="BNB">◆ BNB</option>
+          <option value="BTM">◈ BTM</option>
+        </select>
+        <span id="cripto-price-status" style="font-size:.75rem;color:var(--muted)"></span>
+        <button class="add-btn" style="margin-left:auto;margin-bottom:0;background:var(--surface2);color:var(--text);border:1px solid var(--border)" onclick="updateCryptoPrices().then(r => r.ok && renderCripto())">↻ Actualizar precios</button>
+        <button class="add-btn" style="margin-bottom:0" onclick="openCriptoModal()">+ Nueva transacción</button>
+      </div>
+      <div class="kpi-grid" id="cripto-kpis"></div>
+      <div class="chart-grid cols2" style="margin-bottom:16px">
+        <div class="chart-box">
+          <h3>Precio de entrada por operación</h3>
+          <canvas id="chart-cripto-precio"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3 id="cripto-chart2-h3">En cartera (evolución)</h3>
+          <canvas id="chart-cripto-holdings"></canvas>
+        </div>
+      </div>
+      <div class="chart-grid cols2" style="margin-bottom:16px">
+        <div class="chart-box">
+          <h3>Inversión por plataforma</h3>
+          <canvas id="chart-cripto-plataforma"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Flujos anuales (€)</h3>
+          <canvas id="chart-cripto-anual"></canvas>
+        </div>
+      </div>
+      <div class="table-box">
+        <h3 id="cripto-table-h3">Historial de transacciones</h3>
+        <p style="font-size:.75rem;color:var(--muted);margin-bottom:10px">Valoración por Coste Medio de Compra (CMC). Para fiscalidad en España aplica FIFO.</p>
+        <div style="overflow-x:auto">
+          <table id="table-cripto" style="min-width:820px"></table>
+        </div>
+      </div>
+      <div id="cripto-fiscalidad"></div>
+    </div>
+
+    <!-- ── VIEW: NOTAS ── -->
+    <div class="view" id="view-notas">
+      <div class="table-box">
+        <h3>Notas de análisis</h3>
+        <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Escribe aquí tus observaciones sobre la cartera. Se guardan en tu navegador.</p>
+        <textarea class="note-area" id="nota-general" placeholder="Notas generales sobre la cartera..." rows="5"></textarea>
+        <br/><br/>
+        <div id="notas-por-posicion"></div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- MODAL EDICIÓN -->
+<div id="modal-overlay">
+  <div id="modal">
+    <h3 id="modal-title">Nueva Posición</h3>
+    <div class="form-row">
+      <label>Nombre / Producto</label>
+      <input type="text" id="f-name" placeholder="Ej: Amundi MSCI World" />
+    </div>
+    <div class="form-row">
+      <label>ISIN / Ticker</label>
+      <input type="text" id="f-isin" placeholder="LU0123456789" />
+    </div>
+    <div class="form-row">
+      <label>Tipo de activo</label>
+      <select id="f-tipo">
+        <option value="RV">Renta Variable</option>
+        <option value="RF">Renta Fija</option>
+        <option value="MIX">Mixto</option>
+        <option value="ALT">Alternativo</option>
+        <option value="PP">Plan de Pensiones</option>
+        <option value="CASH">Liquidez</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Región / Mercado</label>
+      <input type="text" id="f-region" placeholder="Global, Europa, India..." />
+    </div>
+    <div class="form-row">
+      <label>Broker / Plataforma</label>
+      <input type="text" id="f-broker" placeholder="MyInvestor, Indexa..." />
+    </div>
+    <div class="form-row">
+      <label>Valor actual (€)</label>
+      <input type="number" id="f-value" placeholder="0" />
+    </div>
+    <div class="form-row">
+      <label>Coste de adquisición (€)</label>
+      <input type="number" id="f-cost" placeholder="0" />
+    </div>
+    <div class="form-row">
+      <label>Comentario</label>
+      <textarea id="f-comment" placeholder="Notas sobre esta posición..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="btn-delete" style="display:none;margin-right:auto" onclick="deletePosition()">Eliminar</button>
+      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="savePosition()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NUEVA TRANSACCIÓN CRIPTO -->
+<div id="cripto-modal-overlay">
+  <div id="cripto-modal">
+    <h3 style="margin-bottom:18px;font-size:1rem">Nueva transacción de criptomoneda</h3>
+
+    <div class="form-row">
+      <label>Tipo de operación</label>
+      <select id="cm-tipo" onchange="onCriptoFormChange()">
+        <option value="COMPRA">COMPRA</option>
+        <option value="VENTA">VENTA</option>
+        <option value="PERMUTA">PERMUTA (canje entre criptos)</option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label id="cm-activo-label">Activo</label>
+      <select id="cm-activo" onchange="onCriptoFormChange()">
+        <option value="BTC">Bitcoin (BTC)</option>
+        <option value="ETH">Ethereum (ETH)</option>
+        <option value="XRP">XRP</option>
+        <option value="USDC">USDC</option>
+        <option value="BNB">BNB</option>
+        <option value="BTM">BTM</option>
+      </select>
+    </div>
+
+    <div style="display:flex;gap:10px">
+      <div class="form-row" style="flex:1">
+        <label>Fecha</label>
+        <input type="date" id="cm-fecha" oninput="updateCriptoPreview()" />
+      </div>
+      <div class="form-row" style="flex:1">
+        <label>Hora</label>
+        <input type="time" id="cm-hora" oninput="updateCriptoPreview()" />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label>Exchange / Plataforma</label>
+      <input type="text" id="cm-plataforma" placeholder="Coinbase, B2M, Ledger Exchange, Cajero BTM..." />
+    </div>
+
+    <div style="display:flex;gap:10px">
+      <div class="form-row" style="flex:1">
+        <label id="cm-qty-label">Cantidad (BTC)</label>
+        <input type="number" id="cm-qty" step="0.00000001" min="0" placeholder="0.00000000" oninput="updateCriptoPreview()" />
+      </div>
+      <div class="form-row" style="flex:1">
+        <label id="cm-spot-label">Spot (€/BTC)</label>
+        <input type="number" id="cm-spot" step="0.01" min="0" placeholder="0.00" oninput="updateCriptoPreview()" />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label>Comisión (€)</label>
+      <input type="number" id="cm-comision" step="0.01" min="0" value="0" oninput="updateCriptoPreview()" />
+    </div>
+
+    <!-- Sección PERMUTA -->
+    <div id="cm-permuta-section" style="display:none">
+      <div style="border-top:1px solid var(--border);margin:14px 0 12px"></div>
+      <p style="font-size:.8rem;font-weight:600;color:var(--accent);margin-bottom:10px">Activo que recibes a cambio</p>
+      <div class="form-row">
+        <label>Activo recibido</label>
+        <select id="cm-activo2" onchange="onCriptoFormChange()">
+          <option value="ETH">Ethereum (ETH)</option>
+          <option value="BTC">Bitcoin (BTC)</option>
+          <option value="XRP">XRP</option>
+          <option value="USDC">USDC</option>
+          <option value="BNB">BNB</option>
+          <option value="BTM">BTM</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px">
+        <div class="form-row" style="flex:1">
+          <label id="cm-qty2-label">Cantidad recibida</label>
+          <input type="number" id="cm-qty2" step="0.00000001" min="0" placeholder="0.00000000" oninput="updateCriptoPreview()" />
+        </div>
+        <div class="form-row" style="flex:1">
+          <label id="cm-spot2-label">Spot recibido (€/unidad)</label>
+          <input type="number" id="cm-spot2" step="0.01" min="0" placeholder="0.00" oninput="updateCriptoPreview()" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Resumen en tiempo real -->
+    <div id="cm-preview" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:.8rem;color:var(--muted);margin-top:4px;min-height:42px;line-height:1.6">
+      Introduce los datos para ver el resumen de la operación.
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeCriptoModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveCriptoTx()">Guardar transacción</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  DATA
+// ─────────────────────────────────────────────
+
+// Historial de aportaciones por id de posición
+const INVESTMENT_HISTORY = {
+  4: { // Amundi Core MSCI Emerging Markets
+    entries: [
+      { date:'2023-05-23', label:'may 2023',  amount:998.84,   shares:6.4872,  price:153.97, marketValue:1587.09, fiscalResult:588.25  },
+      { date:'2023-06-05', label:'jun 2023',  amount:98.10,    shares:0.6188,  price:158.54, marketValue:151.38,  fiscalResult:53.28   },
+      { date:'2023-07-06', label:'jul 2023 (1)',amount:98.46,  shares:0.6188,  price:159.12, marketValue:151.38,  fiscalResult:52.92   },
+      { date:'2023-07-06', label:'jul 2023 (2)',amount:98.46,  shares:0.6188,  price:159.12, marketValue:151.38,  fiscalResult:52.92   },
+      { date:'2023-08-07', label:'ago 2023',  amount:99.82,    shares:0.6188,  price:161.32, marketValue:151.38,  fiscalResult:51.56   },
+      { date:'2023-09-05', label:'sep 2023',  amount:98.34,    shares:0.5988,  price:164.22, marketValue:146.50,  fiscalResult:48.16   },
+      { date:'2023-10-03', label:'oct 2023',  amount:97.57,    shares:0.6188,  price:157.69, marketValue:151.38,  fiscalResult:53.81   },
+      { date:'2023-11-02', label:'nov 2023',  amount:97.80,    shares:0.6188,  price:158.06, marketValue:151.38,  fiscalResult:53.58   },
+      { date:'2023-12-04', label:'dic 2023',  amount:99.63,    shares:0.5988,  price:166.38, marketValue:146.50,  fiscalResult:46.87   },
+      { date:'2024-02-27', label:'feb 2024',  amount:4999.99,  shares:27.785,  price:179.95, marketValue:6797.61, fiscalResult:1797.62 },
+      { date:'2024-04-09', label:'abr 2024',  amount:3999.22,  shares:21.3577, price:187.25, marketValue:5225.17, fiscalResult:1225.95 },
+      { date:'2025-03-20', label:'mar 2025',  amount:198.40,   shares:0.9781,  price:202.85, marketValue:239.28,  fiscalResult:40.88   },
+      { date:'2025-04-23', label:'abr 2025',  amount:196.71,   shares:1.0579,  price:185.94, marketValue:258.82,  fiscalResult:62.11   },
+      { date:'2025-05-20', label:'may 2025',  amount:197.47,   shares:0.9581,  price:206.11, marketValue:234.40,  fiscalResult:36.93   },
+      { date:'2025-07-08', label:'jul 2025 (1)',amount:199.03, shares:0.9581,  price:207.74, marketValue:234.40,  fiscalResult:35.37   },
+      { date:'2025-07-28', label:'jul 2025 (2)',amount:195.84, shares:0.9182,  price:213.29, marketValue:224.63,  fiscalResult:28.79   },
+      { date:'2025-08-26', label:'ago 2025',  amount:198.96,   shares:0.9182,  price:216.69, marketValue:224.63,  fiscalResult:25.67   },
+      { date:'2025-09-26', label:'sep 2025',  amount:198.46,   shares:0.8982,  price:220.95, marketValue:219.75,  fiscalResult:21.29   },
+      { date:'2025-10-28', label:'oct 2025',  amount:197.88,   shares:0.8583,  price:230.54, marketValue:209.99,  fiscalResult:12.11   },
+      { date:'2025-11-28', label:'nov 2025',  amount:197.07,   shares:0.8583,  price:229.60, marketValue:209.99,  fiscalResult:12.92   },
+      { date:'2025-12-30', label:'dic 2025',  amount:197.72,   shares:0.8584,  price:230.33, marketValue:210.01,  fiscalResult:12.29   },
+    ],
+    yearEndPrices: [
+      { year: 2023, label: '2023 (may–dic)', startNav: 153.97, endNav: 156.00  },
+      { year: 2024, label: '2024',           startNav: 156.00, endNav: 180.00  },
+      { year: 2025, label: '2025',           startNav: 180.00, endNav: 212.30  },
+      { year: 2026, label: '2026 (YTD)',     startNav: 212.30, endNav: 244.65, ytd: true },
+    ]
+  },
+  3: { // DWS Floating Rate Notes LC
+    entries: [
+      { date:'2024-01-26', label:'ene 2024', amount:24.52,    shares:0.2823,   price:86.85, marketValue:26.38,    fiscalResult:1.86   },
+      { date:'2024-03-20', label:'mar 2024', amount:4999.99,  shares:57.1428,  price:87.50, marketValue:5338.85,  fiscalResult:338.86 },
+    ],
+    yearEndPrices: [
+      { year: 2024, label: '2024 (ene–dic)', startNav: 86.85, endNav: 90.35 },
+      { year: 2025, label: '2025',           startNav: 90.35, endNav: 92.84 },
+      { year: 2026, label: '2026 (YTD)',     startNav: 92.84, endNav: 93.43, ytd: true },
+    ]
+  },
+  2: { // Amundi S.F. Diversified Short-Term Bond
+    entries: [
+      { date:'2023-08-21', label:'ago 2023', amount:3105.44, shares:57.890,  price:53.64, marketValue:3386.57, fiscalResult:281.13 },
+      { date:'2023-10-04', label:'oct 2023', amount:3999.99, shares:74.139,  price:53.95, marketValue:4337.13, fiscalResult:337.14 },
+      { date:'2024-01-26', label:'ene 2024', amount:3975.47, shares:72.540,  price:54.80, marketValue:4243.59, fiscalResult:268.12 },
+    ],
+    yearEndPrices: [
+      { year: 2023, label: '2023 (ago–dic)', startNav: 50.11, endNav: 51.89 },
+      { year: 2024, label: '2024',           startNav: 51.88, endNav: 55.81 },
+      { year: 2025, label: '2025',           startNav: 55.86, endNav: 58.40 },
+      { year: 2026, label: '2026 (YTD)',     startNav: 58.42, endNav: 58.50, ytd: true },
+    ]
+  },
+  1: { // Carmignac Credit 2027 A
+    entries: [
+      { date:'2023-08-16', label:'ago 2023 (1)', amount:2999.99, shares:26.218, price:114.42, marketValue:3341.22, fiscalResult:341.23 },
+      { date:'2023-08-21', label:'ago 2023 (2)', amount:2894.55, shares:25.289, price:114.46, marketValue:3222.83, fiscalResult:328.28 },
+      { date:'2023-11-17', label:'nov 2023',     amount:999.88,  shares:8.995,  price:111.16, marketValue:1146.32, fiscalResult:146.44 },
+      { date:'2024-01-29', label:'ene 2024',     amount:4999.90, shares:43.248, price:115.61, marketValue:5511.53, fiscalResult:511.63 },
+    ],
+    yearEndPrices: [
+      { year: 2023, label: '2023 (ago–dic)', startNav: 109.40, endNav: 114.70 },
+      { year: 2024, label: '2024',           startNav: 114.60, endNav: 123.00 },
+      { year: 2025, label: '2025',           startNav: 123.02, endNav: 127.34 },
+      { year: 2026, label: '2026 (YTD)',     startNav: 127.28, endNav: 127.54, ytd: true },
+    ]
+  },
+  5: { // Magna MENA Fund G Acc (EUR)
+    entries: [
+      { date:'2023-08-24', label:'ago 2023', amount:5000.00, shares:145.696, price:34.318, marketValue:5533.64, fiscalResult:533.64 },
+      { date:'2025-04-07', label:'abr 2025', amount:500.00,  shares:13.366,  price:37.408, marketValue:507.85,  fiscalResult:7.85   },
+    ],
+    yearEndPrices: [
+      { year: 2023, label: '2023 (ago–dic)', startNav: 34.318, endNav: 36.645 },
+      { year: 2024, label: '2024',           startNav: 36.645, endNav: 42.448 },
+      { year: 2025, label: '2025',           startNav: 42.448, endNav: 37.422 },
+      { year: 2026, label: '2026 (YTD)',     startNav: 37.422, endNav: 37.982, ytd: true },
+    ]
+  },
+  11: { // Xetra-Gold ETC
+    entries: [
+      { date:'2023-06-09', label:'jun 2023 (1)', amount:527.81,  shares:9,       price:58.65,  marketValue:1169.73, fiscalResult:641.92  },
+      { date:'2023-06-28', label:'jun 2023 (2)', amount:393.13,  shares:7,       price:56.16,  marketValue:909.79,  fiscalResult:516.66  },
+      { date:'2023-10-02', label:'oct 2023',     amount:1009.44, shares:18,      price:56.08,  marketValue:2339.46, fiscalResult:1330.02 },
+      { date:'2024-01-22', label:'ene 2024',     amount:1000.00, shares:16.7354, price:59.73,  marketValue:2175.12, fiscalResult:1175.12 },
+      { date:'2024-02-13', label:'feb 2024',     amount:2000.00, shares:33.0799, price:60.475, marketValue:4299.39, fiscalResult:2299.39 },
+      { date:'2024-04-09', label:'abr 2024',     amount:1000.00, shares:14.3041, price:69.95,  marketValue:1859.10, fiscalResult:859.10  },
+      { date:'2024-07-05', label:'jul 2024',     amount:1000.00, shares:14.1193, price:70.81,  marketValue:1835.08, fiscalResult:835.08  },
+      { date:'2025-03-18', label:'mar 2025',     amount:300.00,  shares:3.3557,  price:89.19,  marketValue:436.14,  fiscalResult:136.14  },
+      { date:'2025-04-16', label:'abr 2025',     amount:500.00,  shares:5.357,   price:93.34,  marketValue:696.25,  fiscalResult:196.25  },
+      { date:'2025-05-06', label:'may 2025',     amount:300.00,  shares:3.1227,  price:96.10,  marketValue:405.85,  fiscalResult:105.85  },
+      { date:'2025-07-04', label:'jul 2025',     amount:200.00,  shares:2.1974,  price:91.02,  marketValue:285.59,  fiscalResult:85.59   },
+      { date:'2025-09-02', label:'sep 2025 (1)', amount:300.00,  shares:3.1193,  price:96.19,  marketValue:405.41,  fiscalResult:105.41  },
+      { date:'2025-09-30', label:'sep 2025 (2)', amount:300.00,  shares:2.8484,  price:105.29, marketValue:370.24,  fiscalResult:70.24   },
+    ],
+    yearEndPrices: [
+      { year: 2023, label: '2023 (jun–dic)', startNav: 58.65,  endNav: 59.90  },
+      { year: 2024, label: '2024',           startNav: 59.90,  endNav: 80.66  },
+      { year: 2025, label: '2025',           startNav: 80.66,  endNav: 120.28 },
+      { year: 2026, label: '2026 (YTD)',     startNav: 120.28, endNav: 129.97, ytd: true },
+    ]
+  },
+  7: { // Amundi Euro Stoxx Banks ETF (ex-Lyxor)
+    entries: [
+      { date:'2025-09-30', label:'sep 2025', amount:2832.50, shares:10, price:283.25, marketValue:3240.40, fiscalResult:407.90 },
+    ],
+    yearEndPrices: [
+      { year: 2025, label: '2025 (sep–dic)', startNav: 283.25, endNav: 321.94 },
+      { year: 2026, label: '2026 (YTD)',     startNav: 321.94, endNav: 324.04, ytd: true },
+    ]
+  },
+  6: { // Robeco Indian Equities D EUR
+    entries: [
+      { date:'2023-08-22', label:'ago 2023', amount:3000.00, shares:10.0915, price:297.28, marketValue:3200.52, fiscalResult:200.52 },
+    ],
+    yearEndPrices: [
+      { year: 2023, label: '2023 (ago–dic)', startNav: 297.28, endNav: 324.30 },
+      { year: 2024, label: '2024',           startNav: 324.30, endNav: 392.10 },
+      { year: 2025, label: '2025',           startNav: 392.10, endNav: 343.63 },
+      { year: 2026, label: '2026 (YTD)',     startNav: 343.63, endNav: 317.15, ytd: true },
+    ]
+  },
+  9: { // Cartera Indie MyInvestor — sin VL individual; marketValue proporcional al ratio valor/coste actual (1.2244)
+    entries: [
+      { date:'2023-06-07', label:'jun 2023 (1)', amount:150.00,   shares:0, price:0, marketValue:183.66,   fiscalResult:33.66  },
+      { date:'2023-06-14', label:'jun 2023 (2)', amount:3000.00,  shares:0, price:0, marketValue:3673.20,  fiscalResult:673.20 },
+      { date:'2023-07-01', label:'jul 2023 (1)', amount:100.00,   shares:0, price:0, marketValue:122.44,   fiscalResult:22.44  },
+      { date:'2023-07-03', label:'jul 2023 (2)', amount:100.00,   shares:0, price:0, marketValue:122.44,   fiscalResult:22.44  },
+      { date:'2023-08-04', label:'ago 2023',     amount:100.00,   shares:0, price:0, marketValue:122.44,   fiscalResult:22.44  },
+      { date:'2023-09-02', label:'sep 2023',     amount:100.00,   shares:0, price:0, marketValue:122.44,   fiscalResult:22.44  },
+      { date:'2023-10-01', label:'oct 2023',     amount:100.00,   shares:0, price:0, marketValue:122.44,   fiscalResult:22.44  },
+      { date:'2023-11-01', label:'nov 2023',     amount:100.00,   shares:0, price:0, marketValue:122.44,   fiscalResult:22.44  },
+      { date:'2023-12-01', label:'dic 2023',     amount:100.00,   shares:0, price:0, marketValue:122.44,   fiscalResult:22.44  },
+      { date:'2024-02-22', label:'feb 2024 (1)', amount:3500.00,  shares:0, price:0, marketValue:4285.40,  fiscalResult:785.40 },
+      { date:'2024-02-27', label:'feb 2024 (2)', amount:1500.00,  shares:0, price:0, marketValue:1836.60,  fiscalResult:336.60 },
+      { date:'2024-04-08', label:'abr 2024',     amount:2000.00,  shares:0, price:0, marketValue:2448.80,  fiscalResult:448.80 },
+      { date:'2024-06-26', label:'jun 2024',     amount:500.00,   shares:0, price:0, marketValue:612.20,   fiscalResult:112.20 },
+      { date:'2025-04-16', label:'abr 2025',     amount:200.00,   shares:0, price:0, marketValue:244.88,   fiscalResult:44.88  },
+      { date:'2025-06-16', label:'jun 2025',     amount:200.00,   shares:0, price:0, marketValue:244.88,   fiscalResult:44.88  },
+      { date:'2025-07-16', label:'jul 2025',     amount:200.00,   shares:0, price:0, marketValue:244.88,   fiscalResult:44.88  },
+      { date:'2025-08-16', label:'ago 2025',     amount:200.00,   shares:0, price:0, marketValue:244.88,   fiscalResult:44.88  },
+      { date:'2025-09-16', label:'sep 2025',     amount:200.00,   shares:0, price:0, marketValue:244.88,   fiscalResult:44.88  },
+      { date:'2025-10-16', label:'oct 2025',     amount:200.00,   shares:0, price:0, marketValue:244.88,   fiscalResult:44.88  },
+      { date:'2025-11-16', label:'nov 2025',     amount:200.00,   shares:0, price:0, marketValue:244.88,   fiscalResult:44.88  },
+      { date:'2025-12-16', label:'dic 2025',     amount:200.00,   shares:0, price:0, marketValue:244.88,   fiscalResult:44.88  },
+    ],
+    yearEndPrices: []
+  },
+  10: { // Plan de Pensiones N5270 (Finanbest)
+    entries: [
+      { date:'2023-05-08', label:'may 2023 (traspaso ext.)', amount:14659.92, shares:1093.5756, price:13.406, marketValue:21538.63, fiscalResult:6878.71 },
+      { date:'2023-06-01', label:'jun 2023',                amount:200.00,   shares:14.7161,   price:13.591, marketValue:289.84,   fiscalResult:89.84   },
+      { date:'2023-07-01', label:'jul 2023 (1)',             amount:200.00,   shares:14.5639,   price:13.733, marketValue:286.83,   fiscalResult:86.83   },
+      { date:'2023-07-03', label:'jul 2023 (2)',             amount:200.00,   shares:14.5954,   price:13.703, marketValue:287.45,   fiscalResult:87.45   },
+      { date:'2023-08-04', label:'ago 2023',                amount:200.00,   shares:14.5323,   price:13.763, marketValue:286.21,   fiscalResult:86.21   },
+      { date:'2023-09-01', label:'sep 2023',                amount:200.00,   shares:14.3580,   price:13.930, marketValue:282.78,   fiscalResult:82.78   },
+      { date:'2023-10-01', label:'oct 2023',                amount:200.00,   shares:14.8255,   price:13.490, marketValue:291.99,   fiscalResult:91.99   },
+      { date:'2023-11-01', label:'nov 2023',                amount:200.00,   shares:14.7799,   price:13.532, marketValue:291.09,   fiscalResult:91.09   },
+      { date:'2024-04-08', label:'abr 2024',                amount:1500.00,  shares:97.1565,   price:15.439, marketValue:1913.50,  fiscalResult:413.50  },
+      { date:'2025-03-18', label:'mar 2025',                amount:100.00,   shares:5.9780,    price:16.728, marketValue:117.74,   fiscalResult:17.74   },
+      { date:'2025-04-16', label:'abr 2025',                amount:100.00,   shares:6.5408,    price:15.289, marketValue:128.82,   fiscalResult:28.82   },
+      { date:'2025-05-16', label:'may 2025',                amount:100.00,   shares:5.9414,    price:16.831, marketValue:117.02,   fiscalResult:17.02   },
+      { date:'2025-06-16', label:'jun 2025',                amount:100.00,   shares:5.9978,    price:16.673, marketValue:118.13,   fiscalResult:18.13   },
+      { date:'2025-07-16', label:'jul 2025',                amount:100.00,   shares:5.8445,    price:17.110, marketValue:115.11,   fiscalResult:15.11   },
+      { date:'2025-08-16', label:'ago 2025',                amount:100.00,   shares:5.7226,    price:17.475, marketValue:112.70,   fiscalResult:12.70   },
+      { date:'2025-09-16', label:'sep 2025',                amount:100.00,   shares:5.6642,    price:17.655, marketValue:111.55,   fiscalResult:11.55   },
+      { date:'2025-10-16', label:'oct 2025',                amount:100.00,   shares:5.5456,    price:18.032, marketValue:109.22,   fiscalResult:9.22    },
+      { date:'2025-11-16', label:'nov 2025',                amount:100.00,   shares:5.5509,    price:18.015, marketValue:109.33,   fiscalResult:9.33    },
+      { date:'2025-12-16', label:'dic 2025',                amount:100.00,   shares:5.5033,    price:18.171, marketValue:108.39,   fiscalResult:8.39    },
+    ],
+    yearEndPrices: []
+  }
+};
+
+const DEFAULT_POSITIONS = [
+  { id:1, name:'Carmignac Credit 2027 A', isin:'FR00140081Y1', tipo:'RF', region:'Europa / Global', broker:'MyInvestor', value:13221.90, cost:11894.32, comment:'Bono a vencimiento 2027, algo más de riesgo de crédito.' },
+  { id:2, name:'Amundi S.F. Diversified Short-Term Bond', isin:'LU1706854152', tipo:'RF', region:'Global', broker:'MyInvestor', value:11967.29, cost:11080.90, comment:'Décima de la cartera, parte defensiva.' },
+  { id:3, name:'DWS Floating Rate Notes', isin:'LU0034353002', tipo:'RF', region:'Global', broker:'MyInvestor', value:5365.23, cost:5024.51, comment:'Protege frente a subidas de tipos.' },
+  { id:4, name:'Amundi Core MSCI Emerging Markets', isin:'LU0996175948', tipo:'RV', region:'Emergentes Global', broker:'MyInvestor', value:17077.05, cost:12763.77, comment:'Motor EM de la cartera. Incluye traspaso desde Vanguard ESG Dev. World All Cap. VL: 69,80195 participaciones.' },
+  { id:5, name:'Magna MENA Fund G Acc (EUR)', isin:'IE00BFTW8Y10', tipo:'RV', region:'MENA (Oriente Medio y Norte de África)', broker:'Renta 4', value:6041.49, cost:5500, comment:'Fondo UCITS de renta variable pura (≥2/3 en acciones MENA). Gestora: Fiera Capital Europe. Clase G en EUR sin cobertura de divisa, acumulación. TER ~1.84-2.16%. Países: Arabia Saudí, EAU, Qatar, Egipto, Kuwait, Marruecos… VL por participación: 37,982€ (159,062 participaciones). Compras: 5.000€ ago-2023 + 500€ abr-2025. Satélite concentrado en región volátil.' },
+  { id:6, name:'Robeco Indian Equities D EUR', isin:'LU0491217419', tipo:'RV', region:'India', broker:'Renta 4', value:3200.52, cost:3000, comment:'Fondo RV India. VL por participación: 317,15€ (10,0915 participaciones). Compra única: 3.000€ ago-2023. Satélite país único.' },
+  { id:7, name:'Amundi Euro Stoxx Banks ETF', isin:'LU1829219390', tipo:'RV', region:'Europa', broker:'MyInvestor', value:3240.40, cost:2835.90, comment:'Apuesta cíclica en bancos europeos. VL: 324,04€ (10 títulos). Compra única: 2.832,50€ sep-2025 + 3,40€ comisión.' },
+  { id:9, name:'Cartera Indie MyInvestor', isin:'–', tipo:'MIX', region:'Global', broker:'MyInvestor', value:17071.07, cost:13942.22, comment:'Núcleo equilibrado 60/40, muy diversificado. AVISO — HISTORIAL INCOMPLETO: valor de mercado e importe invertido tomados directamente de MyInvestor (fuente fiable). El historial de aportaciones solo cubre 12.950 € en 21 entradas (jun-2023 a dic-2025); faltan ~992,22 € en movimientos del período ene-2024 a mar-2025 no accesibles en el extracto. Pendiente de completar cuando se obtengan los datos históricos.' },
+  { id:10, name:'Plan de Pensiones N5270 (Finanbest)', isin:'N5270', tipo:'PP', region:'Global', broker:'MyInvestor', value:26615.26, cost:18559.92, comment:'Plan de pensiones gestionado por Finanbest, contratado en MyInvestor. 1.351,3922 participaciones. 90.6% RV (USA, Europa, EM, Frontera, Small Caps, Japón, Inmobiliario) + 5.6% RF + 3.7% Depósitos.' },
+  { id:11, name:'Xetra-Gold ETC', isin:'DE000A0S9GB0', tipo:'ALT', region:'Global', broker:'XTB', value:17186.13, cost:8830.38, comment:'ETC respaldado por oro físico. VL: 129,97€ (132,239 participaciones). 13 compras jun-2023 → sep-2025.' },
+  { id:12, name:'Bitcoin', isin:'BTC', tipo:'ALT', region:'Global', broker:'Bitcoin', value:10709.24, cost:6000, comment:'Bloque de riesgo muy alto y muy volátil.' },
+  { id:13, name:'Liquidez (cash en banco)', isin:'–', tipo:'CASH', region:'–', broker:'Efectivo', value:9000, cost:9000, comment:'Reserva de liquidez general.' },
+  { id:14, name:'Ethereum', isin:'ETH',  tipo:'ALT', region:'Global', broker:'Coinbase / B2M', value:1675, cost:1675, comment:'Actualizar valor según cotización actual. 0,8333 ETH. Compras 2023–2024.' },
+  { id:15, name:'XRP',     isin:'XRP',  tipo:'ALT', region:'Global', broker:'–',               value:0,    cost:0,    comment:'Actualizar valor según cotización actual.' },
+  { id:16, name:'USDC',    isin:'USDC', tipo:'CASH',region:'Global', broker:'–',               value:0,    cost:0,    comment:'Stablecoin. Actualizar saldo.' },
+  { id:17, name:'BNB',     isin:'BNB',  tipo:'ALT', region:'Global', broker:'–',               value:0,    cost:0,    comment:'Actualizar valor según cotización actual.' },
+  { id:18, name:'BTM',     isin:'BTM',  tipo:'ALT', region:'Global', broker:'–',               value:0,    cost:0,    comment:'Actualizar valor según cotización actual.' },
+];
+
+function loadPositions() {
+  const saved = localStorage.getItem('inv_positions');
+  if (!saved) return JSON.parse(JSON.stringify(DEFAULT_POSITIONS));
+  const positions = JSON.parse(saved);
+  // Migración: actualiza posiciones cuyo coste/valor haya cambiado en DEFAULT_POSITIONS
+  let dirty = false;
+  DEFAULT_POSITIONS.forEach(def => {
+    const pos = positions.find(p => p.id === def.id);
+    if (pos && (pos.cost !== def.cost || pos.value !== def.value)) {
+      pos.cost  = def.cost;
+      pos.value = def.value;
+      dirty = true;
+    }
+  });
+  // Migración: añade posiciones nuevas de DEFAULT_POSITIONS no presentes en el estado guardado
+  DEFAULT_POSITIONS.forEach(def => {
+    if (!positions.find(p => p.id === def.id)) {
+      positions.push(JSON.parse(JSON.stringify(def)));
+      dirty = true;
+    }
+  });
+  if (dirty) localStorage.setItem('inv_positions', JSON.stringify(positions));
+  return positions;
+}
+function savePositions(positions) {
+  localStorage.setItem('inv_positions', JSON.stringify(positions));
+}
+
+let positions = loadPositions();
+let editId = null;
+let chartInstances = {};
+let activeFilters = { type: 'all', broker: 'all' };
+
+// ─────────────────────────────────────────────
+//  PALETTE
+// ─────────────────────────────────────────────
+const PALETTE = [
+  '#6c63ff','#38bdf8','#22c55e','#f59e0b','#ef4444',
+  '#a78bfa','#34d399','#fb923c','#f472b6','#60a5fa',
+  '#facc15','#4ade80','#e879f9','#2dd4bf','#f87171'
+];
+const TYPE_COLORS = { RV:'#6c63ff', RF:'#22c55e', MIX:'#38bdf8', ALT:'#f59e0b', PP:'#a78bfa', CASH:'#94a3b8' };
+const TYPE_LABELS = { RV:'Renta Variable', RF:'Renta Fija', MIX:'Mixto', ALT:'Alternativo', PP:'Plan Pensiones', CASH:'Liquidez' };
+const BADGE_CLASS = { RV:'badge-rv', RF:'badge-rf', MIX:'badge-mix', ALT:'badge-alt', PP:'badge-pp', CASH:'badge-cash' };
+
+const START_DATES = {
+  1:  '2023-08-16',
+  2:  '2023-08-21',
+  3:  '2024-01-26',
+  4:  '2023-05-23',
+  5:  '2023-08-24',
+  6:  '2023-08-22',
+  7:  '2025-09-30',
+  9:  '2023-09-01',
+  10: '2020-01-01',
+  11: '2023-06-09',
+  12: '2020-01-01',
+  13: null,
+};
+
+function color(i) { return PALETTE[i % PALETTE.length]; }
+
+// ─────────────────────────────────────────────
+//  UTILS
+// ─────────────────────────────────────────────
+function fmt(n) { return new Intl.NumberFormat('es-ES', { style:'currency', currency:'EUR', maximumFractionDigits:0 }).format(n); }
+function pct(n) { return (n >= 0 ? '+' : '') + n.toFixed(1) + '%'; }
+function pnl(pos) { return pos.value - pos.cost; }
+function pnlPct(pos) { return pos.cost > 0 ? ((pos.value - pos.cost) / pos.cost) * 100 : 0; }
+
+function filteredPositions() {
+  return positions.filter(p => {
+    if (activeFilters.type !== 'all' && p.tipo !== activeFilters.type) return false;
+    if (activeFilters.broker !== 'all' && p.broker !== activeFilters.broker) return false;
+    return true;
+  });
+}
+
+function groupBy(arr, key) {
+  return arr.reduce((acc, item) => {
+    const k = item[key];
+    acc[k] = (acc[k] || []);
+    acc[k].push(item);
+    return acc;
+  }, {});
+}
+
+function sumValue(arr) { return arr.reduce((s, p) => s + p.value, 0); }
+
+function destroyChart(id) {
+  if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+function mkChart(id, config) {
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  chartInstances[id] = new Chart(ctx, config);
+}
+
+const CHART_DEFAULTS = {
+  plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
+  scales: {
+    x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#2e3248' } },
+    y: { ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => fmt(v) }, grid: { color: '#2e3248' } }
+  }
+};
+
+// ─────────────────────────────────────────────
+//  NAVIGATION
+// ─────────────────────────────────────────────
+const VIEW_TITLES = {
+  resumen: 'Resumen de Cartera', 'por-tipo': 'Por Tipo de Activo',
+  'por-region': 'Por Región', 'por-broker': 'Por Broker',
+  detalle: 'Detalle de Posiciones', evolucion: 'Evolución y Rendimiento',
+  roboadvisor: 'Análisis Roboadvisor (Cartera Indie + Plan Pensiones)',
+  cripto: 'Criptomonedas — Bitcoin (BTC)',
+  notas: 'Notas de Análisis'
+};
+
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+    const view = item.dataset.view;
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + view).classList.add('active');
+    document.getElementById('page-title').textContent = VIEW_TITLES[view] || view;
+    renderView(view);
+  });
+});
+
+// ─────────────────────────────────────────────
+//  FILTERS
+// ─────────────────────────────────────────────
+function populateBrokerFilter() {
+  const sel = document.getElementById('filter-broker');
+  const brokers = [...new Set(positions.map(p => p.broker))].sort();
+  sel.innerHTML = '<option value="all">Todos</option>';
+  brokers.forEach(b => { const o = document.createElement('option'); o.value = b; o.textContent = b; sel.appendChild(o); });
+}
+
+function applyFilters() {
+  activeFilters.type = document.getElementById('filter-type').value;
+  activeFilters.broker = document.getElementById('filter-broker').value;
+  const activeView = document.querySelector('.nav-item.active')?.dataset?.view || 'resumen';
+  renderView(activeView);
+}
+
+// ─────────────────────────────────────────────
+//  RENDER DISPATCHER
+// ─────────────────────────────────────────────
+function renderView(view) {
+  if (view === 'resumen') renderResumen();
+  else if (view === 'por-tipo') renderPorTipo();
+  else if (view === 'por-region') renderPorRegion();
+  else if (view === 'por-broker') renderPorBroker();
+  else if (view === 'detalle') renderDetalle();
+  else if (view === 'evolucion') renderEvolucion();
+  else if (view === 'roboadvisor') renderRoboadvisor();
+  else if (view === 'cripto') renderCripto();
+  else if (view === 'notas') renderNotas();
+}
+
+// ─────────────────────────────────────────────
+//  ROBOADVISOR
+// ─────────────────────────────────────────────
+// Composición interna estimada de cada cartera indexada
+// Composición real a nivel de fondo subyacente
+// Cartera Indie: datos reales de Morningstar (31 mar 2026)
+// Plan Pensiones: estimación basada en descripción (pendiente datos exactos)
+const ROBO_COMP = {
+  indie: {
+    exact: true,
+    funds: [
+      { name:'iShares US Index EUR',          tipo:'RV', region:'USA',               pct:33.49 },
+      { name:'iShares Scrn GI Corp Bd Idx',   tipo:'RF', region:'Corp. Global',      pct:14.34 },
+      { name:'Vanguard U.S. Govt Bd H Acc',   tipo:'RF', region:'Gob. USA',          pct: 9.52 },
+      { name:'Vanguard 20+ Yr € Trs',         tipo:'RF', region:'Gob. Europa',       pct: 9.28 },
+      { name:'iShares EmergMkts Idx EUR',      tipo:'RV', region:'Emergentes',        pct: 8.84 },
+      { name:'Fidelity MSCI Japan EUR',        tipo:'RV', region:'Japón',             pct: 8.53 },
+      { name:'Fidelity MSCI Europe EUR',       tipo:'RV', region:'Europa',            pct: 8.25 },
+      { name:'iShares Em Mkts Govt Bd EUR',    tipo:'RF', region:'Bonos EM',          pct: 4.79 },
+      { name:'Fidelity Pac ex Jpn Idx USD',   tipo:'RV', region:'Asia Pac ex Japón', pct: 2.11 },
+      { name:'Miscellaneous',                  tipo:'MISC',region:'–',               pct: 0.85 },
+    ]
+  },
+  pension: {
+    exact: true, // datos reales Finanbest
+    funds: [
+      { name:'Invesco S&P 500 ACC EUR',         tipo:'RV', region:'USA',               pct:19.78 },
+      { name:'Lyxor Core EuroStoxx 600 EUR',    tipo:'RV', region:'Europa',            pct:18.55 },
+      { name:'iShares Core S&P 500 EUR',        tipo:'RV', region:'USA',               pct: 7.92 },
+      { name:'Amundi MSCI Emerg. Markets',      tipo:'RV', region:'Emergentes',        pct: 7.61 },
+      { name:'Xtrackers MSCI Emerging Markets', tipo:'RV', region:'Emergentes',        pct: 6.96 },
+      { name:'Schroder ISF Frontier Markets',   tipo:'RV', region:'Frontera',          pct: 5.93 },
+      { name:'SPDR World Small Cap EUR',        tipo:'RV', region:'Small Caps',        pct: 5.88 },
+      { name:'Amundi MSCI Europe',              tipo:'RV', region:'Europa',            pct: 5.77 },
+      { name:'iShares MSCI Japan EUR',          tipo:'RV', region:'Japón',             pct: 4.88 },
+      { name:'Vanguard US 500 Stock Index',     tipo:'RV', region:'USA',               pct: 4.68 },
+      { name:'iShares Dev. Real Estate EUR',    tipo:'RV', region:'Inmobiliario Dev.', pct: 2.66 },
+      { name:'Pictet USD Govt Bonds EUR',       tipo:'RF', region:'Gob. USA',          pct: 1.84 },
+      { name:'JPM Global EM Short Dur. EUR',    tipo:'RF', region:'Bonos EM',          pct: 1.34 },
+      { name:'Eurozone Gov. Bonds 5-7Y',        tipo:'RF', region:'Gob. Europa',       pct: 2.43 },
+      { name:'Tesorería EUR',                   tipo:'DEP',region:'–',                pct: 3.74 },
+    ]
+  }
+};
+
+// ─────────────────────────────────────────────
+//  CRIPTO DATA
+// ─────────────────────────────────────────────
+const ETH_TRANSACTIONS = [
+  { date:'2023-05-04', time:'21:08', qty: 0.17109183, tipo:'COMPRA', plataforma:'Coinbase', comision:4.4,  spot:1727.73 },
+  { date:'2023-08-14', time:'23:53', qty: 0.20201127, tipo:'COMPRA', plataforma:'Coinbase', comision:5.1,  spot:1707.13 },
+  { date:'2024-01-02', time:'19:58', qty: 0.45254275, tipo:'COMPRA', plataforma:'B2M',      comision:9.5,  spot:2188.74 },
+  { date:'2024-03-03', time:'22:15', qty: 0.00765768,  tipo:'COMPRA', plataforma:'B2M',            comision:0.2,  spot:3223.99 },
+  { date:'2024-12-28', time:'18:01', qty:-0.81087220, tipo:'VENTA',  plataforma:'Ledger Exchange', comision:0.58, spot:3192.91, permuta:'→ 0,02844811 BTC' },
+];
+
+const BTC_TRANSACTIONS = [
+  { date:'2023-05-04', time:'21:07', qty: 0.15063218,  tipo:'COMPRA', plataforma:'Coinbase',    comision:59.6,  spot:26557.34 },
+  { date:'2023-08-14', time:'23:50', qty: 0.02898699,  tipo:'COMPRA', plataforma:'Coinbase',    comision:11.7,  spot:27193.58 },
+  { date:'2024-01-06', time:'10:36', qty: 0.02445132,  tipo:'COMPRA', plataforma:'B2M',         comision:9.5,   spot:40509.04 },
+  { date:'2024-02-28', time:'12:06', qty:-0.00953513,  tipo:'VENTA',  plataforma:'B2M',         comision:4.9,   spot:54182.00 },
+  { date:'2024-02-29', time:'18:48', qty:-0.09080641,  tipo:'VENTA',  plataforma:'B2M',         comision:47.5,  spot:55585.28 },
+  { date:'2024-02-29', time:'18:50', qty:-0.03628883,  tipo:'VENTA',  plataforma:'B2M',         comision:19.0,  spot:55636.95 },
+  { date:'2024-03-25', time:'19:16', qty: 0.02254375,  tipo:'COMPRA', plataforma:'B2M',         comision:14.3,  spot:65911.50 },
+  { date:'2024-04-08', time:'12:15', qty: 0.02948042,  tipo:'COMPRA', plataforma:'B2M',         comision:19.0,  spot:67203.58 },
+  { date:'2024-12-01', time:'21:30', qty: 0.00524846,  tipo:'COMPRA', plataforma:'Tarjeta',       comision:10.0,  spot:92511.07 },
+  { date:'2024-12-28', time:'18:01', qty: 0.02844811,  tipo:'COMPRA', plataforma:'Ledger Exchange', comision:0,     spot:90317.22, permuta:'← 0,81087220 ETH' },
+  { date:'2025-09-03', time:'21:45', qty: 0.00612212,  tipo:'COMPRA', plataforma:'B2M',         comision:5.6,   spot:97083.47 },
+  { date:'2026-01-18', time:'11:41', qty: 0.00238545,  tipo:'COMPRA', plataforma:'Cajero BTM',  comision:1.9,   spot:83052.92 },
+];
+
+const XRP_TRANSACTIONS  = [];
+const USDC_TRANSACTIONS = [];
+const BNB_TRANSACTIONS  = [];
+const BTM_TRANSACTIONS  = [];
+
+const EM_REGIONS = ['Emergentes', 'Bonos EM', 'Frontera'];
+
+function roboCalc(carteraTotal, funds) {
+  return funds.map(f => ({ ...f, eur: carteraTotal * f.pct / 100 }));
+}
+
+function renderRoboadvisor() {
+  const indie   = positions.find(p => p.id === 9);
+  const pension = positions.find(p => p.id === 10);
+  if (!indie || !pension) return;
+
+  const totalIndie   = indie.value;
+  const totalPension = pension.value;
+  const total = totalIndie + totalPension;
+  const costTotal = indie.cost + pension.cost;
+  const gpTotal = total - costTotal;
+
+  const indieFunds   = roboCalc(totalIndie,   ROBO_COMP.indie.funds);
+  const pensionFunds = roboCalc(totalPension,  ROBO_COMP.pension.funds);
+
+  const sumTipo = (funds, t) => funds.filter(f=>f.tipo===t).reduce((s,f)=>s+f.eur,0);
+  const rvIndie   = sumTipo(indieFunds, 'RV'),   rfIndie   = sumTipo(indieFunds, 'RF');
+  const rvPension = sumTipo(pensionFunds,'RV'),   rfPension = sumTipo(pensionFunds,'RF');
+  const depPension = sumTipo(pensionFunds,'DEP');
+  const totalRV = rvIndie + rvPension, totalRF = rfIndie + rfPension;
+
+  // ── KPIs ──
+  document.getElementById('robo-kpis').innerHTML = [
+    { label:'Total combinado',  value:fmt(total),      sub:'Cartera Indie + Plan Pensiones', color:'' },
+    { label:'Renta Variable',   value:fmt(totalRV),   sub:(totalRV/total*100).toFixed(1)+'% del total', color:'accent' },
+    { label:'Renta Fija',       value:fmt(totalRF),   sub:(totalRF/total*100).toFixed(1)+'% del total', color:'green' },
+    { label:'Depósitos/Tes.',   value:fmt(depPension),sub:(depPension/total*100).toFixed(1)+'% del total', color:'yellow' },
+    { label:'G/P combinado',    value:fmt(gpTotal),   sub:pct(gpTotal/costTotal*100), color:gpTotal>=0?'green':'red' },
+  ].map(k=>`<div class="kpi-card ${k.color}">
+    <div class="kpi-label">${k.label}</div>
+    <div class="kpi-value" style="color:${k.color==='green'?'var(--green)':k.color==='red'?'var(--red)':'var(--text)'}">${k.value}</div>
+    <div class="kpi-sub">${k.sub}</div>
+  </div>`).join('');
+
+  // ── RV vs RF por cartera ──
+  mkChart('chart-robo-rvrf', {
+    type:'doughnut',
+    data:{
+      labels:['RV Cartera Indie','RF Cartera Indie','RV Plan Pensiones','RF Plan Pensiones','Depósitos Plan Pensiones'],
+      datasets:[{data:[rvIndie,rfIndie,rvPension,rfPension,depPension],
+        backgroundColor:['#6c63ff','#22c55e','#a78bfa','#34d399','#f59e0b'],borderWidth:2,borderColor:'#1a1d27'}]
+    },
+    options:{responsive:true,plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:11}}}}}
+  });
+
+  // ── Peso de cada cartera ──
+  mkChart('chart-robo-carteras', {
+    type:'doughnut',
+    data:{
+      labels:[`Cartera Indie (${(totalIndie/total*100).toFixed(1)}%)`,`Plan Pensiones (${(totalPension/total*100).toFixed(1)}%)`],
+      datasets:[{data:[totalIndie,totalPension],backgroundColor:['#38bdf8','#f59e0b'],borderWidth:2,borderColor:'#1a1d27'}]
+    },
+    options:{responsive:true,plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:11}}}}}
+  });
+
+  // ── Distribución geográfica (RV) por cartera apilada ──
+  const allRvRegions = [...new Set([
+    ...indieFunds.filter(f=>f.tipo==='RV').map(f=>f.region),
+    ...pensionFunds.filter(f=>f.tipo==='RV').map(f=>f.region)
+  ])].sort();
+  const geoIndie   = r => indieFunds.filter(f=>f.tipo==='RV'&&f.region===r).reduce((s,f)=>s+f.eur,0);
+  const geoPension = r => pensionFunds.filter(f=>f.tipo==='RV'&&f.region===r).reduce((s,f)=>s+f.eur,0);
+  mkChart('chart-robo-geo', {
+    type:'bar',
+    data:{
+      labels: allRvRegions,
+      datasets:[
+        {label:'Cartera Indie (€)',   data:allRvRegions.map(geoIndie),   backgroundColor:'rgba(108,99,255,.85)',borderRadius:4},
+        {label:'Plan Pensiones (€)',  data:allRvRegions.map(geoPension), backgroundColor:'rgba(245,158,11,.85)', borderRadius:4},
+      ]
+    },
+    options:{responsive:true,...CHART_DEFAULTS,
+      plugins:{legend:{labels:{color:'#94a3b8',font:{size:11}}}},
+      scales:{x:{...CHART_DEFAULTS.scales.x,stacked:true},y:{...CHART_DEFAULTS.scales.y,stacked:true}}}
+  });
+
+  // ── Desarrollados vs Emergentes ──
+  const allRvFunds = [...indieFunds,...pensionFunds].filter(f=>f.tipo==='RV');
+  const totalEm  = allRvFunds.filter(f=>EM_REGIONS.includes(f.region)).reduce((s,f)=>s+f.eur,0);
+  const totalDev = totalRV - totalEm;
+  mkChart('chart-robo-devem', {
+    type:'doughnut',
+    data:{
+      labels:[`Desarrollados (${(totalDev/totalRV*100).toFixed(1)}%)`,`Emergentes (${(totalEm/totalRV*100).toFixed(1)}%)`],
+      datasets:[{data:[totalDev,totalEm],backgroundColor:['#38bdf8','#f59e0b'],borderWidth:2,borderColor:'#1a1d27'}]
+    },
+    options:{responsive:true,plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:11}}}}}
+  });
+
+  // ── Tabla detalle ──
+  const tEl = document.getElementById('table-robo-detalle');
+  tEl.innerHTML = `<thead><tr><th>Fondo subyacente</th><th>Tipo</th><th>Región</th><th style="text-align:right">Cartera Indie (€)</th><th style="text-align:right">Plan Pensiones (€)</th><th style="text-align:right">Total (€)</th><th style="text-align:right">% s/total</th></tr></thead>`;
+
+  // Agrupa fondos por region+tipo combinando ambas carteras
+  const allRegions = [...new Set([...indieFunds,...pensionFunds].map(f=>f.region+f.tipo))];
+  const rows = [];
+  // RV section
+  rows.push({ section:'Renta Variable', eur: totalRV, pctTotal: totalRV/total*100 });
+  allRvRegions.forEach(r => {
+    const vi = geoIndie(r), vp = geoPension(r);
+    if (vi+vp < 1) return;
+    rows.push({ name: r, vi, vp, total: vi+vp, pctTotal:(vi+vp)/total*100, isEM: EM_REGIONS.includes(r) });
+  });
+  rows.push({ section:'Renta Fija', eur: totalRF, pctTotal: totalRF/total*100 });
+  const rfRegions = [...new Set([...indieFunds,...pensionFunds].filter(f=>f.tipo==='RF').map(f=>f.region))];
+  rfRegions.forEach(r => {
+    const vi = indieFunds.filter(f=>f.tipo==='RF'&&f.region===r).reduce((s,f)=>s+f.eur,0);
+    const vp = pensionFunds.filter(f=>f.tipo==='RF'&&f.region===r).reduce((s,f)=>s+f.eur,0);
+    if (vi+vp < 1) return;
+    rows.push({ name: r, vi, vp, total: vi+vp, pctTotal:(vi+vp)/total*100 });
+  });
+  if (depPension > 0) {
+    rows.push({ section:'Depósitos / Tesorería', eur: depPension, pctTotal: depPension/total*100 });
+    rows.push({ name:'Tesorería EUR', vi:0, vp:depPension, total:depPension, pctTotal:depPension/total*100 });
+  }
+
+  let tbody = '<tbody>';
+  rows.forEach(r => {
+    if (r.section) {
+      tbody += `<tr style="background:var(--surface2)"><td colspan="7" style="font-weight:700;color:var(--text);padding:8px 12px">${r.section} — ${fmt(r.eur)} (${r.pctTotal.toFixed(1)}%)</td></tr>`;
+    } else {
+      const emBadge = r.isEM ? ' <span style="font-size:.68rem;background:#78350f;color:#fcd34d;padding:1px 6px;border-radius:10px">EM</span>' : '';
+      tbody += `<tr>
+        <td style="padding-left:24px;color:var(--muted);font-size:.8rem">${r.name}${emBadge}</td>
+        <td></td><td></td>
+        <td style="text-align:right">${r.vi>0?fmt(r.vi):'–'}</td>
+        <td style="text-align:right">${r.vp>0?fmt(r.vp):'–'}</td>
+        <td style="text-align:right;font-weight:700">${fmt(r.total)}</td>
+        <td style="text-align:right;color:var(--muted)">${r.pctTotal.toFixed(1)}%</td>
+      </tr>`;
+    }
+  });
+  tbody += '</tbody>';
+  tEl.innerHTML += tbody;
+
+  if (!ROBO_COMP.pension.exact) {
+    tEl.insertAdjacentHTML('afterend','<p style="font-size:.72rem;color:var(--muted);margin-top:8px">* Composición del Plan Pensiones (Finanbest) estimada. Proporciona los datos exactos para actualizarla.</p>');
+  }
+}
+
+// ─────────────────────────────────────────────
+//  CRIPTOMONEDAS
+// ─────────────────────────────────────────────
+const CRYPTO_CONFIG = {
+  BTC:  { label:'Bitcoin',  symbol:'₿',    color:'#f7931a', bg:'rgba(247,147,26,.12)',  posId:12, cgId:'bitcoin',      spotFmt: v => '€'+Math.round(v/1000)+'k',      holdFmt: v => v.toFixed(5)+' ₿'    },
+  ETH:  { label:'Ethereum', symbol:'Ξ',    color:'#627eea', bg:'rgba(98,126,234,.12)',  posId:14, cgId:'ethereum',     spotFmt: v => '€'+(v/1000).toFixed(1)+'k',     holdFmt: v => v.toFixed(5)+' Ξ'    },
+  XRP:  { label:'XRP',      symbol:'XRP',  color:'#00aae4', bg:'rgba(0,170,228,.12)',   posId:15, cgId:'ripple',       spotFmt: v => '€'+v.toFixed(2),                holdFmt: v => v.toFixed(2)+' XRP'  },
+  USDC: { label:'USDC',     symbol:'USDC', color:'#2775ca', bg:'rgba(39,117,202,.12)',  posId:16, cgId:'usd-coin',     spotFmt: v => '€'+v.toFixed(3),                holdFmt: v => v.toFixed(2)+' USDC' },
+  BNB:  { label:'BNB',      symbol:'BNB',  color:'#f3ba2f', bg:'rgba(243,186,47,.12)',  posId:17, cgId:'binancecoin',  spotFmt: v => '€'+Math.round(v),               holdFmt: v => v.toFixed(4)+' BNB'  },
+  BTM:  { label:'BTM',      symbol:'BTM',  color:'#00c4a0', bg:'rgba(0,196,160,.12)',   posId:18, cgId:'bytom',        spotFmt: v => '€'+v.toFixed(4),                holdFmt: v => v.toFixed(2)+' BTM'  },
+};
+
+let USER_CRIPTO = { BTC: [], ETH: [], XRP: [], USDC: [], BNB: [], BTM: [] };
+
+function loadUserCripto() {
+  const saved = localStorage.getItem('user_cripto');
+  if (saved) try { USER_CRIPTO = JSON.parse(saved); } catch(e) {}
+}
+
+function saveUserCripto() {
+  localStorage.setItem('user_cripto', JSON.stringify(USER_CRIPTO));
+}
+
+function getCriptoTx(ticker) {
+  const bases = { BTC: BTC_TRANSACTIONS, ETH: ETH_TRANSACTIONS, XRP: XRP_TRANSACTIONS, USDC: USDC_TRANSACTIONS, BNB: BNB_TRANSACTIONS, BTM: BTM_TRANSACTIONS };
+  const base = bases[ticker] || [];
+  const user = USER_CRIPTO[ticker] || [];
+  return [...base, ...user].sort((a, b) => {
+    const da = a.date + 'T' + (a.time || '00:00');
+    const db = b.date + 'T' + (b.time || '00:00');
+    return da.localeCompare(db);
+  });
+}
+
+let activeCrypto = 'BTC';
+
+function setCryptoView(ticker) {
+  activeCrypto = ticker;
+  const sel = document.getElementById('cripto-selector');
+  if (sel) sel.value = ticker;
+  const cfg = CRYPTO_CONFIG[ticker];
+  document.getElementById('page-title').textContent = 'Criptomonedas — ' + cfg.label + ' (' + ticker + ')';
+  renderCripto();
+}
+
+function renderCripto() {
+  const ticker  = activeCrypto;
+  const cfg     = CRYPTO_CONFIG[ticker];
+  const txData  = getCriptoTx(ticker);
+  const posId   = cfg.posId;
+  const symbol  = cfg.symbol;
+  const color1  = cfg.color;
+  const color1a = cfg.bg;
+
+  const sel = document.getElementById('cripto-selector');
+  if (sel) sel.value = ticker;
+  document.getElementById('page-title').textContent = 'Criptomonedas — ' + cfg.label + ' (' + ticker + ')';
+  document.getElementById('cripto-chart2-h3').textContent = cfg.label + ' en cartera (evolución)';
+  document.getElementById('cripto-table-h3').textContent  = 'Historial de transacciones — ' + cfg.label + ' (' + ticker + ')';
+
+  const cryptoPos = positions.find(p => p.id === posId);
+
+  let holdingsCrypto = 0, totalBoughtCrypto = 0, totalSoldCrypto = 0;
+  let totalInvested = 0, totalFees = 0, totalSaleProceeds = 0;
+
+  txData.forEach(tx => {
+    const gross = Math.abs(tx.qty) * tx.spot;
+    if (tx.tipo === 'COMPRA') {
+      holdingsCrypto    += tx.qty;
+      totalBoughtCrypto += tx.qty;
+      totalInvested     += gross + tx.comision;
+    } else {
+      holdingsCrypto      += tx.qty;
+      totalSoldCrypto     += Math.abs(tx.qty);
+      totalSaleProceeds   += gross - tx.comision;
+    }
+    totalFees += tx.comision;
+  });
+
+  const currentValue   = cryptoPos ? cryptoPos.value : totalInvested;
+  const currentPrice   = holdingsCrypto > 0 ? currentValue / holdingsCrypto : 0;
+  const avgCostPerUnit = totalBoughtCrypto > 0 ? totalInvested / totalBoughtCrypto : 0;
+  const costBasis      = holdingsCrypto * avgCostPerUnit;
+  const unrealizedPnl  = currentValue - costBasis;
+  const costSold       = totalSoldCrypto * avgCostPerUnit;
+  const realizedPnl    = totalSaleProceeds - costSold;
+
+  // ── KPIs ──
+  document.getElementById('cripto-kpis').innerHTML = [
+    { label: ticker + ' en cartera',   value: holdingsCrypto.toFixed(8) + ' ' + symbol, sub: fmt(currentValue) + ' valor actual',      color:'accent'                               },
+    { label:'Precio actual',            value: fmt(currentPrice),                         sub: 'Precio implícito en cartera',            color:''                                     },
+    { label:'Precio medio compra',      value: fmt(avgCostPerUnit),                       sub: 'Coste medio por unidad adquirida (CMC)', color:''                                     },
+    { label:'G/P no realizado',         value: fmt(unrealizedPnl),                        sub: pct(unrealizedPnl / costBasis * 100),     color: unrealizedPnl >= 0 ? 'green' : 'red'  },
+    { label:'G/P realizado',            value: fmt(realizedPnl),                          sub: 'Operaciones cerradas (CMC)',              color: realizedPnl >= 0 ? 'green' : 'red'    },
+    { label:'Comisiones totales',       value: fmt(totalFees),                             sub: 'Suma de todas las operaciones',          color:'yellow'                               },
+  ].map(k => `<div class="kpi-card ${k.color}">
+    <div class="kpi-label">${k.label}</div>
+    <div class="kpi-value" style="color:${k.color==='green'?'var(--green)':k.color==='red'?'var(--red)':'var(--text)'}">${k.value}</div>
+    <div class="kpi-sub">${k.sub}</div>
+  </div>`).join('');
+
+  const n = txData.length;
+
+  // ── Chart 1: Precio de entrada ──
+  mkChart('chart-cripto-precio', {
+    type: 'bar',
+    data: {
+      labels: txData.map(tx => tx.date.slice(5) + (tx.tipo==='COMPRA' ? ' ▲' : ' ▼')),
+      datasets: [
+        {
+          label: 'Spot (€/' + ticker + ')',
+          data: txData.map(tx => tx.spot),
+          backgroundColor: txData.map(tx => tx.permuta ? 'rgba(167,139,250,.8)' : tx.tipo==='COMPRA' ? 'rgba(34,197,94,.75)' : 'rgba(239,68,68,.75)'),
+          borderRadius: 4, order: 2,
+        },
+        {
+          label: 'Precio actual',
+          data: Array(n).fill(currentPrice),
+          type: 'line', borderColor: '#38bdf8', borderWidth: 2,
+          borderDash: [6,3], pointRadius: 0, fill: false, order: 1,
+        },
+        {
+          label: 'Precio medio compra',
+          data: Array(n).fill(avgCostPerUnit),
+          type: 'line', borderColor: '#f59e0b', borderWidth: 2,
+          borderDash: [3,3], pointRadius: 0, fill: false, order: 1,
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { color: '#2e3248' } },
+        y: { ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => cfg.spotFmt(v) }, grid: { color: '#2e3248' } }
+      }
+    }
+  });
+
+  // ── Chart 2: Holdings over time ──
+  let running = 0;
+  const holdingsData = txData.map(tx => {
+    running += tx.qty;
+    return parseFloat(running.toFixed(8));
+  });
+  mkChart('chart-cripto-holdings', {
+    type: 'line',
+    data: {
+      labels: txData.map(tx => tx.date),
+      datasets: [{
+        label: ticker + ' en cartera',
+        data: holdingsData,
+        borderColor: color1,
+        backgroundColor: color1a,
+        fill: true, stepped: true, tension: 0,
+        pointRadius: 5,
+        pointBackgroundColor: txData.map(tx => tx.tipo==='COMPRA' ? '#22c55e' : '#ef4444'),
+        pointBorderColor: '#1a1d27', pointBorderWidth: 2,
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { color: '#2e3248' } },
+        y: { ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => cfg.holdFmt(v) }, grid: { color: '#2e3248' } }
+      }
+    }
+  });
+
+  // ── Chart 3: Por plataforma ──
+  const platMap = {};
+  txData.filter(tx => tx.tipo === 'COMPRA').forEach(tx => {
+    const k = tx.plataforma;
+    platMap[k] = (platMap[k] || 0) + tx.qty * tx.spot + tx.comision;
+  });
+  const platKeys = Object.keys(platMap);
+  mkChart('chart-cripto-plataforma', {
+    type: 'doughnut',
+    data: {
+      labels: platKeys.map(k => k + ' (' + fmt(platMap[k]) + ')'),
+      datasets: [{ data: platKeys.map(k => platMap[k]), backgroundColor: ['#f7931a','#6c63ff','#38bdf8','#22c55e'], borderWidth: 2, borderColor: '#1a1d27' }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 11 } } } } }
+  });
+
+  // ── Chart 4: Flujos anuales ──
+  const years = [...new Set(txData.map(tx => tx.date.slice(0, 4)))].sort();
+  const buysByYear  = years.map(y => txData.filter(tx => tx.date.startsWith(y) && tx.tipo==='COMPRA').reduce((s, tx) => s + tx.qty * tx.spot + tx.comision, 0));
+  const sellsByYear = years.map(y => txData.filter(tx => tx.date.startsWith(y) && tx.tipo==='VENTA').reduce((s, tx) => s + Math.abs(tx.qty) * tx.spot - tx.comision, 0));
+  mkChart('chart-cripto-anual', {
+    type: 'bar',
+    data: {
+      labels: years,
+      datasets: [
+        { label: 'Compras (€)',  data: buysByYear,  backgroundColor: 'rgba(34,197,94,.8)',  borderRadius: 4 },
+        { label: 'Ventas (€)',   data: sellsByYear, backgroundColor: 'rgba(239,68,68,.8)', borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#2e3248' } },
+        y: { ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => fmt(v) }, grid: { color: '#2e3248' } }
+      }
+    }
+  });
+
+  // ── Tabla ──
+  let runningQty = 0;
+  const tableEl = document.getElementById('table-cripto');
+  tableEl.innerHTML = `<thead><tr>
+    <th>Fecha</th><th>Hora</th><th>Tipo</th><th>Plataforma</th>
+    <th style="text-align:right">${ticker}</th>
+    <th style="text-align:right">Spot (€/${ticker})</th>
+    <th style="text-align:right">Importe bruto</th>
+    <th style="text-align:right">Comisión</th>
+    <th style="text-align:right">${ticker} acumulado</th>
+  </tr></thead>`;
+
+  let tbody = '<tbody>';
+  txData.forEach(tx => {
+    const isBuy   = tx.tipo === 'COMPRA';
+    const isSwap  = !!tx.permuta;
+    runningQty += tx.qty;
+    const gross = Math.abs(tx.qty) * tx.spot;
+    const badge = isSwap
+      ? '<span class="badge" style="background:#312e81;color:#c4b5fd">PERMUTA</span>'
+      : isBuy
+        ? '<span class="badge" style="background:#14532d;color:#86efac">COMPRA</span>'
+        : '<span class="badge" style="background:#450a0a;color:#fca5a5">VENTA</span>';
+    const platCell = tx.plataforma + (isSwap
+      ? `<br><span style="font-size:.72rem;color:var(--accent)">${tx.permuta}</span>`
+      : '');
+    const qtyColor = isSwap ? 'var(--accent)' : isBuy ? 'var(--green)' : 'var(--red)';
+    const importeColor = isSwap ? 'var(--muted)' : isBuy ? 'var(--red)' : 'var(--green)';
+    tbody += `<tr>
+      <td>${tx.date}</td>
+      <td style="color:var(--muted)">${tx.time}</td>
+      <td>${badge}</td>
+      <td style="color:var(--muted)">${platCell}</td>
+      <td style="text-align:right;color:${qtyColor};font-weight:600">${isBuy?'+':''}${tx.qty.toFixed(8)}</td>
+      <td style="text-align:right">${fmt(tx.spot)}</td>
+      <td style="text-align:right;color:${importeColor}">${isBuy?'-':'+'}${fmt(gross)}</td>
+      <td style="text-align:right;color:var(--muted)">${tx.comision.toFixed(1)} €</td>
+      <td style="text-align:right;font-weight:700">${runningQty.toFixed(8)} ${symbol}</td>
+    </tr>`;
+  });
+  tbody += '</tbody>';
+  tableEl.innerHTML += tbody;
+
+  renderCriptoFiscalidad();
+}
+
+// ─────────────────────────────────────────────
+//  FISCALIDAD CRIPTO (FIFO)
+// ─────────────────────────────────────────────
+function computeFifoGains() {
+  const TICKERS = ['BTC', 'ETH', 'XRP', 'USDC', 'BNB', 'BTM'];
+
+  const allTxs = [];
+  TICKERS.forEach(ticker => {
+    getCriptoTx(ticker).forEach(tx => allTxs.push({ ...tx, ticker }));
+  });
+
+  allTxs.sort((a, b) => {
+    const da = a.date + 'T' + (a.time || '00:00');
+    const db = b.date + 'T' + (b.time || '00:00');
+    return da.localeCompare(db);
+  });
+
+  const queues = {};
+  TICKERS.forEach(t => queues[t] = []);
+
+  const events = [];
+
+  allTxs.forEach(tx => {
+    const q = queues[tx.ticker];
+
+    if (tx.tipo === 'COMPRA') {
+      const totalCost = Math.abs(tx.qty) * tx.spot + tx.comision;
+      q.push({ qty: Math.abs(tx.qty), costPerUnit: totalCost / Math.abs(tx.qty), lotDate: tx.date });
+
+    } else if (tx.tipo === 'VENTA') {
+      const proceeds = Math.abs(tx.qty) * tx.spot - tx.comision;
+      let remaining  = Math.abs(tx.qty);
+      let costBasis  = 0;
+      const lotsUsed = [];
+
+      while (remaining > 1e-10 && q.length > 0) {
+        const lot  = q[0];
+        const take = Math.min(remaining, lot.qty);
+        costBasis += take * lot.costPerUnit;
+        lotsUsed.push({ date: lot.lotDate, qty: take, costPerUnit: lot.costPerUnit });
+        lot.qty   -= take;
+        remaining -= take;
+        if (lot.qty < 1e-10) q.shift();
+      }
+
+      events.push({
+        year: parseInt(tx.date.slice(0, 4)),
+        date: tx.date,
+        ticker: tx.ticker,
+        tipo: tx.permuta ? 'PERMUTA' : 'VENTA',
+        qty: Math.abs(tx.qty),
+        spot: tx.spot,
+        comision: tx.comision,
+        proceeds,
+        costBasis,
+        gain: proceeds - costBasis,
+        permutaDetail: tx.permuta || null,
+        lotsUsed
+      });
+    }
+  });
+
+  return events;
+}
+
+function calcAhorroTax(g) {
+  if (g <= 0) return 0;
+  let t = 0;
+  if (g > 200000) { t += (g - 200000) * 0.27; g = 200000; }
+  if (g > 50000)  { t += (g - 50000)  * 0.23; g = 50000;  }
+  if (g > 6000)   { t += (g - 6000)   * 0.21; g = 6000;   }
+  return t + g * 0.19;
+}
+
+function showFiscalYear(y) {
+  [2023, 2024, 2025, 2026].forEach(yr => {
+    const p = document.getElementById('fpanel-' + yr);
+    const t = document.getElementById('ftab-'   + yr);
+    if (p) p.classList.toggle('active', yr === y);
+    if (t) t.classList.toggle('active', yr === y);
+  });
+}
+
+function renderCriptoFiscalidad() {
+  const events    = computeFifoGains();
+  const YEARS     = [2023, 2024, 2025, 2026];
+  const byYear    = {};
+  YEARS.forEach(y => byYear[y] = events.filter(e => e.year === y));
+
+  // ── Year tabs ──
+  const tabsHtml = YEARS.map(y => {
+    const ev    = byYear[y];
+    const total = ev.reduce((s, e) => s + e.gain, 0);
+    let badgeBg, badgeColor, badgeText;
+    if (!ev.length) {
+      badgeBg = 'rgba(148,163,184,.12)'; badgeColor = 'var(--muted)'; badgeText = '—';
+    } else if (total >= 0) {
+      badgeBg = 'rgba(34,197,94,.15)';   badgeColor = 'var(--green)'; badgeText = '+' + fmt(total);
+    } else {
+      badgeBg = 'rgba(239,68,68,.15)';   badgeColor = 'var(--red)';   badgeText = fmt(total);
+    }
+    return `<div class="fiscal-tab" id="ftab-${y}" onclick="showFiscalYear(${y})">
+      ${y} <span style="color:var(--muted);font-weight:400;font-size:.75rem">→ Renta ${y+1}</span>
+      <span class="fiscal-badge" style="background:${badgeBg};color:${badgeColor}">${badgeText}</span>
+    </div>`;
+  }).join('');
+
+  // ── Year panels ──
+  const panelsHtml = YEARS.map(y => {
+    const ev          = byYear[y];
+    const totalGain   = ev.reduce((s, e) => s + e.gain, 0);
+    const totalProc   = ev.reduce((s, e) => s + e.proceeds, 0);
+    const totalCost   = ev.reduce((s, e) => s + e.costBasis, 0);
+    const taxEst      = calcAhorroTax(totalGain);
+    const marginal    = totalGain > 200000 ? '27 %' : totalGain > 50000 ? '23 %' : totalGain > 6000 ? '21 %' : '19 %';
+    const hasPermuta  = ev.some(e => e.tipo === 'PERMUTA');
+
+    let inner = '';
+
+    if (!ev.length) {
+      inner = `<div class="fiscal-empty">
+        <div class="fe-icon">✅</div>
+        <div style="font-weight:600;color:var(--text);margin-bottom:6px">Sin eventos fiscales en ${y}</div>
+        <div>No hubo ventas ni permutas de criptomonedas en este ejercicio.<br>No hay nada que declarar por este concepto en la Renta ${y+1}.</div>
+      </div>`;
+    } else {
+      // Events table
+      const rows = ev.map(e => {
+        const gc   = e.gain >= 0 ? 'var(--green)' : 'var(--red)';
+        const gs   = e.gain >= 0 ? '+' : '';
+        const badge = e.tipo === 'PERMUTA'
+          ? '<span class="badge" style="background:#312e81;color:#c4b5fd">PERMUTA</span>'
+          : '<span class="badge" style="background:#450a0a;color:#fca5a5">VENTA</span>';
+        const detail = e.permutaDetail
+          ? `<br><span style="font-size:.7rem;color:var(--accent2)">${e.permutaDetail}</span>` : '';
+        const lotsDates = [...new Set(e.lotsUsed.map(l => l.date))].join(', ');
+        return `<tr>
+          <td>${e.date}</td>
+          <td>${badge}${detail}</td>
+          <td style="font-weight:600">${e.ticker}</td>
+          <td style="text-align:right;font-family:monospace;font-size:.78rem">${e.qty.toFixed(6)}</td>
+          <td style="text-align:right">${fmt(e.spot)}/ud.</td>
+          <td style="text-align:right;color:var(--green)">${fmt(e.proceeds)}</td>
+          <td style="text-align:right;color:var(--muted)">${fmt(e.costBasis)}
+            <div style="font-size:.67rem;color:var(--muted)">Compra${e.lotsUsed.length>1?'s':''}: ${lotsDates}</div>
+          </td>
+          <td style="text-align:right;font-weight:700;color:${gc}">${gs}${fmt(e.gain)}</td>
+        </tr>`;
+      }).join('');
+
+      const gc = totalGain >= 0 ? 'var(--green)' : 'var(--red)';
+      const gs = totalGain >= 0 ? '+' : '';
+
+      inner += `<div style="overflow-x:auto;margin-bottom:16px">
+        <table style="min-width:740px">
+          <thead><tr>
+            <th>Fecha</th><th>Tipo</th><th>Activo</th>
+            <th style="text-align:right">Cantidad</th>
+            <th style="text-align:right">Precio venta</th>
+            <th style="text-align:right">Valor de venta</th>
+            <th style="text-align:right">Coste FIFO</th>
+            <th style="text-align:right">Ganancia / Pérdida</th>
+          </tr></thead>
+          <tbody>${rows}
+            <tr class="fiscal-total-row">
+              <td colspan="5" style="color:var(--text)">TOTAL EJERCICIO ${y}</td>
+              <td style="text-align:right;color:var(--green)">${fmt(totalProc)}</td>
+              <td style="text-align:right;color:var(--muted)">${fmt(totalCost)}</td>
+              <td style="text-align:right;color:${gc}">${gs}${fmt(totalGain)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>`;
+
+      // KPI cards
+      const kpiCards = [];
+      kpiCards.push(`<div class="kpi-card ${totalGain>=0?'green':'red'}">
+        <div class="kpi-label">Resultado neto FIFO</div>
+        <div class="kpi-value" style="color:${totalGain>=0?'var(--green)':'var(--red)'}">${gs}${fmt(totalGain)}</div>
+        <div class="kpi-sub">${totalGain>=0?'Ganancia a declarar':'Pérdida compensable'}</div>
+      </div>`);
+      if (totalGain > 0) {
+        kpiCards.push(`<div class="kpi-card yellow">
+          <div class="kpi-label">Impuesto estimado</div>
+          <div class="kpi-value" style="color:var(--yellow)">${fmt(taxEst)}</div>
+          <div class="kpi-sub">Tipo efectivo ${(taxEst/totalGain*100).toFixed(1)} %</div>
+        </div>`);
+        kpiCards.push(`<div class="kpi-card">
+          <div class="kpi-label">Tipo marginal ahorro</div>
+          <div class="kpi-value">${marginal}</div>
+          <div class="kpi-sub">Tramo más alto aplicado</div>
+        </div>`);
+      }
+      inner += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px">${kpiCards.join('')}</div>`;
+
+      // Info box
+      inner += `<div class="fiscal-info-box">
+        <h4>📋 Dónde declararlo en el Modelo 100 · Renta ${y+1}</h4>
+        <p>
+          <strong>Sección:</strong> Ganancias y pérdidas patrimoniales → Transmisión de otros elementos patrimoniales → <em>Monedas virtuales / Activos virtuales</em><br>
+          <strong>Base:</strong> Base Imponible del <strong>Ahorro</strong> (no va a la base general)<br>
+          <strong>Tramos ahorro:</strong> 19 % hasta 6.000 € · 21 % de 6.000 a 50.000 € · 23 % de 50.000 a 200.000 € · 27 % por encima<br>
+          <strong>Método obligatorio:</strong> FIFO (First In, First Out) — las unidades compradas primero se consideran vendidas primero. El Coste Medio que muestra la cartera <em>no es válido</em> fiscalmente.${
+            hasPermuta ? '<br><strong>Permutas:</strong> El canje de una cripto por otra es hecho imponible. Se valora a precio de mercado en la fecha del canje; la ganancia tributa igual que una venta.' : ''
+          }<br>
+          <strong>Pérdidas:</strong> Si el resultado es negativo, compensa otras ganancias del ahorro del mismo ejercicio; el remanente se arrastra 4 años.
+        </p>
+      </div>`;
+    }
+
+    return `<div class="fiscal-panel" id="fpanel-${y}">${inner}</div>`;
+  }).join('');
+
+  document.getElementById('cripto-fiscalidad').innerHTML = `
+    <div class="table-box" style="margin-top:16px">
+      <h3>🏛️ Fiscalidad — Ganancias y Pérdidas en Criptomonedas</h3>
+      <p style="font-size:.75rem;color:var(--muted);margin-bottom:16px">Cálculo con método FIFO según normativa española (art. 37.1.h LIRPF). Resultados integrados en la Base Imponible del Ahorro.</p>
+      <div class="fiscal-year-tabs">${tabsHtml}</div>
+      ${panelsHtml}
+    </div>`;
+
+  const activeYear = [...YEARS].reverse().find(y => byYear[y].length > 0) || YEARS[YEARS.length - 1];
+  showFiscalYear(activeYear);
+}
+
+// ─────────────────────────────────────────────
+//  CRIPTO MODAL FUNCTIONS
+// ─────────────────────────────────────────────
+function openCriptoModal() {
+  const today = new Date().toISOString().slice(0, 10);
+  const nowTime = new Date().toTimeString().slice(0, 5);
+  document.getElementById('cm-fecha').value    = today;
+  document.getElementById('cm-hora').value     = nowTime;
+  document.getElementById('cm-tipo').value     = 'COMPRA';
+  document.getElementById('cm-activo').value   = activeCrypto;
+  document.getElementById('cm-activo2').value  = activeCrypto === 'BTC' ? 'ETH' : 'BTC';
+  document.getElementById('cm-plataforma').value = '';
+  document.getElementById('cm-qty').value      = '';
+  document.getElementById('cm-spot').value     = '';
+  document.getElementById('cm-comision').value = '0';
+  document.getElementById('cm-qty2').value     = '';
+  document.getElementById('cm-spot2').value    = '';
+  onCriptoFormChange();
+  document.getElementById('cripto-modal-overlay').classList.add('open');
+}
+
+function closeCriptoModal() {
+  document.getElementById('cripto-modal-overlay').classList.remove('open');
+}
+
+function onCriptoFormChange() {
+  const tipo      = document.getElementById('cm-tipo').value;
+  const activo    = document.getElementById('cm-activo').value;
+  const other     = document.getElementById('cm-activo2').value;
+  const isPermuta = tipo === 'PERMUTA';
+
+  document.getElementById('cm-activo-label').textContent = isPermuta ? 'Activo que entregas' : 'Activo';
+  document.getElementById('cm-qty-label').textContent    = `Cantidad ${tipo === 'VENTA' ? 'vendida' : tipo === 'PERMUTA' ? 'entregada' : 'comprada'} (${activo})`;
+  document.getElementById('cm-spot-label').textContent   = `Spot (€/${activo})`;
+  document.getElementById('cm-permuta-section').style.display = isPermuta ? 'block' : 'none';
+  if (isPermuta) {
+    document.getElementById('cm-qty2-label').textContent  = `Cantidad recibida (${other})`;
+    document.getElementById('cm-spot2-label').textContent = `Spot recibido (€/${other})`;
+  }
+  updateCriptoPreview();
+}
+
+function updateCriptoPreview() {
+  const tipo     = document.getElementById('cm-tipo').value;
+  const activo   = document.getElementById('cm-activo').value;
+  const other    = document.getElementById('cm-activo2').value;
+  const qty      = parseFloat(document.getElementById('cm-qty').value)      || 0;
+  const spot     = parseFloat(document.getElementById('cm-spot').value)     || 0;
+  const comision = parseFloat(document.getElementById('cm-comision').value) || 0;
+  const el       = document.getElementById('cm-preview');
+
+  if (!qty || !spot) { el.textContent = 'Introduce cantidad y precio spot para ver el resumen.'; return; }
+
+  const gross = qty * spot;
+  if (tipo === 'COMPRA') {
+    el.innerHTML = `Pagas <strong style="color:var(--text)">${fmt(gross + comision)}</strong> (bruto ${fmt(gross)} + comisión ${comision.toFixed(2)} €) &rarr; recibes <strong style="color:var(--green)">${qty.toFixed(8)} ${activo}</strong>`;
+  } else if (tipo === 'VENTA') {
+    el.innerHTML = `Vendes <strong style="color:var(--text)">${qty.toFixed(8)} ${activo}</strong> &rarr; recibes <strong style="color:var(--green)">${fmt(gross - comision)}</strong> neto (${fmt(gross)} &minus; ${comision.toFixed(2)} € comisión)`;
+  } else {
+    const qty2  = parseFloat(document.getElementById('cm-qty2').value)  || 0;
+    const spot2 = parseFloat(document.getElementById('cm-spot2').value) || 0;
+    if (!qty2 || !spot2) { el.innerHTML = `Entregas <strong style="color:var(--text)">${qty.toFixed(8)} ${activo}</strong> (${fmt(gross)}) &rarr; introduce los datos del activo recibido.`; return; }
+    const gross2 = qty2 * spot2;
+    const diff   = gross2 - gross;
+    el.innerHTML = `Entregas <strong style="color:var(--red)">${qty.toFixed(8)} ${activo}</strong> (${fmt(gross)}) &rarr; recibes <strong style="color:var(--green)">${qty2.toFixed(8)} ${other}</strong> (${fmt(gross2)}) · diferencia ${diff >= 0 ? '+' : ''}${fmt(diff)} · comisión ${comision.toFixed(2)} €`;
+  }
+}
+
+function saveCriptoTx() {
+  const tipo      = document.getElementById('cm-tipo').value;
+  const activo    = document.getElementById('cm-activo').value;
+  const fecha     = document.getElementById('cm-fecha').value;
+  const hora      = document.getElementById('cm-hora').value.slice(0, 5);
+  const plataforma = document.getElementById('cm-plataforma').value.trim() || 'Sin especificar';
+  const qty       = parseFloat(document.getElementById('cm-qty').value);
+  const spot      = parseFloat(document.getElementById('cm-spot').value);
+  const comision  = parseFloat(document.getElementById('cm-comision').value) || 0;
+
+  if (!fecha || !hora || !(qty > 0) || !(spot > 0)) {
+    alert('Completa fecha, hora, cantidad (> 0) y precio spot (> 0).'); return;
+  }
+  if (!USER_CRIPTO[activo]) USER_CRIPTO[activo] = [];
+
+  if (tipo === 'PERMUTA') {
+    const other = document.getElementById('cm-activo2').value;
+    const qty2  = parseFloat(document.getElementById('cm-qty2').value);
+    const spot2 = parseFloat(document.getElementById('cm-spot2').value);
+    if (!(qty2 > 0) || !(spot2 > 0)) {
+      alert('Para una permuta, introduce también cantidad y precio del activo recibido (> 0).'); return;
+    }
+    USER_CRIPTO[activo].push({ date:fecha, time:hora, qty:-qty,  tipo:'VENTA',  plataforma, comision,  spot,  permuta:'→ '+qty2.toFixed(8)+' '+other  });
+    if (!USER_CRIPTO[other]) USER_CRIPTO[other] = [];
+    USER_CRIPTO[other].push({  date:fecha, time:hora, qty:qty2,  tipo:'COMPRA', plataforma, comision:0, spot:spot2, permuta:'← '+qty.toFixed(8)+' '+activo });
+  } else {
+    USER_CRIPTO[activo].push({ date:fecha, time:hora, qty: tipo==='VENTA' ? -qty : qty, tipo, plataforma, comision, spot });
+  }
+
+  saveUserCripto();
+  closeCriptoModal();
+  renderCripto();
+}
+
+// ─────────────────────────────────────────────
+//  ACTUALIZACIÓN AUTOMÁTICA DE PRECIOS (CoinGecko)
+// ─────────────────────────────────────────────
+async function updateCryptoPrices() {
+  const statusEl = document.getElementById('cripto-price-status');
+  if (statusEl) { statusEl.textContent = '↻ Actualizando...'; statusEl.style.color = 'var(--muted)'; }
+
+  const ids = Object.values(CRYPTO_CONFIG).map(c => c.cgId).join(',');
+  try {
+    const res = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=eur`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+
+    let updated = 0;
+    Object.entries(CRYPTO_CONFIG).forEach(([ticker, cfg]) => {
+      const priceEur = data[cfg.cgId]?.eur;
+      if (!priceEur) return;
+      const holdings = getCriptoTx(ticker).reduce((s, tx) => s + tx.qty, 0);
+      if (holdings < 0.000001) return;
+      const pos = positions.find(p => p.id === cfg.posId);
+      if (pos) { pos.value = parseFloat((holdings * priceEur).toFixed(2)); updated++; }
+    });
+
+    if (updated > 0) savePositions(positions);
+
+    const hora = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    if (statusEl) { statusEl.textContent = '✓ Precios actualizados ' + hora; statusEl.style.color = 'var(--green)'; }
+    return { ok: true, updated };
+  } catch (e) {
+    if (statusEl) { statusEl.textContent = '✗ Sin conexión a CoinGecko'; statusEl.style.color = 'var(--red)'; }
+    return { ok: false };
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('cripto-modal-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('cripto-modal-overlay')) closeCriptoModal();
+  });
+});
+
+// ─────────────────────────────────────────────
+//  RESUMEN
+// ─────────────────────────────────────────────
+function renderResumen() {
+  const fp = filteredPositions();
+  const total = sumValue(fp);
+  const totalCost = fp.reduce((s, p) => s + p.cost, 0);
+  const totalPnl = total - totalCost;
+  const pnlP = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+
+  // Rentabilidad anualizada ponderada por valor
+  const now = Date.now();
+  let weightedAnnSum = 0, weightedTotal = 0;
+  fp.forEach(p => {
+    const startStr = START_DATES[p.id];
+    if (!startStr) return;
+    const years = (now - new Date(startStr).getTime()) / (365.25 * 24 * 3600 * 1000);
+    if (years < 0.01) return;
+    const gpPct = p.cost > 0 ? (p.value - p.cost) / p.cost : 0;
+    const ann = (Math.pow(1 + gpPct, 1 / years) - 1) * 100;
+    weightedAnnSum += ann * p.value;
+    weightedTotal  += p.value;
+  });
+  const portfolioAnn = weightedTotal > 0 ? weightedAnnSum / weightedTotal : null;
+  const annStr = portfolioAnn !== null
+    ? (portfolioAnn >= 0 ? '+' : '') + portfolioAnn.toFixed(1) + '%'
+    : '–';
+
+  // KPIs
+  const kpiEl = document.getElementById('kpi-grid');
+  kpiEl.innerHTML = '';
+  const kpis = [
+    { label:'Patrimonio Total', value: fmt(total), sub:'Valor actual', color:'accent' },
+    { label:'Coste Total', value: fmt(totalCost), sub:'Precio de adquisición', color:'' },
+    { label:'G/P Total', value: fmt(totalPnl), sub: pct(pnlP), color: totalPnl >= 0 ? 'green' : 'red' },
+    { label:'Rentab. Anualizada', value: annStr, sub:'Media pond. por valor', color: portfolioAnn !== null && portfolioAnn >= 0 ? 'green' : 'red' },
+    { label:'Posiciones', value: fp.length, sub:'Activos en cartera', color:'' },
+    { label:'Mayor Posición', value: fp.length ? fmt(Math.max(...fp.map(p=>p.value))) : '–', sub: fp.length ? fp.sort((a,b)=>b.value-a.value)[0].name.split(' ').slice(0,3).join(' ')+'…' : '', color:'yellow' },
+    { label:'% Renta Variable', value: pct(sumValue(fp.filter(p=>p.tipo==='RV')) / (total||1) * 100), sub:'vs total cartera', color:'' },
+  ];
+  kpis.forEach(k => {
+    kpiEl.innerHTML += `<div class="kpi-card ${k.color}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value" style="color:${k.color==='green'?'var(--green)':k.color==='red'?'var(--red)':'var(--text)'}">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`;
+  });
+
+  // Pie tipo
+  const byTipo = groupBy(fp, 'tipo');
+  const tipoKeys = Object.keys(byTipo);
+  mkChart('chart-pie-type', {
+    type: 'doughnut',
+    data: {
+      labels: tipoKeys.map(t => TYPE_LABELS[t] || t),
+      datasets: [{ data: tipoKeys.map(t => sumValue(byTipo[t])), backgroundColor: tipoKeys.map(t => TYPE_COLORS[t] || '#888'), borderWidth: 2, borderColor: '#1a1d27' }]
+    },
+    options: { responsive: true, plugins: { legend: { position:'right', labels:{ color:'#94a3b8', font:{size:11}, boxWidth:12 } } } }
+  });
+
+  // Pie broker
+  const byBroker = groupBy(fp, 'broker');
+  const brokerKeys = Object.keys(byBroker);
+  mkChart('chart-pie-broker', {
+    type: 'doughnut',
+    data: {
+      labels: brokerKeys,
+      datasets: [{ data: brokerKeys.map(b => sumValue(byBroker[b])), backgroundColor: brokerKeys.map((_,i) => color(i+4)), borderWidth: 2, borderColor: '#1a1d27' }]
+    },
+    options: { responsive: true, plugins: { legend: { position:'right', labels:{ color:'#94a3b8', font:{size:11}, boxWidth:12 } } } }
+  });
+
+  // Bar región (solo RV)
+  const rvPos = fp.filter(p => p.tipo === 'RV');
+  const byRegion = groupBy(rvPos, 'region');
+  const regionKeys = Object.keys(byRegion);
+  mkChart('chart-bar-region', {
+    type: 'bar',
+    data: {
+      labels: regionKeys,
+      datasets: [{ label:'Valor (€)', data: regionKeys.map(r => sumValue(byRegion[r])), backgroundColor: regionKeys.map((_,i) => color(i)), borderRadius: 6 }]
+    },
+    options: { responsive: true, indexAxis:'y', ...CHART_DEFAULTS, scales: { x: { ...CHART_DEFAULTS.scales.x }, y: { ticks:{ color:'#94a3b8', font:{size:10} }, grid:{color:'#2e3248'} } } }
+  });
+
+  // Bar posiciones
+  const sorted = [...fp].filter(p=>p.value>0).sort((a,b)=>b.value-a.value);
+  mkChart('chart-bar-positions', {
+    type: 'bar',
+    data: {
+      labels: sorted.map(p => p.name.split(' ').slice(0,3).join(' ')),
+      datasets: [{ label:'Valor (€)', data: sorted.map(p=>p.value), backgroundColor: sorted.map((_,i)=>color(i)), borderRadius:6 }]
+    },
+    options: { responsive: true, ...CHART_DEFAULTS }
+  });
+}
+
+// ─────────────────────────────────────────────
+//  POR TIPO
+// ─────────────────────────────────────────────
+let activeTipoFilter = 'all';
+let tipoBarMode = 'valor';
+
+function setTipoBarMode(mode) {
+  tipoBarMode = mode;
+  document.getElementById('toggle-valor').style.background = mode === 'valor' ? 'var(--accent)' : 'transparent';
+  document.getElementById('toggle-valor').style.color = mode === 'valor' ? '#fff' : 'var(--muted)';
+  document.getElementById('toggle-pct').style.background = mode === 'pct' ? 'var(--accent)' : 'transparent';
+  document.getElementById('toggle-pct').style.color = mode === 'pct' ? '#fff' : 'var(--muted)';
+  renderPorTipo();
+}
+
+function renderPorTipo() {
+  const fp = filteredPositions();
+  const tipos = [...new Set(fp.map(p => p.tipo))];
+
+  // Tags
+  const tagRow = document.getElementById('tipo-tags');
+  tagRow.innerHTML = `<span class="tag ${activeTipoFilter==='all'?'active':''}" onclick="setTipoFilter('all')">Todos</span>`;
+  tipos.forEach(t => {
+    tagRow.innerHTML += `<span class="tag ${activeTipoFilter===t?'active':''}" onclick="setTipoFilter('${t}')">${TYPE_LABELS[t]||t}</span>`;
+  });
+
+  const shown = activeTipoFilter === 'all' ? fp : fp.filter(p => p.tipo === activeTipoFilter);
+  const byTipo = groupBy(fp, 'tipo');
+  const tipoKeys = Object.keys(byTipo);
+  const total = sumValue(fp);
+  const isPct = tipoBarMode === 'pct';
+  const barData = tipoKeys.map(t => isPct ? +(sumValue(byTipo[t])/total*100).toFixed(1) : sumValue(byTipo[t]));
+
+  mkChart('chart-tipo-bar', {
+    type: 'bar',
+    data: {
+      labels: tipoKeys.map(t => TYPE_LABELS[t]||t),
+      datasets: [{ label: isPct ? '% del total' : 'Valor (€)', data: barData, backgroundColor: tipoKeys.map(t=>TYPE_COLORS[t]||'#888'), borderRadius:6 }]
+    },
+    options: { responsive: true, ...CHART_DEFAULTS, scales: {
+      x: { ...CHART_DEFAULTS.scales.x },
+      y: { ticks: { color:'#94a3b8', font:{size:10}, callback: v => isPct ? v+'%' : fmt(v) }, grid: { color:'#2e3248' } }
+    }}
+  });
+
+  mkChart('chart-tipo-doughnut', {
+    type: 'doughnut',
+    data: {
+      labels: tipoKeys.map(t => TYPE_LABELS[t]||t),
+      datasets: [{ data: tipoKeys.map(t=>sumValue(byTipo[t])), backgroundColor: tipoKeys.map(t=>TYPE_COLORS[t]||'#888'), borderWidth:2, borderColor:'#1a1d27' }]
+    },
+    options: { responsive: true, plugins: { legend: { position:'right', labels:{ color:'#94a3b8', font:{size:11} } } } }
+  });
+
+  renderTable('table-tipo', shown, ['name','tipo','region','broker','value','pnl']);
+}
+
+function setTipoFilter(t) { activeTipoFilter = t; renderPorTipo(); }
+
+// ─────────────────────────────────────────────
+//  POR REGIÓN
+// ─────────────────────────────────────────────
+let regionMode = 'directo';
+
+function setRegionMode(mode) {
+  regionMode = mode;
+  const btnD = document.getElementById('toggle-region-directo');
+  const btnR = document.getElementById('toggle-region-robo');
+  const hint = document.getElementById('region-mode-hint');
+  if (btnD && btnR) {
+    btnD.style.background = mode === 'directo' ? 'var(--accent)' : 'transparent';
+    btnD.style.color      = mode === 'directo' ? '#fff' : 'var(--muted)';
+    btnR.style.background = mode === 'robo'    ? 'var(--accent)' : 'transparent';
+    btnR.style.color      = mode === 'robo'    ? '#fff' : 'var(--muted)';
+  }
+  if (hint) hint.textContent = mode === 'directo'
+    ? 'Mostrando posiciones directas'
+    : 'Desglosando RV de Cartera Indie y Plan Pensiones por fondo subyacente';
+  renderPorRegion();
+}
+
+// Construye mapa región→€ incorporando desglose roboadvisors en RV
+function buildRegionMap(fp) {
+  const map = {}; // region → { direct: €, indie: €, pension: € }
+  const add = (region, key, val) => {
+    if (!region || region === '–' || val <= 0) return;
+    if (!map[region]) map[region] = { direct:0, indie:0, pension:0 };
+    map[region][key] += val;
+  };
+
+  const ROBO_IDS = new Set([9, 10]); // Cartera Indie, Plan Pensiones
+
+  fp.forEach(p => {
+    if (regionMode === 'directo' || !ROBO_IDS.has(p.id)) {
+      add(p.region, 'direct', p.value);
+    } else {
+      // Desglose: usa solo fondos RV del roboadvisor
+      const comp = p.id === 9 ? ROBO_COMP.indie : ROBO_COMP.pension;
+      const rvFunds = comp.funds.filter(f => f.tipo === 'RV');
+      const totalRvPct = rvFunds.reduce((s,f) => s + f.pct, 0);
+      // Valor RV de la posición
+      const rvValue = p.value * totalRvPct / 100;
+      rvFunds.forEach(f => {
+        const euros = rvValue * (f.pct / totalRvPct);
+        const key = p.id === 9 ? 'indie' : 'pension';
+        add(f.region, key, euros);
+      });
+      // El resto (RF, depósitos) va como región original
+      const nonRvPct = 100 - totalRvPct;
+      if (nonRvPct > 0) add(p.region + ' (RF/Dep.)', 'direct', p.value * nonRvPct / 100);
+    }
+  });
+  return map;
+}
+
+function renderPorRegion() {
+  const fp = filteredPositions();
+  const map = buildRegionMap(fp);
+  const regionKeys = Object.keys(map).sort((a,b) => {
+    const ta = map[a].direct+map[a].indie+map[a].pension;
+    const tb = map[b].direct+map[b].indie+map[b].pension;
+    return tb - ta;
+  });
+
+  const isRobo = regionMode === 'robo';
+  const totalFn = r => map[r].direct + map[r].indie + map[r].pension;
+
+  if (isRobo) {
+    mkChart('chart-region-bar', {
+      type: 'bar',
+      data: {
+        labels: regionKeys,
+        datasets: [
+          { label:'Posiciones directas', data: regionKeys.map(r=>map[r].direct),  backgroundColor:'rgba(108,99,255,.85)', borderRadius:4 },
+          { label:'Cartera Indie (RV)',  data: regionKeys.map(r=>map[r].indie),   backgroundColor:'rgba(56,189,248,.85)', borderRadius:4 },
+          { label:'Plan Pensiones (RV)',data: regionKeys.map(r=>map[r].pension), backgroundColor:'rgba(245,158,11,.85)', borderRadius:4 },
+        ]
+      },
+      options: { responsive:true, indexAxis:'y', ...CHART_DEFAULTS,
+        plugins:{ legend:{ labels:{color:'#94a3b8',font:{size:11}} } },
+        scales:{ x:{...CHART_DEFAULTS.scales.x, stacked:true}, y:{ticks:{color:'#94a3b8',font:{size:10}},grid:{color:'#2e3248'},stacked:true} } }
+    });
+  } else {
+    mkChart('chart-region-bar', {
+      type: 'bar',
+      data: {
+        labels: regionKeys,
+        datasets: [{ label:'Valor (€)', data: regionKeys.map(totalFn), backgroundColor: regionKeys.map((_,i)=>color(i)), borderRadius:6 }]
+      },
+      options: { responsive:true, indexAxis:'y', ...CHART_DEFAULTS, scales:{ x:{...CHART_DEFAULTS.scales.x}, y:{ticks:{color:'#94a3b8',font:{size:10}},grid:{color:'#2e3248'}} } }
+    });
+  }
+
+  mkChart('chart-region-pie', {
+    type: 'doughnut',
+    data: {
+      labels: regionKeys,
+      datasets: [{ data: regionKeys.map(totalFn), backgroundColor: regionKeys.map((_,i)=>color(i)), borderWidth:2, borderColor:'#1a1d27' }]
+    },
+    options: { responsive:true, plugins:{ legend:{ position:'right', labels:{color:'#94a3b8',font:{size:11}} } } }
+  });
+
+  const total = regionKeys.reduce((s,r)=>s+totalFn(r), 0);
+  const tEl = document.getElementById('table-region');
+  tEl.innerHTML = `<thead><tr><th>Región</th><th style="text-align:right">Directo (€)</th>${isRobo?'<th style="text-align:right">Indie RV (€)</th><th style="text-align:right">PP RV (€)</th>':''}<th style="text-align:right">Total (€)</th><th style="text-align:right">% Cartera</th></tr></thead>`;
+  let tbody = '<tbody>';
+  regionKeys.forEach((r,i) => {
+    const tot = totalFn(r);
+    tbody += `<tr>
+      <td style="color:${color(i)};font-weight:600">${r}</td>
+      <td style="text-align:right">${map[r].direct>0?fmt(map[r].direct):'–'}</td>
+      ${isRobo?`<td style="text-align:right">${map[r].indie>0?fmt(map[r].indie):'–'}</td><td style="text-align:right">${map[r].pension>0?fmt(map[r].pension):'–'}</td>`:''}
+      <td style="text-align:right;font-weight:700">${fmt(tot)}</td>
+      <td style="text-align:right;color:var(--muted)">${(tot/total*100).toFixed(1)}%</td>
+    </tr>`;
+  });
+  tEl.innerHTML += tbody + '</tbody>';
+}
+
+// ─────────────────────────────────────────────
+//  POR BROKER
+// ─────────────────────────────────────────────
+function renderPorBroker() {
+  const fp = filteredPositions();
+  const byBroker = groupBy(fp, 'broker');
+  const brokerKeys = Object.keys(byBroker).sort((a,b)=>sumValue(byBroker[b])-sumValue(byBroker[a]));
+
+  mkChart('chart-broker-bar', {
+    type: 'bar',
+    data: {
+      labels: brokerKeys,
+      datasets: [{ label:'Valor (€)', data: brokerKeys.map(b=>sumValue(byBroker[b])), backgroundColor: brokerKeys.map((_,i)=>color(i+3)), borderRadius:6 }]
+    },
+    options: { responsive:true, ...CHART_DEFAULTS }
+  });
+
+  mkChart('chart-broker-pie', {
+    type: 'doughnut',
+    data: {
+      labels: brokerKeys,
+      datasets: [{ data: brokerKeys.map(b=>sumValue(byBroker[b])), backgroundColor: brokerKeys.map((_,i)=>color(i+3)), borderWidth:2, borderColor:'#1a1d27' }]
+    },
+    options: { responsive:true, plugins:{ legend:{ position:'right', labels:{color:'#94a3b8', font:{size:11}} } } }
+  });
+
+  const tEl = document.getElementById('table-broker');
+  tEl.innerHTML = `<thead><tr><th>Broker</th><th>Nº Posiciones</th><th>Valor (€)</th><th>Coste (€)</th><th>G/P (€)</th><th>G/P %</th></tr></thead>`;
+  let tbody = '<tbody>';
+  brokerKeys.forEach((b,i) => {
+    const ps = byBroker[b];
+    const val = sumValue(ps);
+    const cost = ps.reduce((s,p)=>s+p.cost,0);
+    const g = val - cost;
+    const gp = cost > 0 ? (g/cost)*100 : 0;
+    tbody += `<tr>
+      <td style="color:${color(i+3)};font-weight:700">${b}</td>
+      <td>${ps.length}</td>
+      <td>${fmt(val)}</td>
+      <td>${fmt(cost)}</td>
+      <td style="color:${g>=0?'var(--green)':'var(--red)'}">${fmt(g)}</td>
+      <td style="color:${g>=0?'var(--green)':'var(--red)'}">${pct(gp)}</td>
+    </tr>`;
+  });
+  tEl.innerHTML += tbody + '</tbody>';
+}
+
+// ─────────────────────────────────────────────
+//  TABLA GENÉRICA
+// ─────────────────────────────────────────────
+function renderTable(elId, data, cols) {
+  const el = document.getElementById(elId);
+  const headers = { name:'Nombre', tipo:'Tipo', isin:'ISIN', region:'Región', broker:'Broker', value:'Valor (€)', cost:'Coste (€)', pnl:'G/P (€)', pnlpct:'G/P %', comment:'Comentario' };
+  let html = `<thead><tr>${cols.map(c=>`<th>${headers[c]||c}</th>`).join('')}<th></th></tr></thead><tbody>`;
+  data.forEach(p => {
+    const g = pnl(p); const gp = pnlPct(p);
+    const vals = {
+      name: `<strong>${p.name}</strong>`,
+      tipo: `<span class="badge ${BADGE_CLASS[p.tipo]||''}">${TYPE_LABELS[p.tipo]||p.tipo}</span>`,
+      isin: `<span style="color:var(--muted);font-size:.75rem">${p.isin}</span>`,
+      region: p.region,
+      broker: p.broker,
+      value: `<strong>${fmt(p.value)}</strong>`,
+      cost: fmt(p.cost),
+      pnl: `<span style="color:${g>=0?'var(--green)':'var(--red)'}">${fmt(g)}</span>`,
+      pnlpct: `<span style="color:${g>=0?'var(--green)':'var(--red)'}">${pct(gp)}</span>`,
+      comment: `<span style="color:var(--muted);font-size:.75rem">${p.comment||''}</span>`,
+    };
+    html += `<tr>${cols.map(c=>`<td>${vals[c]??p[c]??''}</td>`).join('')}<td><button class="btn btn-secondary" style="padding:3px 10px;font-size:.72rem" onclick="openModal(${p.id})">✏️</button></td></tr>`;
+  });
+  html += '</tbody>';
+  el.innerHTML = html;
+}
+
+// ─────────────────────────────────────────────
+//  DETALLE
+// ─────────────────────────────────────────────
+function toggleComment(id) {
+  const row = document.getElementById('comment-row-' + id);
+  if (row) row.style.display = row.style.display === 'none' ? '' : 'none';
+}
+
+let activeHistoryId = null;
+
+function histChartIds(posId) {
+  return ['chart-hist-aportes-'+posId,'chart-hist-precio-'+posId,'chart-hist-cumul-'+posId,'chart-hist-anual-'+posId];
+}
+
+function hideHistory() {
+  if (activeHistoryId === null) return;
+  histChartIds(activeHistoryId).forEach(destroyChart);
+  const row = document.getElementById('history-row-' + activeHistoryId);
+  if (row) row.style.display = 'none';
+  activeHistoryId = null;
+}
+
+function showHistory(posId) {
+  if (activeHistoryId === posId) { hideHistory(); return; }
+  hideHistory();
+
+  const pos = positions.find(p => p.id === posId);
+  const hist = INVESTMENT_HISTORY[posId];
+  if (!pos || !hist) return;
+
+  const row = document.getElementById('history-row-' + posId);
+  if (!row) return;
+  row.style.display = '';
+  activeHistoryId = posId;
+  row.scrollIntoView({ behavior:'smooth', block:'nearest' });
+
+  const entries = hist.entries;
+  const totalAportado = entries.reduce((s,e) => s+e.amount, 0);
+  const totalShares   = entries.reduce((s,e) => s+e.shares, 0);
+  const precioMedio   = totalAportado / totalShares;
+  const valorActual   = pos.value;
+  const gp            = valorActual - totalAportado;
+  const gpPct         = (gp / totalAportado) * 100;
+
+  // KPIs
+  const kpis = [
+    { label:'Total aportado',      value: fmt(totalAportado), sub: entries.length + ' aportaciones', color:'' },
+    { label:'Valor actual',        value: fmt(valorActual),   sub: 'Precio mercado hoy',              color:'accent' },
+    { label:'Ganancias',           value: fmt(gp),            sub: pct(gpPct),                        color: gp>=0?'green':'red' },
+    { label:'Participaciones',     value: totalShares.toFixed(3), sub: 'Total acumulado',             color:'' },
+    { label:'Precio medio compra', value: precioMedio.toFixed(2)+'€', sub: 'Coste medio ponderado',  color:'yellow' },
+  ];
+  document.getElementById('history-kpis-' + posId).innerHTML = kpis.map(k => `
+    <div class="kpi-card ${k.color}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value" style="color:${k.color==='green'?'var(--green)':k.color==='red'?'var(--red)':'var(--text)'}">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join('');
+
+  const labels  = entries.map(e => e.label);
+  const amounts = entries.map(e => e.amount);
+  const prices  = entries.map(e => e.price);
+
+  // Acumulado invertido + línea valor actual
+  const cumul = entries.map((_,i) => entries.slice(0,i+1).reduce((s,e)=>s+e.amount,0));
+
+  const chartOpts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins:{ legend:{ display:false } },
+    scales:{
+      x:{ ticks:{color:'#94a3b8',font:{size:10}}, grid:{color:'#2e3248'} },
+      y:{ ticks:{color:'#94a3b8',font:{size:10}, callback:v=>fmt(v)}, grid:{color:'#2e3248'} }
+    }
+  };
+
+  // Chart 1 – Barras aportaciones
+  mkChart('chart-hist-aportes-' + posId, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label:'Aportado (€)', data:amounts, backgroundColor:'rgba(108,99,255,.8)', borderRadius:6 }]
+    },
+    options: chartOpts
+  });
+
+  // Chart 2 – Precio de compra por aportación
+  mkChart('chart-hist-precio-' + posId, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label:'Precio compra (€)', data:prices,
+        borderColor:'#38bdf8', backgroundColor:'rgba(56,189,248,.12)',
+        fill:true, tension:0.3, pointRadius:5, pointBackgroundColor:'#38bdf8'
+      }]
+    },
+    options: { ...chartOpts,
+      scales:{
+        x:{ ticks:{color:'#94a3b8',font:{size:10}}, grid:{color:'#2e3248'} },
+        y:{ ticks:{color:'#94a3b8',font:{size:10}, callback:v=>v.toFixed(2)+'€'}, grid:{color:'#2e3248'} }
+      }
+    }
+  });
+
+  // Chart 3 – Invertido vs valor mercado por lote (barras agrupadas)
+  mkChart('chart-hist-cumul-' + posId, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'Invertido (€)',      data:amounts,                          backgroundColor:'rgba(167,139,250,.8)', borderRadius:4 },
+        { label:'Valor mercado (€)',  data:entries.map(e=>e.marketValue),    backgroundColor:'rgba(34,197,94,.8)',   borderRadius:4 },
+      ]
+    },
+    options: { ...chartOpts,
+      plugins:{ legend:{ display:true, labels:{color:'#94a3b8',font:{size:11}} } }
+    }
+  });
+
+  // Chart 4 – Rentabilidad por año calendario (datos reales del NAV histórico)
+  const yearEntries = hist.yearEndPrices || [];
+  const annualLabels = yearEntries.map(y => y.label || String(y.year));
+  const annualData   = yearEntries.map(y =>
+    y.startNav != null && y.endNav != null
+      ? +((y.endNav / y.startNav - 1) * 100).toFixed(2)
+      : null
+  );
+  const annualColors = annualData.map(v =>
+    v === null ? 'rgba(148,163,184,.2)' : v >= 0 ? 'rgba(34,197,94,.85)' : 'rgba(239,68,68,.85)'
+  );
+
+  // Limpiar aviso previo si existe
+  mkChart('chart-hist-anual-' + posId, {
+    type: 'bar',
+    data: {
+      labels: annualLabels,
+      datasets: [{
+        label: 'Rentabilidad (%)',
+        data:  annualData,
+        backgroundColor: annualColors,
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: { ...chartOpts,
+      plugins:{
+        legend:{ display:false },
+        tooltip:{ callbacks:{
+          label: ctx => {
+            const y = yearEntries[ctx.dataIndex];
+            return [
+              `Rentabilidad: ${ctx.raw >= 0 ? '+' : ''}${ctx.raw.toFixed(2)}%`,
+              `NAV inicio: ${y.startNav.toFixed(2)} €`,
+              `NAV fin: ${y.endNav.toFixed(2)} €`,
+            ];
+          }
+        }}
+      },
+      scales:{
+        x:{ ticks:{color:'#94a3b8',font:{size:11}}, grid:{color:'#2e3248'} },
+        y:{
+          ticks:{ color:'#94a3b8', font:{size:10}, callback: v => (v >= 0 ? '+' : '') + v + '%' },
+          grid:{ color:'#2e3248' }
+        }
+      }
+    }
+  });
+
+  // Tabla detalle aportaciones
+  const totalMercado   = entries.reduce((s,e) => s + e.marketValue,   0);
+  const totalFiscal    = entries.reduce((s,e) => s + e.fiscalResult,  0);
+
+  const tEl = document.getElementById('table-hist-detalle-' + posId);
+  tEl.innerHTML = `<thead><tr>
+    <th>Fecha</th>
+    <th style="text-align:right">Invertido (€)</th>
+    <th style="text-align:right">Participaciones</th>
+    <th style="text-align:right">Precio compra</th>
+    <th style="text-align:right">Valor mercado (€)</th>
+    <th style="text-align:right">Resultado fiscal (€)</th>
+    <th style="text-align:right">% del total</th>
+  </tr></thead>`;
+  let tbody = '<tbody>';
+  entries.forEach(e => {
+    const rfColor = e.fiscalResult >= 0 ? 'var(--green)' : 'var(--red)';
+    tbody += `<tr>
+      <td>${new Date(e.date).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}</td>
+      <td style="text-align:right;font-weight:700">${fmt(e.amount)}</td>
+      <td style="text-align:right;color:var(--muted)">${e.shares.toFixed(3)}</td>
+      <td style="text-align:right;color:var(--accent2)">${e.price.toFixed(2)} €</td>
+      <td style="text-align:right">${fmt(e.marketValue)}</td>
+      <td style="text-align:right;color:${rfColor};font-weight:600">+${fmt(e.fiscalResult)}</td>
+      <td style="text-align:right;color:var(--muted)">${(e.amount/totalAportado*100).toFixed(1)}%</td>
+    </tr>`;
+  });
+  tbody += `<tr style="background:var(--surface2);font-weight:700">
+    <td>TOTAL</td>
+    <td style="text-align:right">${fmt(totalAportado)}</td>
+    <td style="text-align:right">${totalShares.toFixed(3)}</td>
+    <td style="text-align:right;color:var(--accent2)">${precioMedio.toFixed(2)} € <span style="font-size:.7rem;color:var(--muted)">(medio)</span></td>
+    <td style="text-align:right">${fmt(totalMercado)}</td>
+    <td style="text-align:right;color:var(--green)">+${fmt(totalFiscal)}</td>
+    <td style="text-align:right">100%</td>
+  </tr>`;
+  tEl.innerHTML += tbody + '</tbody>';
+}
+
+function renderDetalle() {
+  hideHistory();
+  const fp = filteredPositions();
+  const el = document.getElementById('table-detalle');
+
+  const now = Date.now();
+
+  // Calcula G/P % anualizado dado el % total y años de tenencia
+  function annualizedPct(gpPctTotal, startDateStr) {
+    if (!startDateStr) return null;
+    const years = (now - new Date(startDateStr).getTime()) / (365.25 * 24 * 3600 * 1000);
+    if (years < 0.01) return null;
+    const r = Math.pow(1 + gpPctTotal / 100, 1 / years) - 1;
+    return r * 100;
+  }
+
+  let html = `<thead><tr>
+    <th>Nombre</th><th>Tipo</th><th>ISIN</th><th>Región</th><th>Broker</th>
+    <th>Valor (€)</th><th>Coste (€)</th><th>G/P (€)</th><th>G/P %</th><th>G/P % anual</th><th></th>
+  </tr></thead><tbody>`;
+
+  fp.forEach(p => {
+    const g = pnl(p), gp = pnlPct(p);
+    const ann = annualizedPct(gp, START_DATES[p.id]);
+    const annStr = ann !== null
+      ? `<span style="color:${ann>=0?'var(--green)':'var(--red)'};font-size:.8rem">${(ann>=0?'+':'')+ann.toFixed(1)}%</span>`
+      : `<span style="color:var(--muted);font-size:.75rem">–</span>`;
+    const hasComment = p.comment && p.comment.trim();
+    const hasHistory = !!INVESTMENT_HISTORY[p.id];
+    html += `<tr>
+      <td><strong>${p.name}</strong></td>
+      <td><span class="badge ${BADGE_CLASS[p.tipo]||''}">${TYPE_LABELS[p.tipo]||p.tipo}</span></td>
+      <td><span style="color:var(--muted);font-size:.75rem">${p.isin}</span></td>
+      <td>${p.region}</td>
+      <td>${p.broker}</td>
+      <td><strong>${fmt(p.value)}</strong></td>
+      <td>${fmt(p.cost)}</td>
+      <td><span style="color:${g>=0?'var(--green)':'var(--red)'}">${fmt(g)}</span></td>
+      <td><span style="color:${g>=0?'var(--green)':'var(--red)'}">${pct(gp)}</span></td>
+      <td>${annStr}</td>
+      <td style="white-space:nowrap">
+        ${hasHistory  ? `<button class="btn btn-secondary" style="padding:3px 8px;font-size:.72rem;margin-right:4px" onclick="showHistory(${p.id})" title="Ver historial">📊</button>` : ''}
+        ${hasComment  ? `<button class="btn btn-secondary" style="padding:3px 8px;font-size:.72rem;margin-right:4px" onclick="toggleComment(${p.id})" title="Ver comentario">💬</button>` : ''}
+        <button class="btn btn-secondary" style="padding:3px 10px;font-size:.72rem" onclick="openModal(${p.id})">✏️</button>
+      </td>
+    </tr>`;
+    if (hasComment) {
+      html += `<tr id="comment-row-${p.id}" style="display:none">
+        <td colspan="11" style="background:var(--surface2);padding:10px 20px;font-size:.82rem;color:var(--muted);border-left:3px solid var(--accent);line-height:1.5">${p.comment}</td>
+      </tr>`;
+    }
+    if (hasHistory) {
+      html += `<tr id="history-row-${p.id}" style="display:none">
+        <td colspan="11" style="padding:0">
+          <div style="padding:16px 20px;background:var(--surface2);border-left:3px solid var(--accent)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <h3 style="color:var(--accent);font-size:.9rem">📊 Historial — ${p.name}</h3>
+              <button onclick="hideHistory()" style="background:var(--surface);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 12px;cursor:pointer;font-size:.8rem">✕ Cerrar</button>
+            </div>
+            <div class="kpi-grid" id="history-kpis-${p.id}" style="margin-bottom:20px"></div>
+            <div class="chart-grid cols2" style="margin-bottom:16px">
+              <div class="chart-box"><h3>Aportaciones (€)</h3><div style="position:relative;height:220px"><canvas id="chart-hist-aportes-${p.id}"></canvas></div></div>
+              <div class="chart-box"><h3>Precio de compra por aportación</h3><div style="position:relative;height:220px"><canvas id="chart-hist-precio-${p.id}"></canvas></div></div>
+              <div class="chart-box"><h3>Invertido vs Valor actual por lote</h3><div style="position:relative;height:220px"><canvas id="chart-hist-cumul-${p.id}"></canvas></div></div>
+              <div class="chart-box"><h3>Rentabilidad por año (%)</h3><div style="position:relative;height:220px"><canvas id="chart-hist-anual-${p.id}"></canvas></div></div>
+            </div>
+            <div>
+              <h3 style="font-size:.85rem;font-weight:600;margin-bottom:12px">Detalle de aportaciones</h3>
+              <table id="table-hist-detalle-${p.id}"></table>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+    }
+  });
+
+  html += '</tbody>';
+  el.innerHTML = html;
+}
+
+// ─────────────────────────────────────────────
+//  EVOLUCIÓN
+// ─────────────────────────────────────────────
+function renderEvolucion() {
+  // Simulated monthly evolution based on current values ± random walk
+  const months = ['Oct 24','Nov 24','Dic 24','Ene 25','Feb 25','Mar 25','Abr 25'];
+  const total = sumValue(filteredPositions());
+  let val = total * 0.85;
+  const evoData = months.map((m, i) => {
+    if (i === months.length - 1) return total;
+    val *= 1 + (Math.random() * 0.04 - 0.01);
+    return Math.round(val);
+  });
+
+  mkChart('chart-evolucion', {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [{
+        label: 'Patrimonio (€)', data: evoData,
+        borderColor: '#6c63ff', backgroundColor: 'rgba(108,99,255,.12)',
+        fill: true, tension: 0.4, pointBackgroundColor: '#6c63ff', pointRadius: 5
+      }]
+    },
+    options: { responsive: true, ...CHART_DEFAULTS }
+  });
+
+  // PnL bar
+  const fp = filteredPositions().filter(p=>p.value>0).sort((a,b)=>pnl(b)-pnl(a));
+  mkChart('chart-pnl', {
+    type: 'bar',
+    data: {
+      labels: fp.map(p=>p.name.split(' ').slice(0,3).join(' ')),
+      datasets: [{ label:'G/P (€)', data: fp.map(p=>pnl(p)), backgroundColor: fp.map(p=>pnl(p)>=0?'rgba(34,197,94,.7)':'rgba(239,68,68,.7)'), borderRadius:6 }]
+    },
+    options: { responsive:true, ...CHART_DEFAULTS, scales:{ ...CHART_DEFAULTS.scales, y:{ ticks:{color:'#94a3b8', callback:v=>fmt(v)}, grid:{color:'#2e3248'} } } }
+  });
+
+  // Pct bar
+  mkChart('chart-pct', {
+    type: 'bar',
+    data: {
+      labels: fp.map(p=>p.name.split(' ').slice(0,3).join(' ')),
+      datasets: [{ label:'Rentabilidad %', data: fp.map(p=>pnlPct(p).toFixed(1)), backgroundColor: fp.map(p=>pnlPct(p)>=0?'rgba(56,189,248,.7)':'rgba(239,68,68,.7)'), borderRadius:6 }]
+    },
+    options: { responsive:true, ...CHART_DEFAULTS, scales:{ ...CHART_DEFAULTS.scales, y:{ ticks:{color:'#94a3b8', callback:v=>v+'%'}, grid:{color:'#2e3248'} } } }
+  });
+}
+
+// ─────────────────────────────────────────────
+//  NOTAS
+// ─────────────────────────────────────────────
+function renderNotas() {
+  const saved = JSON.parse(localStorage.getItem('inv_notes') || '{}');
+  const general = document.getElementById('nota-general');
+  general.value = saved['general'] || '';
+  general.oninput = () => {
+    const n = JSON.parse(localStorage.getItem('inv_notes') || '{}');
+    n['general'] = general.value;
+    localStorage.setItem('inv_notes', JSON.stringify(n));
+  };
+
+  const container = document.getElementById('notas-por-posicion');
+  container.innerHTML = '<h4 style="margin-bottom:12px;color:var(--muted)">Notas por posición</h4>';
+  positions.forEach(p => {
+    const key = 'pos_' + p.id;
+    container.innerHTML += `<div style="margin-bottom:12px">
+      <label style="font-size:.8rem;font-weight:600">${p.name}</label>
+      <textarea class="note-area" id="note-${p.id}" placeholder="Nota para ${p.name}...">${saved[key]||''}</textarea>
+    </div>`;
+  });
+  positions.forEach(p => {
+    const ta = document.getElementById('note-' + p.id);
+    if (!ta) return;
+    ta.oninput = () => {
+      const n = JSON.parse(localStorage.getItem('inv_notes') || '{}');
+      n['pos_' + p.id] = ta.value;
+      localStorage.setItem('inv_notes', JSON.stringify(n));
+    };
+  });
+}
+
+// ─────────────────────────────────────────────
+//  MODAL
+// ─────────────────────────────────────────────
+function openModal(id) {
+  editId = id || null;
+  const overlay = document.getElementById('modal-overlay');
+  overlay.classList.add('open');
+  document.getElementById('modal-title').textContent = id ? 'Editar Posición' : 'Nueva Posición';
+  document.getElementById('btn-delete').style.display = id ? 'block' : 'none';
+
+  if (id) {
+    const p = positions.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById('f-name').value = p.name;
+    document.getElementById('f-isin').value = p.isin;
+    document.getElementById('f-tipo').value = p.tipo;
+    document.getElementById('f-region').value = p.region;
+    document.getElementById('f-broker').value = p.broker;
+    document.getElementById('f-value').value = p.value;
+    document.getElementById('f-cost').value = p.cost;
+    document.getElementById('f-comment').value = p.comment;
+  } else {
+    ['f-name','f-isin','f-region','f-broker','f-comment'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('f-value').value = '';
+    document.getElementById('f-cost').value = '';
+    document.getElementById('f-tipo').value = 'RV';
+  }
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  editId = null;
+}
+
+function savePosition() {
+  const data = {
+    name: document.getElementById('f-name').value.trim(),
+    isin: document.getElementById('f-isin').value.trim(),
+    tipo: document.getElementById('f-tipo').value,
+    region: document.getElementById('f-region').value.trim() || 'Global',
+    broker: document.getElementById('f-broker').value.trim() || 'Otro',
+    value: parseFloat(document.getElementById('f-value').value) || 0,
+    cost: parseFloat(document.getElementById('f-cost').value) || 0,
+    comment: document.getElementById('f-comment').value.trim(),
+  };
+  if (!data.name) return;
+
+  if (editId) {
+    const idx = positions.findIndex(p => p.id === editId);
+    if (idx >= 0) positions[idx] = { ...positions[idx], ...data };
+  } else {
+    const maxId = positions.length ? Math.max(...positions.map(p=>p.id)) : 0;
+    positions.push({ id: maxId + 1, ...data });
+  }
+
+  savePositions(positions);
+  populateBrokerFilter();
+  closeModal();
+  const activeView = document.querySelector('.nav-item.active')?.dataset?.view || 'resumen';
+  renderView(activeView);
+}
+
+function deletePosition() {
+  if (!editId) return;
+  if (!confirm('¿Eliminar esta posición?')) return;
+  positions = positions.filter(p => p.id !== editId);
+  savePositions(positions);
+  populateBrokerFilter();
+  closeModal();
+  renderView('detalle');
+}
+
+// Close modal on overlay click
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+// ─────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────
+document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('es-ES', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+loadUserCripto();
+populateBrokerFilter();
+renderResumen();
+updateCryptoPrices().then(r => {
+  if (r.ok && r.updated > 0) {
+    const activeView = document.querySelector('.nav-item.active')?.dataset?.view || 'resumen';
+    renderView(activeView);
+  }
+});
+
+// ─── Exportar / Importar ──────────────────────
+const BACKUP_KEYS = [
+  'conta_txs','conta_settings','conta_learned','conta_esperados',
+  'inv_positions','inv_notes','user_cripto',
+  'nom_nominas','nom_ganancias','nom_ganancia_cfg'
+];
+function exportarTodo() {
+  const data = { _fecha: new Date().toISOString(), _version: 1 };
+  BACKUP_KEYS.forEach(k => { const v = localStorage.getItem(k); if (v) data[k] = JSON.parse(v); });
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'finanzas_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importarTodo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      let n = 0;
+      BACKUP_KEYS.forEach(k => { if (data[k] !== undefined) { localStorage.setItem(k, JSON.stringify(data[k])); n++; } });
+      if (!n) { alert('El fichero no contiene datos reconocibles.'); return; }
+      positions = loadPositions();
+      renderResumen();
+      alert(`✓ ${n} secciones restauradas (backup del ${(data._fecha||'').slice(0,10)||'fecha desconocida'}).`);
+    } catch { alert('Error: el fichero no es un JSON válido.'); }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>

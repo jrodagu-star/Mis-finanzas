@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nóminas</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#6c63ff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Finanzas">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #252836;
+      --border: #2e3248; --accent: #6c63ff; --accent2: #38bdf8;
+      --green: #22c55e; --red: #ef4444; --yellow: #f59e0b; --purple: #a855f7;
+      --text: #e2e8f0; --muted: #94a3b8; --sidebar-w: 220px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+
+    #sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; z-index: 10; }
+    .sidebar-logo { padding: 20px 16px 14px; font-size: 1.05rem; font-weight: 700; color: var(--accent); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+    .sidebar-section { padding: 12px 8px 4px; font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; margin: 2px 6px; border-radius: 8px; cursor: pointer; font-size: .875rem; color: var(--muted); transition: background .15s, color .15s; }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: var(--accent); color: #fff; }
+    .nav-item .icon { font-size: 1rem; width: 20px; text-align: center; }
+    .sidebar-footer { margin-top: auto; padding: 14px 12px; border-top: 1px solid var(--border); font-size: .72rem; color: var(--muted); text-align: center; }
+    .sidebar-links { padding: 10px 8px; }
+    .sidebar-link { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 6px; font-size: .78rem; color: var(--muted); text-decoration: none; }
+    .sidebar-link:hover { color: var(--text); background: var(--surface2); }
+
+    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 11px 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    #topbar h1 { font-size: 1.05rem; font-weight: 600; white-space: nowrap; }
+    #content { flex: 1; overflow-y: auto; padding: 22px; }
+
+    .view { display: none; } .view.active { display: block; }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 22px; }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; position: relative; overflow: hidden; }
+    .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent); }
+    .kpi-card.green::before { background: var(--green); }
+    .kpi-card.red::before { background: var(--red); }
+    .kpi-card.yellow::before { background: var(--yellow); }
+    .kpi-card.purple::before { background: var(--purple); }
+    .kpi-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+    .kpi-value { font-size: 1.4rem; font-weight: 700; line-height: 1.2; }
+    .kpi-sub { font-size: .72rem; color: var(--muted); margin-top: 4px; }
+
+    .chart-grid { display: grid; gap: 16px; margin-bottom: 16px; }
+    .chart-grid.cols2 { grid-template-columns: 2fr 1fr; }
+    .chart-grid.cols3 { grid-template-columns: 1fr 1fr 1fr; }
+    .chart-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+    .chart-box h3 { font-size: .78rem; color: var(--muted); margin-bottom: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+
+    .table-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; overflow-x: auto; }
+    .table-box h3 { font-size: .78rem; color: var(--muted); margin-bottom: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+    table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    th { background: var(--surface2); color: var(--muted); font-weight: 600; padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+    td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+    tfoot td { background: var(--surface2); font-weight: 700; border-top: 1px solid var(--border); }
+
+    .btn { padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: .85rem; font-weight: 600; transition: opacity .15s; }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-danger { background: var(--red); color: #fff; }
+    .add-btn { background: var(--accent); color: #fff; border: none; padding: 7px 15px; border-radius: 8px; font-size: .82rem; font-weight: 600; cursor: pointer; }
+    .add-btn:hover { opacity: .85; }
+    .icon-btn { background: none; border: none; cursor: pointer; color: var(--muted); padding: 3px 6px; border-radius: 4px; font-size: .85rem; }
+    .icon-btn:hover { background: var(--surface2); color: var(--text); }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.72); z-index: 100; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 26px; width: 560px; max-width: 96vw; max-height: 92vh; overflow-y: auto; }
+    .modal h3 { margin-bottom: 18px; font-size: 1rem; }
+    .form-row { display: flex; flex-direction: column; gap: 5px; margin-bottom: 13px; }
+    .form-row label { font-size: .76rem; color: var(--muted); }
+    .form-row input, .form-row select, .form-row textarea { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: .88rem; width: 100%; }
+    .form-row textarea { resize: vertical; min-height: 56px; font-family: inherit; }
+    .form-row .row2 { display: flex; gap: 10px; }
+    .form-row .row2 > * { flex: 1; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+    .section-sep { border: none; border-top: 1px solid var(--border); margin: 14px 0 8px; }
+    .section-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 10px; font-weight: 700; }
+
+    .nomina-detail { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px 24px; margin-bottom: 16px; }
+    .nomina-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+    .nomina-title { font-size: 1.05rem; font-weight: 700; }
+    .nomina-subtitle { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+    .nomina-block { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    .nomina-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: .84rem; }
+    .nomina-row:last-child { border-bottom: none; }
+    .nomina-row.total { font-weight: 700; font-size: .95rem; border-top: 2px solid var(--border); border-bottom: none; margin-top: 4px; padding-top: 10px; }
+    .nomina-col { background: var(--surface2); border-radius: 10px; padding: 14px; }
+    .nomina-col-title { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; margin-bottom: 10px; }
+    .color-green { color: var(--green); }
+    .color-red { color: var(--red); }
+    .color-yellow { color: var(--yellow); }
+    .color-purple { color: var(--purple); }
+
+    .nomina-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: border-color .15s, background .15s; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .nomina-card:hover { border-color: var(--accent); background: var(--surface2); }
+    .nomina-card.selected { border-color: var(--accent); background: rgba(108,99,255,.08); }
+    .nomina-card-left { display: flex; flex-direction: column; gap: 3px; }
+    .nomina-card-month { font-size: .92rem; font-weight: 700; }
+    .nomina-card-emp { font-size: .72rem; color: var(--muted); }
+    .nomina-card-right { text-align: right; }
+    .nomina-card-neto { font-size: 1rem; font-weight: 700; color: var(--green); }
+    .nomina-card-bruto { font-size: .72rem; color: var(--muted); }
+
+    .empty-state { text-align: center; padding: 48px 20px; color: var(--muted); }
+    .empty-state .ei { font-size: 3rem; margin-bottom: 12px; }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    input[type=month]::-webkit-calendar-picker-indicator { filter: invert(0.6); }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="sidebar-logo">💼 Nóminas</div>
+  <div class="sidebar-section">Vistas</div>
+  <div class="nav-item active" data-view="resumen"><span class="icon">📊</span> Resumen</div>
+  <div class="nav-item" data-view="lista"><span class="icon">📋</span> Todas las nóminas</div>
+  <div class="nav-item" data-view="ganancias"><span class="icon">💰</span> Ganancias esperadas</div>
+  <div class="sidebar-section">Otros</div>
+  <div class="sidebar-links">
+    <a class="sidebar-link" href="dashboard.html">📈 Inversiones</a>
+    <a class="sidebar-link" href="contabilidad.html">📒 Contabilidad</a>
+    <a class="sidebar-link" href="hacienda.html">🏛️ Hacienda</a>
+    <a class="sidebar-link" href="index.html">🏠 Inicio</a>
+  </div>
+  <div class="sidebar-footer">Datos guardados localmente</div>
+</nav>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="topbar">
+    <h1 id="page-title">Resumen de Nóminas</h1>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="add-btn" onclick="openNominaModal()">+ Nueva nómina</button>
+      <button class="add-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text)" onclick="exportarTodo()" title="Exportar todos los datos a JSON">⬇ Exportar</button>
+      <label class="add-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);cursor:pointer;margin:0" title="Importar datos desde JSON">⬆ Importar<input type="file" accept=".json" style="display:none" onchange="importarTodo(this)"/></label>
+    </div>
+  </div>
+  <div id="content">
+
+    <!-- ── RESUMEN ── -->
+    <div class="view active" id="view-resumen">
+      <div class="kpi-grid" id="kpi-resumen"></div>
+      <div class="chart-grid cols2">
+        <div class="chart-box">
+          <h3>Evolución neto mensual</h3>
+          <canvas id="chart-evolucion" height="90"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Distribución media</h3>
+          <canvas id="chart-donut" height="160"></canvas>
+        </div>
+      </div>
+      <div class="chart-grid cols3">
+        <div class="chart-box">
+          <h3>Bruto vs Neto</h3>
+          <canvas id="chart-barras" height="140"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>IRPF % por mes</h3>
+          <canvas id="chart-irpf" height="140"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Coste empresa total</h3>
+          <canvas id="chart-coste" height="140"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── LISTA ── -->
+    <div class="view" id="view-lista">
+      <div style="display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start">
+        <div>
+          <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;font-weight:700">Nóminas</div>
+          <div style="display:flex;gap:6px;margin-bottom:10px">
+            <select id="filter-year" onchange="applyListFilter()" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem">
+              <option value="">Todos los años</option>
+            </select>
+            <select id="filter-month" onchange="applyListFilter()" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem">
+              <option value="">Todos los meses</option>
+              <option value="01">Enero</option>
+              <option value="02">Febrero</option>
+              <option value="03">Marzo</option>
+              <option value="04">Abril</option>
+              <option value="05">Mayo</option>
+              <option value="06">Junio</option>
+              <option value="07">Julio</option>
+              <option value="08">Agosto</option>
+              <option value="09">Septiembre</option>
+              <option value="10">Octubre</option>
+              <option value="11">Noviembre</option>
+              <option value="12">Diciembre</option>
+            </select>
+          </div>
+          <div id="nomina-list"></div>
+        </div>
+        <div id="nomina-detail-panel">
+          <div class="empty-state"><div class="ei">👆</div><p>Selecciona una nómina para ver el detalle</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── GANANCIAS ESPERADAS ── -->
+    <div class="view" id="view-ganancias">
+
+      <!-- Configuración -->
+      <div class="table-box" style="margin-bottom:14px;padding:14px 20px">
+        <div style="display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap">
+          <div class="form-row" style="margin:0;min-width:160px">
+            <label>Tarifa guardia (€/hora)</label>
+            <input type="number" id="gan-tarifa" min="0" step="0.01" placeholder="43.00" oninput="renderGanancias()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 10px;font-size:.88rem;width:100%" />
+          </div>
+          <div class="form-row" style="margin:0;min-width:220px">
+            <label>Base + Complementos por defecto (€)</label>
+            <input type="number" id="gan-base-comp" min="0" step="0.01" placeholder="0.00" oninput="renderGanancias()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 10px;font-size:.88rem;width:100%" />
+          </div>
+          <button class="btn btn-secondary" style="padding:7px 14px;font-size:.8rem" onclick="saveGananciasCfg()">Guardar config</button>
+          <span id="gan-cfg-ok" style="font-size:.78rem;color:var(--green);display:none">✓ Guardado</span>
+        </div>
+      </div>
+
+      <!-- Tabla -->
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <button class="add-btn" onclick="openGanModal(null)">+ Añadir mes</button>
+      </div>
+      <div class="table-box" style="padding:0;overflow:auto;max-height:calc(100vh - 290px)">
+        <table id="table-ganancias"></table>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- ─────────────── MODAL NÓMINA ─────────────── -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3 id="modal-title">Nueva nómina</h3>
+
+    <p class="section-label">Datos generales</p>
+    <div class="form-row row2">
+      <div class="form-row" style="margin:0">
+        <label>Mes / Año</label>
+        <input type="month" id="n-fecha" />
+      </div>
+      <div class="form-row" style="margin:0">
+        <label>Empresa</label>
+        <input type="text" id="n-empresa" placeholder="Nombre empresa" />
+      </div>
+    </div>
+
+    <hr class="section-sep" />
+    <p class="section-label">Devengos (ingresos)</p>
+    <div class="form-row row2">
+      <div class="form-row" style="margin:0">
+        <label>Salario base (€)</label>
+        <input type="number" id="n-salario-base" min="0" step="0.01" placeholder="0.00" oninput="calcModal()" />
+      </div>
+      <div class="form-row" style="margin:0">
+        <label>Pagas extra prorrateadas (€)</label>
+        <input type="number" id="n-pagas-extra" min="0" step="0.01" placeholder="0.00" oninput="calcModal()" />
+      </div>
+    </div>
+    <div class="form-row row2">
+      <div class="form-row" style="margin:0">
+        <label>Complementos salariales (€)</label>
+        <input type="number" id="n-complementos" min="0" step="0.01" placeholder="0.00" oninput="calcModal()" />
+      </div>
+      <div class="form-row" style="margin:0">
+        <label>Horas extra (€)</label>
+        <input type="number" id="n-horas-extra" min="0" step="0.01" placeholder="0.00" oninput="calcModal()" />
+      </div>
+    </div>
+    <div class="form-row row2">
+      <div class="form-row" style="margin:0">
+        <label>Otros devengos (€)</label>
+        <input type="number" id="n-otros-devengos" min="0" step="0.01" placeholder="0.00" oninput="calcModal()" />
+      </div>
+      <div class="form-row" style="margin:0">
+        <label>Total bruto (€) <span style="color:var(--accent);font-size:.9em">🔒</span></label>
+        <input type="number" id="n-bruto" readonly style="color:var(--accent);font-weight:700" />
+      </div>
+    </div>
+
+    <hr class="section-sep" />
+    <p class="section-label">Deducciones (descuentos)</p>
+    <div class="form-row row2">
+      <div class="form-row" style="margin:0">
+        <label>IRPF %</label>
+        <input type="number" id="n-irpf-pct" min="0" max="50" step="0.01" placeholder="15.00" oninput="calcModal()" />
+      </div>
+      <div class="form-row" style="margin:0">
+        <label>IRPF deducido (€) <span style="color:var(--accent);font-size:.9em">🔒</span></label>
+        <input type="number" id="n-irpf" readonly style="color:var(--red)" />
+      </div>
+    </div>
+    <div class="form-row row2">
+      <div class="form-row" style="margin:0">
+        <label>SS trabajador %</label>
+        <input type="number" id="n-ss-pct" min="0" max="20" step="0.01" placeholder="6.35" oninput="calcModal()" />
+      </div>
+      <div class="form-row" style="margin:0">
+        <label>SS trabajador (€) <span style="color:var(--accent);font-size:.9em">🔒</span></label>
+        <input type="number" id="n-ss" readonly style="color:var(--red)" />
+      </div>
+    </div>
+    <div class="form-row row2">
+      <div class="form-row" style="margin:0">
+        <label>Otras deducciones (€)</label>
+        <input type="number" id="n-otras-ded" min="0" step="0.01" placeholder="0.00" oninput="calcModal()" />
+      </div>
+      <div class="form-row" style="margin:0">
+        <label>Líquido a percibir (€) <span style="color:var(--accent);font-size:.9em">🔒</span></label>
+        <input type="number" id="n-neto" readonly style="color:var(--green);font-weight:700" />
+      </div>
+    </div>
+
+    <hr class="section-sep" />
+    <p class="section-label">Coste empresa</p>
+    <div class="form-row row2">
+      <div class="form-row" style="margin:0">
+        <label>SS empresa %</label>
+        <input type="number" id="n-sse-pct" min="0" max="50" step="0.01" placeholder="29.90" oninput="calcModal()" />
+      </div>
+      <div class="form-row" style="margin:0">
+        <label>SS empresa (€) <span style="color:var(--accent);font-size:.9em">🔒</span></label>
+        <input type="number" id="n-sse" readonly style="color:var(--yellow)" />
+      </div>
+    </div>
+    <div class="form-row row2">
+      <div class="form-row" style="margin:0">
+        <label>Coste total empresa (€) <span style="color:var(--accent);font-size:.9em">🔒</span></label>
+        <input type="number" id="n-coste-total" readonly style="color:var(--yellow);font-weight:700" />
+      </div>
+      <div class="form-row" style="margin:0">
+        <label>Notas</label>
+        <input type="text" id="n-notas" placeholder="Opcional" />
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="btn-delete" style="margin-right:auto;display:none" onclick="deleteNomina()">Eliminar</button>
+      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveNomina()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  STORAGE
+// ─────────────────────────────────────────────
+const NOM_KEY = 'nom_nominas';
+
+// ─────────────────────────────────────────────
+//  NÓMINAS SEMILLA (precargadas en primer arranque)
+// ─────────────────────────────────────────────
+const SEED_NOMINAS = [
+  {
+    id: 4,
+    fecha: '2025-01',
+    empresa: 'HM Hospitales 1989 S.A.',
+    // Devengos
+    salario_base:    1588.37,   // Salario Base
+    pagas_extra:        0,      // Prorrata pagas extra (€628,09 — informativa)
+    complementos:     360.96,   // Plus Transporte 148,35 + Plus Tóxico 212,61
+    horas_extra:        0,
+    otros_devengos:  8500.18,   // Guardias Presenciales 158×40,00=6.320,00 + Gratif.Voluntaria 2.180,18
+    bruto:          10449.51,   // Total devengado (Base IRPF)
+    // Deducciones — SS sobre base cotización €4.720,50 (RG 4,70%+D+F+P+S 1,65%+MEI 0,13%+Solidaria tramos)
+    irpf_pct:          33.68,
+    irpf:            3519.39,
+    ss_pct:             3.04,   // efectivo (SS real €317,40 / bruto — base SS ≠ bruto por tope)
+    ss:               317.40,
+    otras_ded:          0,
+    neto:            6612.72,   // Líquido a percibir
+    // Coste empresa: RG 1.114,04 + AT/EP 70,80 + Despl 259,63 + FormProf 28,32 + FOGASA 9,44 + MEI 31,62 + Solidaria patronal ~58,47
+    sse_pct:           15.05,   // efectivo (SS empresa €1.572,32 / bruto)
+    sse:             1572.32,
+    coste_total:    12021.83,   // Bruto + SS empresa
+    notas: 'Prorrata pagas extra: €628,09. Base SS cotización: €4.720,50. Guardias presenciales: 158 × €40,00. Período: 01-31 enero 2025.',
+  },
+  {
+    id: 5,
+    fecha: '2025-02',
+    empresa: 'HM Hospitales 1989 S.A.',
+    salario_base:    1588.37,
+    pagas_extra:        0,
+    complementos:     360.96,   // Plus Transporte 148,35 + Plus Tóxico 212,61
+    horas_extra:        0,
+    otros_devengos:  5180.18,   // Guardias Presenciales 75×40,00=3.000,00 + Gratif.Voluntaria 2.180,18
+    bruto:           7129.51,
+    irpf_pct:          33.64,
+    irpf:            2398.37,
+    ss_pct:             4.53,   // efectivo (SS real €322,97 / bruto)
+    ss:               322.97,
+    otras_ded:          0,
+    neto:            4408.17,
+    sse_pct:           22.42,
+    sse:             1598.42,
+    coste_total:     8727.93,
+    notas: 'Prorrata pagas extra: €628,09. Base SS cotización: €4.909,50. Guardias presenciales: 75 × €40,00. Período: 01-28 febrero 2025.',
+  },
+  {
+    id: 6,
+    fecha: '2025-02',
+    empresa: 'HM Hospitales 1989 S.A.',
+    salario_base:       0,
+    pagas_extra:        0,
+    complementos:       0,
+    horas_extra:        0,
+    otros_devengos:  1800.00,   // Incentivos (ajuste de enero)
+    bruto:           1800.00,
+    irpf_pct:          33.80,
+    irpf:             608.40,
+    ss_pct:             0.85,   // efectivo (SS real €15,30 / bruto — base SS €189,00)
+    ss:                15.30,
+    otras_ded:          0,
+    neto:            1176.30,
+    sse_pct:            4.24,
+    sse:               76.28,
+    coste_total:     1876.28,
+    notas: 'Incentivos (ajuste de enero). Recibo complementario. Base SS cotización: €189,00. Período: 01-28 febrero 2025.',
+  },
+  {
+    id: 7,
+    fecha: '2025-03',
+    empresa: 'HM Hospitales 1989 S.A.',
+    salario_base:    1588.37,
+    pagas_extra:        0,
+    complementos:     360.96,
+    horas_extra:        0,
+    otros_devengos:  3943.18,   // Guardias Presenciales 41×43,00=1.763,00 + Gratif.Voluntaria 2.180,18
+    bruto:           5892.51,
+    irpf_pct:          33.25,
+    irpf:            1959.26,
+    ss_pct:             5.44,
+    ss:               320.78,
+    otras_ded:          0,
+    neto:            3612.47,
+    sse_pct:           26.94,
+    sse:             1587.57,
+    coste_total:     7480.08,
+    notas: 'Prorrata pagas extra: €628,09. Base SS cotización: €4.909,50. Guardias presenciales: 41 × €43,00. Período: 01-31 marzo 2025.',
+  },
+  {
+    id: 8,
+    fecha: '2025-04',
+    empresa: 'HM Hospitales 1989 S.A.',
+    salario_base:    1588.37,
+    pagas_extra:        0,
+    complementos:     360.96,
+    horas_extra:        0,
+    otros_devengos:  7899.18,   // Guardias Presenciales 133×43,00=5.719,00 + Gratif.Voluntaria 2.180,18
+    bruto:           9848.51,
+    irpf_pct:          33.47,
+    irpf:            3296.30,
+    ss_pct:             3.33,
+    ss:               328.13,
+    otras_ded:          0,
+    neto:            6224.08,
+    sse_pct:           16.50,
+    sse:             1625.07,
+    coste_total:    11473.58,
+    notas: 'Prorrata pagas extra: €628,09. Base SS cotización: €4.909,50. Guardias presenciales: 133 × €43,00. Período: 01-30 abril 2025.',
+  },
+  {
+    id: 9,
+    fecha: '2025-05',
+    empresa: 'HM Hospitales 1989 S.A.',
+    salario_base:    1588.37,
+    pagas_extra:        0,
+    complementos:     360.96,
+    horas_extra:        0,
+    otros_devengos:  8931.18,   // Guardias Presenciales 157×43,00=6.751,00 + Gratif.Voluntaria 2.180,18
+    bruto:          10880.51,
+    irpf_pct:          33.68,
+    irpf:            3664.56,
+    ss_pct:             3.03,
+    ss:               330.09,
+    otras_ded:          0,
+    neto:            6885.86,
+    sse_pct:           15.03,
+    sse:             1635.19,
+    coste_total:    12515.70,
+    notas: 'Prorrata pagas extra: €628,09. Base SS cotización: €4.909,50. Guardias presenciales: 157 × €43,00. Período: 01-31 mayo 2025.',
+  },
+  {
+    id: 10,
+    fecha: '2025-06',
+    empresa: 'HM Hospitales 1989 S.A.',
+    salario_base:    1588.37,
+    pagas_extra:        0,
+    complementos:     360.96,
+    horas_extra:        0,
+    otros_devengos:  8200.18,   // Guardias Presenciales 140×43,00=6.020,00 + Gratif.Voluntaria 2.180,18
+    bruto:          10149.51,
+    irpf_pct:          34.04,
+    irpf:            3454.89,
+    ss_pct:             3.24,
+    ss:               328.71,
+    otras_ded:          0,
+    neto:            6365.91,
+    sse_pct:           16.04,
+    sse:             1628.02,
+    coste_total:    11777.53,
+    notas: 'Prorrata pagas extra: €628,09. Base SS cotización: €4.909,50. Guardias presenciales: 140 × €43,00. Período: 01-30 junio 2025.',
+  },
+  {
+    id: 11,
+    fecha: '2025-06',
+    empresa: 'HM Hospitales 1989 S.A.',
+    salario_base:       0,
+    pagas_extra:        0,
+    complementos:       0,
+    horas_extra:        0,
+    otros_devengos:  3760.69,   // Paga Extra Primera
+    bruto:           3760.69,
+    irpf_pct:          33.68,
+    irpf:            1266.60,
+    ss_pct:             0,
+    ss:                 0,
+    otras_ded:          0,
+    neto:            2494.09,
+    sse_pct:            0,
+    sse:                0,
+    coste_total:     3760.69,
+    notas: 'Paga Extra Primera. Sin cotización SS. Período: 01-30 junio 2025.',
+  },
+  {
+    id: 12,
+    fecha: '2025-07',
+    empresa: 'HM Hospitales 1989 S.A.',
+    salario_base:    1588.37,
+    pagas_extra:        0,
+    complementos:     360.96,
+    horas_extra:        0,
+    otros_devengos:  6050.18,   // Guardias Presenciales 90×43,00=3.870,00 + Gratif.Voluntaria 2.180,18
+    bruto:           7999.51,
+    irpf_pct:          34.13,
+    irpf:            2730.23,
+    ss_pct:             4.06,
+    ss:               324.62,
+    otras_ded:          0,
+    neto:            4944.66,
+    sse_pct:           20.09,
+    sse:             1606.95,
+    coste_total:     9606.46,
+    notas: 'Prorrata pagas extra: €628,09. Base SS cotización: €4.909,50. Guardias presenciales: 90 × €43,00. Período: 01-31 julio 2025.',
+  },
+  {
+    id: 13,
+    fecha: '2025-08',
+    empresa: 'HM Hospitales 1989 S.A.',
+    salario_base:    1588.37,
+    pagas_extra:        0,
+    complementos:     360.96,
+    horas_extra:        0,
+    otros_devengos:  7168.18,   // Guardias Presenciales 116×43,00=4.988,00 + Gratif.Voluntaria 2.180,18
+    bruto:           9117.51,
+    irpf_pct:          33.99,
+    irpf:            3099.04,
+    ss_pct:             3.58,
+    ss:               326.74,
+    otras_ded:          0,
+    neto:            5691.73,
+    sse_pct:           17.75,
+    sse:             1617.91,
+    coste_total:    10735.42,
+    notas: 'Prorrata pagas extra: €628,09. Base SS cotización: €4.909,50. Guardias presenciales: 116 × €43,00. Período: 01-31 agosto 2025.',
+  },
+  {
+    id: 14,
+    fecha: '2025-09',
+    empresa: 'HM Hospitales 1989 S.A.',
+    salario_base:    1588.37,
+    pagas_extra:        0,
+    complementos:     212.61,   // Solo Plus Tóxico — sin Plus Transporte este mes
+    horas_extra:        0,
+    otros_devengos:  7899.18,   // Guardias Presenciales 133×43,00=5.719,00 + Gratif.Voluntaria 2.180,18
+    bruto:           9700.16,
+    irpf_pct:          34.55,
+    irpf:            3351.41,
+    ss_pct:             3.38,
+    ss:               327.85,
+    otras_ded:          0,
+    neto:            6020.90,
+    sse_pct:           16.74,
+    sse:             1623.62,
+    coste_total:    11323.78,
+    notas: 'Prorrata pagas extra: €628,09. Base SS cotización: €4.909,50. Guardias presenciales: 133 × €43,00. Sin Plus Transporte este mes. Período: 01-30 septiembre 2025.',
+  },
+  {
+    id: 15,
+    fecha: '2025-10',
+    empresa: 'HM Hospitales 1989 S.A.',
+    salario_base:    1588.37,
+    pagas_extra:        0,
+    complementos:     360.96,
+    horas_extra:        0,
+    otros_devengos:  7168.18,   // Guardias Presenciales 116×43,00=4.988,00 + Gratif.Voluntaria 2.180,18
+    bruto:           9117.51,
+    irpf_pct:          34.76,
+    irpf:            3169.25,
+    ss_pct:             3.58,
+    ss:               326.74,
+    otras_ded:          0,
+    neto:            5621.52,
+    sse_pct:           17.75,
+    sse:             1617.91,
+    coste_total:    10735.42,
+    notas: 'Prorrata pagas extra: €628,09. Base SS cotización: €4.909,50. Guardias presenciales: 116 × €43,00. Período: 01-31 octubre 2025.',
+  },
+  {
+    id: 16,
+    fecha: '2025-11',
+    empresa: 'HM Hospitales 1989 S.A.',
+    salario_base:    1588.37,
+    pagas_extra:        0,
+    complementos:     360.96,
+    horas_extra:        0,
+    otros_devengos:  6136.18,   // Guardias Presenciales 92×43,00=3.956,00 + Gratif.Voluntaria 2.180,18
+    bruto:           8085.51,
+    irpf_pct:          34.38,
+    irpf:            2779.80,
+    ss_pct:             4.02,
+    ss:               324.78,
+    otras_ded:          0,
+    neto:            4980.93,
+    sse_pct:           19.89,
+    sse:             1607.80,
+    coste_total:     9693.31,
+    notas: 'Prorrata pagas extra: €628,09. Base SS cotización: €4.909,50. Guardias presenciales: 92 × €43,00. Período: 01-30 noviembre 2025.',
+  },
+  {
+    id: 17,
+    fecha: '2025-12',
+    empresa: 'HM Hospitales 1989 S.A.',
+    salario_base:    1588.37,
+    pagas_extra:        0,
+    complementos:     360.96,
+    horas_extra:        0,
+    otros_devengos:  6738.18,   // Guardias Presenciales 106×43,00=4.558,00 + Gratif.Voluntaria 2.180,18
+    bruto:           8687.51,
+    irpf_pct:          34.11,
+    irpf:            2963.31,
+    ss_pct:             3.75,
+    ss:               325.93,
+    otras_ded:          0,
+    neto:            5398.27,
+    sse_pct:           18.58,
+    sse:             1613.69,
+    coste_total:    10301.20,
+    notas: 'Prorrata pagas extra: €628,09. Base SS cotización: €4.909,50. Guardias presenciales: 106 × €43,00. Período: 01-31 diciembre 2025.',
+  },
+  {
+    id: 18,
+    fecha: '2025-12',
+    empresa: 'HM Hospitales 1989 S.A.',
+    salario_base:       0,
+    pagas_extra:        0,
+    complementos:       0,
+    horas_extra:        0,
+    otros_devengos:  3768.55,   // Paga Extra Segunda
+    bruto:           3768.55,
+    irpf_pct:          34.38,
+    irpf:            1295.63,
+    ss_pct:             0,
+    ss:                 0,
+    otras_ded:          0,
+    neto:            2472.92,
+    sse_pct:            0,
+    sse:                0,
+    coste_total:     3768.55,
+    notas: 'Paga Extra Segunda. Sin cotización SS. Período: 01-31 diciembre 2025.',
+  },
+  {
+    id: 1,
+    fecha: '2026-01',
+    empresa: 'HM Hospitales 1989 S.A.',
+    // Devengos
+    salario_base:    1628.08,   // Salario Base
+    pagas_extra:        0,      // Prorrata pagas extra (€630,78 — informativa, excluida del IRPF base)
+    complementos:     369.99,   // Plus Transporte 152,06 + Plus Tóxico 217,93
+    horas_extra:        0,
+    otros_devengos:  8477.59,   // Guardias Presenciales 147×43,00=6.321,00 + Gratif.Voluntaria 2.156,59
+    bruto:          10475.66,   // Total devengado (Base IRPF)
+    // Deducciones — SS sobre base cotización €5.101,20 (RG 4,70%+D+F+P+S 1,65%+MEI 0,15%+Solidaria)
+    irpf_pct:          33.94,
+    irpf:            3555.44,
+    ss_pct:             3.29,   // efectivo (SS real €345,13 / bruto — base SS ≠ bruto por tope)
+    ss:               345.13,
+    otras_ded:          0,
+    neto:            6575.09,   // Líquido a percibir
+    // Coste empresa: RG 1.203,88 + AT/EP 76,52 + Despl 280,56 + FormProf 30,61 + FOGASA 10,20 + MEI 38,26
+    sse_pct:           16.31,   // efectivo (SS empresa €1.708,30 / bruto)
+    sse:             1708.30,
+    coste_total:    12183.96,   // Bruto + SS empresa
+    notas: 'Prorrata pagas extra: €630,78. Base SS cotización: €5.101,20. Guardias presenciales: 147 × €43,00. Período: 01-31 enero 2026.',
+  },
+  {
+    id: 2,
+    fecha: '2026-02',
+    empresa: 'HM Hospitales 1989 S.A.',
+    // Devengos
+    salario_base:    1628.08,   // Salario Base
+    pagas_extra:        0,      // Prorrata pagas extra (€630,78 — informativa, excluida del IRPF base)
+    complementos:     819.99,   // Plus Transporte 152,06 + Plus Tóxico 217,93 + Plus Actividad 450,00
+    horas_extra:        0,
+    otros_devengos: 10279.59,   // Guardias Presenciales 161×43,00=6.923,00 + Guardia Festivo Especial 24×50,00=1.200,00 + Gratif.Voluntaria 2.156,59
+    bruto:          12727.66,   // Total devengado (Base IRPF)
+    // Deducciones — SS sobre base cotización €5.101,20 (RG 4,70%+D+F+P+S 1,65%+MEI 0,15%+Solidaria)
+    irpf_pct:          34.32,
+    irpf:            4368.13,
+    ss_pct:             2.75,   // efectivo (SS real €350,54 / bruto — base SS ≠ bruto por tope)
+    ss:               350.54,
+    otras_ded:          0,
+    neto:            8008.99,   // Líquido a percibir
+    // Coste empresa: RG 1.203,88 + AT/EP 76,52 + Despl 280,56 + FormProf 30,61 + FOGASA 10,20 + MEI 38,26
+    sse_pct:           13.64,   // efectivo (SS empresa €1.735,77 / bruto)
+    sse:             1735.77,
+    coste_total:    14463.43,   // Bruto + SS empresa
+    notas: 'Prorrata pagas extra: €630,78. Base SS cotización: €5.101,20. Guardias: 161 × €43,00 + Festivos especiales: 24 × €50,00. Período: 01-28 febrero 2026.',
+  },
+  {
+    id: 3,
+    fecha: '2026-03',
+    empresa: 'HM Hospitales 1989 S.A.',
+    // Devengos
+    salario_base:   1628.08,   // Salario Base
+    pagas_extra:       0,      // Prorrata pagas extra (€630,78 — informativa, excluida del IRPF base)
+    complementos:    369.99,   // Plus Transporte 152,06 + Plus Tóxico 217,93 (sin Plus Actividad)
+    horas_extra:       0,
+    otros_devengos: 6700.59,   // Guardias Presenciales 58×43,00=2.494,00 + Guardia Festivo 41×50,00=2.050,00 + Gratif.Voluntaria 2.156,59
+    bruto:          8698.66,   // Total devengado (Base IRPF)
+    // Deducciones — SS sobre base cotización €5.101,20
+    irpf_pct:         34.61,
+    irpf:           3010.61,
+    ss_pct:            3.92,   // efectivo (SS real €340,87 / bruto — base SS ≠ bruto por tope)
+    ss:              340.87,
+    otras_ded:         0,
+    neto:           5347.18,   // Líquido a percibir
+    // Coste empresa: RG 1.203,88 + AT/EP 76,52 + Despl 280,56 + FormProf 30,61 + FOGASA 10,20 + MEI 38,26 + Solidaria patronal 46,58
+    sse_pct:          19.39,   // efectivo (SS empresa €1.686,61 / bruto)
+    sse:            1686.61,
+    coste_total:   10385.27,   // Bruto + SS empresa
+    notas: 'Prorrata pagas extra: €630,78. Base SS cotización: €5.101,20. Guardias: 58 × €43,00 + Festivos: 41 × €50,00. Sin Plus Actividad. Período: 01-31 marzo 2026.',
+  }
+];
+
+function seedNominas() {
+  const stored = JSON.parse(localStorage.getItem(NOM_KEY) || '[]');
+  let changed = false;
+  SEED_NOMINAS.forEach(s => {
+    if (!stored.find(x => x.id === s.id)) { stored.push(s); changed = true; }
+  });
+  if (changed) {
+    stored.sort((a, b) => a.fecha.localeCompare(b.fecha));
+    localStorage.setItem(NOM_KEY, JSON.stringify(stored));
+  }
+}
+seedNominas();
+
+let nominas = JSON.parse(localStorage.getItem(NOM_KEY) || '[]');
+function saveNominas() { localStorage.setItem(NOM_KEY, JSON.stringify(nominas)); }
+function nextId() { return Date.now() + Math.random(); }
+let chartInstances = {};
+
+// ─────────────────────────────────────────────
+//  NAVIGATION
+// ─────────────────────────────────────────────
+let activeView = 'resumen';
+let selectedId = null;
+let listFilterYear  = '';
+let listFilterMonth = '';
+
+document.querySelectorAll('.nav-item[data-view]').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item[data-view]').forEach(x => x.classList.remove('active'));
+    el.classList.add('active');
+    activeView = el.dataset.view;
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + activeView)?.classList.add('active');
+    document.getElementById('page-title').textContent = el.textContent.trim();
+    if (activeView === 'resumen')   renderResumen();
+    if (activeView === 'lista')     renderLista();
+    if (activeView === 'ganancias') renderGanancias();
+  });
+});
+
+// ─────────────────────────────────────────────
+//  HELPERS
+// ─────────────────────────────────────────────
+function fmt(v) { return '€ ' + v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ','); }
+function fmtPct(v) { return v.toFixed(2).replace('.', ',') + ' %'; }
+
+function monthLabel(ym) {
+  if (!ym) return '';
+  const [y, m] = ym.split('-');
+  const names = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return names[parseInt(m) - 1] + ' ' + y;
+}
+
+function destroyChart(id) {
+  if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+// ─────────────────────────────────────────────
+//  MODAL CALCULATIONS
+// ─────────────────────────────────────────────
+function calcModal() {
+  const base  = parseFloat(document.getElementById('n-salario-base').value) || 0;
+  const extra  = parseFloat(document.getElementById('n-pagas-extra').value) || 0;
+  const comp   = parseFloat(document.getElementById('n-complementos').value) || 0;
+  const hext   = parseFloat(document.getElementById('n-horas-extra').value) || 0;
+  const otros  = parseFloat(document.getElementById('n-otros-devengos').value) || 0;
+  const bruto  = base + extra + comp + hext + otros;
+
+  const irpfPct = parseFloat(document.getElementById('n-irpf-pct').value) || 0;
+  const ssPct   = parseFloat(document.getElementById('n-ss-pct').value) || 6.35;
+  const otrasD  = parseFloat(document.getElementById('n-otras-ded').value) || 0;
+  const ssePct  = parseFloat(document.getElementById('n-sse-pct').value) || 29.90;
+
+  const irpf  = bruto * irpfPct / 100;
+  const ss    = bruto * ssPct / 100;
+  const neto  = bruto - irpf - ss - otrasD;
+  const sse   = bruto * ssePct / 100;
+  const coste = bruto + sse;
+
+  const set = (id, v) => { document.getElementById(id).value = parseFloat(v.toFixed(2)); };
+  set('n-bruto', bruto); set('n-irpf', irpf); set('n-ss', ss);
+  set('n-neto', neto); set('n-sse', sse); set('n-coste-total', coste);
+}
+
+// ─────────────────────────────────────────────
+//  MODAL OPEN / CLOSE
+// ─────────────────────────────────────────────
+let editId = null;
+
+function openNominaModal(id) {
+  editId = id || null;
+  const overlay = document.getElementById('modal-overlay');
+  const delBtn  = document.getElementById('btn-delete');
+  overlay.classList.add('open');
+
+  if (id) {
+    const n = nominas.find(x => x.id === id);
+    document.getElementById('modal-title').textContent = 'Editar nómina';
+    delBtn.style.display = 'block';
+    document.getElementById('n-fecha').value              = n.fecha || '';
+    document.getElementById('n-empresa').value            = n.empresa || '';
+    document.getElementById('n-salario-base').value       = n.salario_base || 0;
+    document.getElementById('n-pagas-extra').value        = n.pagas_extra || 0;
+    document.getElementById('n-complementos').value       = n.complementos || 0;
+    document.getElementById('n-horas-extra').value        = n.horas_extra || 0;
+    document.getElementById('n-otros-devengos').value     = n.otros_devengos || 0;
+    document.getElementById('n-irpf-pct').value           = n.irpf_pct || 0;
+    document.getElementById('n-ss-pct').value             = n.ss_pct || 6.35;
+    document.getElementById('n-otras-ded').value          = n.otras_ded || 0;
+    document.getElementById('n-sse-pct').value            = n.sse_pct || 29.90;
+    document.getElementById('n-notas').value              = n.notas || '';
+  } else {
+    document.getElementById('modal-title').textContent = 'Nueva nómina';
+    delBtn.style.display = 'none';
+    ['n-fecha','n-empresa','n-salario-base','n-pagas-extra','n-complementos',
+     'n-horas-extra','n-otros-devengos','n-irpf-pct','n-otras-ded','n-notas'].forEach(id => {
+       document.getElementById(id).value = '';
+     });
+    document.getElementById('n-ss-pct').value  = 6.35;
+    document.getElementById('n-sse-pct').value = 29.90;
+  }
+  calcModal();
+}
+
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+// ─────────────────────────────────────────────
+//  SAVE / DELETE
+// ─────────────────────────────────────────────
+function saveNomina() {
+  const fecha = document.getElementById('n-fecha').value;
+  const empresa = document.getElementById('n-empresa').value.trim();
+  const bruto = parseFloat(document.getElementById('n-bruto').value) || 0;
+  if (!fecha || !empresa || bruto <= 0) { alert('Completa mes, empresa y salario base.'); return; }
+
+  const read = id => parseFloat(document.getElementById(id).value) || 0;
+  const obj = {
+    id: editId || nextId(),
+    fecha,
+    empresa,
+    salario_base:    read('n-salario-base'),
+    pagas_extra:     read('n-pagas-extra'),
+    complementos:    read('n-complementos'),
+    horas_extra:     read('n-horas-extra'),
+    otros_devengos:  read('n-otros-devengos'),
+    bruto:           read('n-bruto'),
+    irpf_pct:        read('n-irpf-pct'),
+    irpf:            read('n-irpf'),
+    ss_pct:          read('n-ss-pct'),
+    ss:              read('n-ss'),
+    otras_ded:       read('n-otras-ded'),
+    neto:            read('n-neto'),
+    sse_pct:         read('n-sse-pct'),
+    sse:             read('n-sse'),
+    coste_total:     read('n-coste-total'),
+    notas:           document.getElementById('n-notas').value.trim(),
+  };
+
+  if (editId) {
+    const idx = nominas.findIndex(x => x.id === editId);
+    if (idx >= 0) nominas[idx] = obj;
+  } else {
+    nominas.push(obj);
+  }
+  nominas.sort((a, b) => a.fecha.localeCompare(b.fecha));
+  saveNominas();
+  closeModal();
+  if (activeView === 'resumen') renderResumen();
+  if (activeView === 'lista') renderLista();
+  selectedId = obj.id;
+  if (activeView === 'lista') renderDetail(obj.id);
+}
+
+function deleteNomina() {
+  if (!editId) return;
+  if (!confirm('¿Eliminar esta nómina?')) return;
+  nominas = nominas.filter(x => x.id !== editId);
+  saveNominas();
+  closeModal();
+  selectedId = null;
+  if (activeView === 'resumen') renderResumen();
+  if (activeView === 'lista') renderLista();
+}
+
+// ─────────────────────────────────────────────
+//  RENDER RESUMEN
+// ─────────────────────────────────────────────
+function renderResumen() {
+  const sorted = [...nominas].sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const n = sorted.length;
+  const totalNeto  = sorted.reduce((s, x) => s + x.neto, 0);
+  const totalBruto = sorted.reduce((s, x) => s + x.bruto, 0);
+  const avgNeto    = n ? totalNeto / n : 0;
+  const avgIrpf    = n ? sorted.reduce((s, x) => s + x.irpf_pct, 0) / n : 0;
+  const lastNeto   = n ? sorted[n - 1].neto : 0;
+  const totalCost  = sorted.reduce((s, x) => s + x.coste_total, 0);
+
+  document.getElementById('kpi-resumen').innerHTML = `
+    <div class="kpi-card green">
+      <div class="kpi-label">Último neto</div>
+      <div class="kpi-value">${fmt(lastNeto)}</div>
+      <div class="kpi-sub">${n ? monthLabel(sorted[n-1].fecha) : '—'}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Neto medio mensual</div>
+      <div class="kpi-value">${fmt(avgNeto)}</div>
+      <div class="kpi-sub">${n} nóminas</div>
+    </div>
+    <div class="kpi-card yellow">
+      <div class="kpi-label">Total neto acumulado</div>
+      <div class="kpi-value">${fmt(totalNeto)}</div>
+      <div class="kpi-sub">Bruto: ${fmt(totalBruto)}</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">IRPF medio</div>
+      <div class="kpi-value">${fmtPct(avgIrpf)}</div>
+      <div class="kpi-sub">IRPF total: ${fmt(sorted.reduce((s,x)=>s+x.irpf,0))}</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">Coste total empresa</div>
+      <div class="kpi-value">${fmt(totalCost)}</div>
+      <div class="kpi-sub">SS empresa: ${fmt(sorted.reduce((s,x)=>s+x.sse,0))}</div>
+    </div>
+  `;
+
+  if (!n) return;
+
+  const labels = sorted.map(x => monthLabel(x.fecha));
+
+  destroyChart('evolucion');
+  chartInstances['evolucion'] = new Chart(document.getElementById('chart-evolucion'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Neto', data: sorted.map(x => x.neto), borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,.1)', fill: true, tension: .3, pointRadius: 4 },
+        { label: 'Bruto', data: sorted.map(x => x.bruto), borderColor: '#6c63ff', backgroundColor: 'rgba(108,99,255,.07)', fill: true, tension: .3, pointRadius: 4 },
+      ]
+    },
+    options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } }, scales: {
+      x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#2e3248' } },
+      y: { ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => '€'+Math.round(v) }, grid: { color: '#2e3248' } }
+    }}
+  });
+
+  const avgBruto = totalBruto / n;
+  const avgSS    = sorted.reduce((s, x) => s + x.ss, 0) / n;
+  const avgIrpfE = sorted.reduce((s, x) => s + x.irpf, 0) / n;
+  const avgOtras = sorted.reduce((s, x) => s + x.otras_ded, 0) / n;
+  destroyChart('donut');
+  chartInstances['donut'] = new Chart(document.getElementById('chart-donut'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Neto', 'IRPF', 'SS trabajador', 'Otras ded.'],
+      datasets: [{ data: [avgNeto, avgIrpfE, avgSS, avgOtras].map(v => Math.max(0, v)),
+        backgroundColor: ['#22c55e','#ef4444','#f59e0b','#94a3b8'],
+        borderWidth: 0 }]
+    },
+    options: { responsive: true, cutout: '68%', plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12 } } } }
+  });
+
+  destroyChart('barras');
+  chartInstances['barras'] = new Chart(document.getElementById('chart-barras'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Bruto', data: sorted.map(x => x.bruto), backgroundColor: 'rgba(108,99,255,.7)' },
+      { label: 'Neto', data: sorted.map(x => x.neto), backgroundColor: 'rgba(34,197,94,.7)' },
+    ]},
+    options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } }, scales: {
+      x: { ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { color: '#2e3248' } },
+      y: { ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => '€'+Math.round(v) }, grid: { color: '#2e3248' } }
+    }}
+  });
+
+  destroyChart('irpf');
+  chartInstances['irpf'] = new Chart(document.getElementById('chart-irpf'), {
+    type: 'line',
+    data: { labels, datasets: [{ label: 'IRPF %', data: sorted.map(x => x.irpf_pct), borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,.1)', fill: true, tension: .3, pointRadius: 4 }]},
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: {
+      x: { ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { color: '#2e3248' } },
+      y: { ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => v+'%' }, grid: { color: '#2e3248' } }
+    }}
+  });
+
+  destroyChart('coste');
+  chartInstances['coste'] = new Chart(document.getElementById('chart-coste'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Bruto', data: sorted.map(x => x.bruto), backgroundColor: 'rgba(108,99,255,.6)' },
+      { label: 'SS empresa', data: sorted.map(x => x.sse), backgroundColor: 'rgba(245,158,11,.7)' },
+    ]},
+    options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } }, scales: {
+      x: { stacked: true, ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { color: '#2e3248' } },
+      y: { stacked: true, ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => '€'+Math.round(v) }, grid: { color: '#2e3248' } }
+    }}
+  });
+}
+
+// ─────────────────────────────────────────────
+//  RENDER LISTA
+// ─────────────────────────────────────────────
+function applyListFilter() {
+  listFilterYear  = document.getElementById('filter-year').value;
+  listFilterMonth = document.getElementById('filter-month').value;
+  renderLista();
+}
+
+function renderLista() {
+  const sorted = [...nominas].sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const list   = document.getElementById('nomina-list');
+
+  // Poblamos el selector de año con los años disponibles
+  const years  = [...new Set(sorted.map(n => n.fecha.split('-')[0]))].sort().reverse();
+  const yearSel = document.getElementById('filter-year');
+  if (yearSel) {
+    const cur = yearSel.value;
+    yearSel.innerHTML = '<option value="">Todos los años</option>' +
+      years.map(y => `<option value="${y}"${y === cur ? ' selected' : ''}>${y}</option>`).join('');
+  }
+  // Restauramos el mes seleccionado
+  const monthSel = document.getElementById('filter-month');
+  if (monthSel && listFilterMonth) monthSel.value = listFilterMonth;
+
+  if (!sorted.length) {
+    list.innerHTML = '<div class="empty-state"><div class="ei">📄</div><p>Sin nóminas. Añade tu primera nómina.</p></div>';
+    document.getElementById('nomina-detail-panel').innerHTML = '';
+    return;
+  }
+
+  const filtered = sorted.filter(n => {
+    const [y, m] = n.fecha.split('-');
+    if (listFilterYear  && y !== listFilterYear)  return false;
+    if (listFilterMonth && m !== listFilterMonth) return false;
+    return true;
+  });
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="empty-state"><div class="ei">🔍</div><p>Sin nóminas para el filtro seleccionado.</p></div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(n => `
+    <div class="nomina-card ${n.id === selectedId ? 'selected' : ''}" onclick="selectNomina(${n.id})">
+      <div class="nomina-card-left">
+        <div class="nomina-card-month">${monthLabel(n.fecha)}</div>
+        <div class="nomina-card-emp">${n.empresa}</div>
+      </div>
+      <div class="nomina-card-right">
+        <div class="nomina-card-neto">${fmt(n.neto)}</div>
+        <div class="nomina-card-bruto">Bruto: ${fmt(n.bruto)}</div>
+      </div>
+    </div>
+  `).join('');
+  if (selectedId) renderDetail(selectedId);
+}
+
+function selectNomina(id) {
+  selectedId = id;
+  renderLista();
+}
+
+function renderDetail(id) {
+  const n = nominas.find(x => x.id === id);
+  const panel = document.getElementById('nomina-detail-panel');
+  if (!n) { panel.innerHTML = ''; return; }
+
+  const row = (label, val, cls) =>
+    `<div class="nomina-row"><span>${label}</span><span class="${cls||''}">${val}</span></div>`;
+
+  panel.innerHTML = `
+    <div class="nomina-detail">
+      <div class="nomina-header">
+        <div>
+          <div class="nomina-title">${monthLabel(n.fecha)} — ${n.empresa}</div>
+          ${n.notas ? `<div class="nomina-subtitle">${n.notas}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" style="font-size:.8rem;padding:6px 12px" onclick="openNominaModal(${n.id})">✏️ Editar</button>
+        </div>
+      </div>
+
+      <div class="nomina-block">
+        <div class="nomina-col">
+          <div class="nomina-col-title">📈 Devengos</div>
+          ${row('Salario base', fmt(n.salario_base))}
+          ${n.pagas_extra   ? row('Pagas extra prorrateadas', fmt(n.pagas_extra)) : ''}
+          ${n.complementos  ? row('Complementos salariales', fmt(n.complementos)) : ''}
+          ${n.horas_extra   ? row('Horas extra', fmt(n.horas_extra)) : ''}
+          ${n.otros_devengos ? row('Otros devengos', fmt(n.otros_devengos)) : ''}
+          <div class="nomina-row total">${row('Total bruto', fmt(n.bruto), 'color-purple')}</div>
+        </div>
+        <div class="nomina-col">
+          <div class="nomina-col-title">📉 Deducciones</div>
+          ${row(`IRPF (${fmtPct(n.irpf_pct)})`, '− '+fmt(n.irpf), 'color-red')}
+          ${row(`SS trabajador (${fmtPct(n.ss_pct)})`, '− '+fmt(n.ss), 'color-red')}
+          ${n.otras_ded ? row('Otras deducciones', '− '+fmt(n.otras_ded), 'color-red') : ''}
+          <div class="nomina-row total">${row('Líquido a percibir', fmt(n.neto), 'color-green')}</div>
+        </div>
+      </div>
+
+      <div class="nomina-col" style="margin-bottom:14px">
+        <div class="nomina-col-title">🏢 Coste empresa</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+          <div style="text-align:center">
+            <div style="font-size:.7rem;color:var(--muted);margin-bottom:4px">BRUTO</div>
+            <div style="font-size:1rem;font-weight:700;color:var(--accent)">${fmt(n.bruto)}</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:.7rem;color:var(--muted);margin-bottom:4px">SS EMPRESA (${fmtPct(n.sse_pct)})</div>
+            <div style="font-size:1rem;font-weight:700;color:var(--yellow)">${fmt(n.sse)}</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:.7rem;color:var(--muted);margin-bottom:4px">COSTE TOTAL</div>
+            <div style="font-size:1rem;font-weight:700;color:var(--yellow)">${fmt(n.coste_total)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:14px">
+        <canvas id="chart-detail" height="80"></canvas>
+      </div>
+    </div>
+  `;
+
+  destroyChart('detail');
+  chartInstances['detail'] = new Chart(document.getElementById('chart-detail'), {
+    type: 'bar',
+    data: {
+      labels: ['Neto', 'IRPF', 'SS Trabajador', 'Otras ded.', 'SS Empresa'],
+      datasets: [{
+        data: [n.neto, n.irpf, n.ss, n.otras_ded, n.sse],
+        backgroundColor: ['#22c55e','#ef4444','#f59e0b','#94a3b8','#f59e0b'],
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => '€'+Math.round(v) }, grid: { color: '#2e3248' } },
+        y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ─────────────────────────────────────────────
+//  GANANCIAS ESPERADAS
+// ─────────────────────────────────────────────
+const GAN_KEY     = 'nom_ganancias';
+const GAN_CFG_KEY = 'nom_ganancia_cfg';
+
+let ganCfg       = { tarifa: 43, baseComp: 0 };
+let ganancias    = [];
+let ganOtros     = [];   // lista temporal en el modal
+let editGanId    = null;
+
+function loadGanCfg() {
+  try { Object.assign(ganCfg, JSON.parse(localStorage.getItem(GAN_CFG_KEY) || '{}')); } catch(e) {}
+  // Si baseComp no está configurado, intentar derivarlo de la última nómina
+  if (!ganCfg.baseComp) {
+    const last = [...nominas].sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
+    if (last) ganCfg.baseComp = (last.salario_base || 0) + (last.complementos || 0);
+  }
+}
+function saveGananciasCfg() {
+  ganCfg.tarifa   = parseFloat(document.getElementById('gan-tarifa').value)    || 43;
+  ganCfg.baseComp = parseFloat(document.getElementById('gan-base-comp').value) || 0;
+  localStorage.setItem(GAN_CFG_KEY, JSON.stringify(ganCfg));
+  const ok = document.getElementById('gan-cfg-ok');
+  ok.style.display = 'inline';
+  setTimeout(() => ok.style.display = 'none', 2000);
+  renderGanancias();
+}
+
+function loadGan() { try { ganancias = JSON.parse(localStorage.getItem(GAN_KEY) || '[]'); } catch(e) { ganancias = []; } }
+function saveGan()  { localStorage.setItem(GAN_KEY, JSON.stringify(ganancias)); }
+loadGanCfg();
+loadGan();
+
+// ── Cálculos ──────────────────────────────────
+function calcGan(g, tarifa) {
+  const t = tarifa || ganCfg.tarifa || 43;
+  const imp17     = (g.guardias17   || 0) * 17 * t;
+  const imp24     = (g.guardias24   || 0) * 24 * t;
+  const impHext   = (g.horasExtra   || 0) * t;
+  const impOtros  = (g.otros || []).reduce((s, o) => s + (o.importe || 0), 0);
+  const variable  = imp17 + imp24 + impHext + impOtros;
+  // Base+Comp: usar la nómina real del mes si existe, si no el override del registro, si no el default de config
+  const nom       = nominas.find(n => n.fecha === g.fecha);
+  const baseComp  = nom ? ((nom.salario_base || 0) + (nom.complementos || 0))
+                        : (g.baseCompOverride ?? ganCfg.baseComp ?? 0);
+  return { imp17, imp24, impHext, impOtros, variable, baseComp, brutoEsperado: baseComp + variable };
+}
+
+// ── Modal calc en tiempo real ──────────────────
+function calcGanModal() {
+  const tarifa    = parseFloat(document.getElementById('gan-tarifa-mod').value) || ganCfg.tarifa || 43;
+  const g17       = parseInt(document.getElementById('gan-g17').value)    || 0;
+  const g24       = parseInt(document.getElementById('gan-g24').value)    || 0;
+  const hext      = parseFloat(document.getElementById('gan-hext').value) || 0;
+  const baseComp  = parseFloat(document.getElementById('gan-basecomp').value) || 0;
+  const imp17     = g17  * 17 * tarifa;
+  const imp24     = g24  * 24 * tarifa;
+  const impH      = hext * tarifa;
+  const impOtros  = ganOtros.reduce((s, o) => s + (o.importe || 0), 0);
+  const variable  = imp17 + imp24 + impH + impOtros;
+  const esperado  = baseComp + variable;
+  document.getElementById('gan-res-g17').textContent    = fmt(imp17);
+  document.getElementById('gan-res-g24').textContent    = fmt(imp24);
+  document.getElementById('gan-res-hext').textContent   = fmt(impH);
+  document.getElementById('gan-res-otros').textContent  = fmt(impOtros);
+  document.getElementById('gan-res-var').textContent    = fmt(variable);
+  document.getElementById('gan-res-base').textContent   = fmt(baseComp);
+  document.getElementById('gan-res-total').textContent  = fmt(esperado);
+}
+
+// ── Otros items en el modal ────────────────────
+function renderGanOtros() {
+  const box = document.getElementById('gan-otros-list');
+  if (!ganOtros.length) { box.innerHTML = '<div style="font-size:.78rem;color:var(--muted)">Sin otros ingresos añadidos.</div>'; return; }
+  box.innerHTML = ganOtros.map((o, i) => `
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+      <input type="text"   value="${o.desc   || ''}" placeholder="Descripción (ej: curso, guardia festivo...)"
+             oninput="ganOtros[${i}].desc=this.value"
+             style="flex:2;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;font-size:.82rem" />
+      <input type="number" value="${o.importe|| ''}" placeholder="€" step="0.01" min="0"
+             oninput="ganOtros[${i}].importe=parseFloat(this.value)||0;calcGanModal()"
+             style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;font-size:.82rem" />
+      <button onclick="removeGanOtro(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:1rem;padding:2px 4px">✕</button>
+    </div>`).join('');
+}
+function addGanOtro()       { ganOtros.push({ desc: '', importe: 0 }); renderGanOtros(); calcGanModal(); }
+function removeGanOtro(i)   { ganOtros.splice(i, 1); renderGanOtros(); calcGanModal(); }
+
+// ── Modal open/close ───────────────────────────
+function openGanModal(id) {
+  editGanId = id || null;
+  document.getElementById('gan-modal-title').textContent = id ? 'Editar mes' : 'Nuevo mes';
+  document.getElementById('gan-btn-delete').style.display = id ? 'inline-block' : 'none';
+
+  if (id) {
+    const g = ganancias.find(x => x.id === id);
+    if (!g) return;
+    ganOtros = (g.otros || []).map(o => ({ ...o }));
+    document.getElementById('gan-fecha').value        = g.fecha          || '';
+    document.getElementById('gan-tarifa-mod').value   = g.tarifa         || ganCfg.tarifa || 43;
+    document.getElementById('gan-g17').value          = g.guardias17     || 0;
+    document.getElementById('gan-g24').value          = g.guardias24     || 0;
+    document.getElementById('gan-hext').value         = g.horasExtra     || 0;
+    // Base+comp: del campo override si existe, sino de la nómina real, sino del config
+    const nom = nominas.find(n => n.fecha === g.fecha);
+    const bc  = nom ? (nom.salario_base||0)+(nom.complementos||0) : (g.baseCompOverride ?? ganCfg.baseComp ?? 0);
+    document.getElementById('gan-basecomp').value     = bc;
+    document.getElementById('gan-notas').value        = g.notas          || '';
+  } else {
+    ganOtros = [];
+    const hoy = new Date();
+    document.getElementById('gan-fecha').value        = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+    document.getElementById('gan-tarifa-mod').value   = ganCfg.tarifa    || 43;
+    document.getElementById('gan-g17').value          = 0;
+    document.getElementById('gan-g24').value          = 0;
+    document.getElementById('gan-hext').value         = 0;
+    document.getElementById('gan-basecomp').value     = ganCfg.baseComp  || 0;
+    document.getElementById('gan-notas').value        = '';
+  }
+  renderGanOtros();
+  calcGanModal();
+  document.getElementById('gan-modal-overlay').classList.add('open');
+}
+
+function closeGanModal() { document.getElementById('gan-modal-overlay').classList.remove('open'); }
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('gan-modal-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeGanModal(); });
+});
+
+function saveGan_item() {
+  const fecha = document.getElementById('gan-fecha').value;
+  if (!fecha) { alert('Selecciona un mes.'); return; }
+  const tarifa       = parseFloat(document.getElementById('gan-tarifa-mod').value) || ganCfg.tarifa || 43;
+  const baseCompVal  = parseFloat(document.getElementById('gan-basecomp').value)   || 0;
+  // Determinar si la base+comp viene de una nómina real
+  const nom          = nominas.find(n => n.fecha === fecha);
+  const nomBaseComp  = nom ? (nom.salario_base||0)+(nom.complementos||0) : null;
+
+  const data = {
+    id:             editGanId || nextId(),
+    fecha,
+    tarifa,
+    guardias17:     parseInt(document.getElementById('gan-g17').value)    || 0,
+    guardias24:     parseInt(document.getElementById('gan-g24').value)    || 0,
+    horasExtra:     parseFloat(document.getElementById('gan-hext').value) || 0,
+    otros:          ganOtros.filter(o => o.desc || o.importe),
+    // Solo guardar override si no hay nómina real
+    baseCompOverride: nomBaseComp === null ? baseCompVal : undefined,
+    notas:          document.getElementById('gan-notas').value.trim(),
+  };
+  if (editGanId) {
+    const idx = ganancias.findIndex(x => x.id === editGanId);
+    if (idx >= 0) ganancias[idx] = data;
+  } else {
+    ganancias.push(data);
+  }
+  ganancias.sort((a, b) => a.fecha.localeCompare(b.fecha));
+  saveGan();
+  closeGanModal();
+  renderGanancias();
+}
+
+function deleteGanItem() {
+  if (!editGanId || !confirm('¿Eliminar este mes?')) return;
+  ganancias = ganancias.filter(x => x.id !== editGanId);
+  saveGan();
+  closeGanModal();
+  renderGanancias();
+}
+
+// ── Render tabla ───────────────────────────────
+function renderGanancias() {
+  // Sincronizar config UI
+  document.getElementById('gan-tarifa').value    = ganCfg.tarifa   || 43;
+  document.getElementById('gan-base-comp').value = ganCfg.baseComp || 0;
+
+  const tbl = document.getElementById('table-ganancias');
+  if (!ganancias.length) {
+    tbl.innerHTML = `<thead><tr>
+      <th>Mes</th><th style="text-align:right">Guard.17h</th><th style="text-align:right">Guard.24h</th>
+      <th style="text-align:right">H.Extra</th><th style="text-align:right">Otros</th>
+      <th style="text-align:right">Variable</th><th style="text-align:right">Base+Comp</th>
+      <th style="text-align:right">Bruto esp.</th><th style="text-align:right">Bruto real</th>
+      <th style="text-align:right">Diferencia</th><th style="text-align:center">Acc.</th>
+    </tr></thead>
+    <tbody><tr><td colspan="11" style="text-align:center;padding:40px;color:var(--muted)">
+      Sin meses planificados. Pulsa <strong>+ Añadir mes</strong> para empezar.
+    </td></tr></tbody>`;
+    return;
+  }
+
+  const rows = ganancias.map(g => {
+    const c   = calcGan(g, g.tarifa);
+    const nom = nominas.find(n => n.fecha === g.fecha);
+    const realBruto = nom ? nom.bruto : null;
+    const diff      = realBruto !== null ? realBruto - c.brutoEsperado : null;
+    const diffCls   = diff === null ? '' : diff >= 0 ? 'color:var(--green)' : 'color:var(--red)';
+    const guardLabel = (count, h, imp) =>
+      count ? `<span style="font-weight:600">${count}</span><br><span style="font-size:.7rem;color:var(--muted)">${fmt(imp)}</span>` : '—';
+    return `<tr>
+      <td style="font-weight:600;white-space:nowrap">${monthLabel(g.fecha)}</td>
+      <td style="text-align:right">${guardLabel(g.guardias17||0, 17, c.imp17)}</td>
+      <td style="text-align:right">${guardLabel(g.guardias24||0, 24, c.imp24)}</td>
+      <td style="text-align:right">${g.horasExtra ? `<span style="font-weight:600">${g.horasExtra}h</span><br><span style="font-size:.7rem;color:var(--muted)">${fmt(c.impHext)}</span>` : '—'}</td>
+      <td style="text-align:right">${c.impOtros ? fmt(c.impOtros) : '—'}</td>
+      <td style="text-align:right;font-weight:700;color:var(--accent)">${fmt(c.variable)}</td>
+      <td style="text-align:right;color:var(--muted)">${fmt(c.baseComp)}</td>
+      <td style="text-align:right;font-weight:700;color:var(--purple)">${fmt(c.brutoEsperado)}</td>
+      <td style="text-align:right;font-weight:700;color:var(--green)">${realBruto !== null ? fmt(realBruto) : '<span style="color:var(--muted)">—</span>'}</td>
+      <td style="text-align:right;font-weight:700;${diffCls}">${diff !== null ? (diff >= 0 ? '+' : '') + fmt(diff) : '<span style="color:var(--muted)">—</span>'}</td>
+      <td style="text-align:center;white-space:nowrap">
+        <button class="icon-btn" onclick="openGanModal(${JSON.stringify(g.id)})" title="Editar">✏️</button>
+        <button class="icon-btn" onclick="deleteGanDirect(${JSON.stringify(g.id)})" title="Eliminar">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const totG    = ganancias.reduce((s, g) => { const c=calcGan(g,g.tarifa); return s+c.brutoEsperado; }, 0);
+  const totReal = ganancias.reduce((s, g) => { const n=nominas.find(x=>x.fecha===g.fecha); return s+(n?n.bruto:0); }, 0);
+
+  tbl.innerHTML = `<thead><tr>
+    <th>Mes</th>
+    <th style="text-align:right">Guard.17h</th>
+    <th style="text-align:right">Guard.24h</th>
+    <th style="text-align:right">H.Extra</th>
+    <th style="text-align:right">Otros</th>
+    <th style="text-align:right">Variable</th>
+    <th style="text-align:right">Base+Comp</th>
+    <th style="text-align:right">Bruto esp.</th>
+    <th style="text-align:right">Bruto real</th>
+    <th style="text-align:right">Diferencia</th>
+    <th style="text-align:center">Acc.</th>
+  </tr></thead>
+  <tbody>${rows}</tbody>
+  <tfoot><tr>
+    <td colspan="7" style="text-align:right;font-size:.78rem;color:var(--muted)">${ganancias.length} meses</td>
+    <td style="text-align:right;color:var(--purple)">${fmt(totG)}</td>
+    <td style="text-align:right;color:var(--green)">${totReal ? fmt(totReal) : '—'}</td>
+    <td colspan="2"></td>
+  </tr></tfoot>`;
+}
+
+function deleteGanDirect(id) {
+  if (!confirm('¿Eliminar este mes?')) return;
+  ganancias = ganancias.filter(x => x.id !== id);
+  saveGan();
+  renderGanancias();
+}
+
+// ─── Exportar / Importar ──────────────────────
+const BACKUP_KEYS = [
+  'conta_txs','conta_settings','conta_learned','conta_esperados',
+  'inv_positions','inv_notes','user_cripto',
+  'nom_nominas','nom_ganancias','nom_ganancia_cfg'
+];
+function exportarTodo() {
+  const data = { _fecha: new Date().toISOString(), _version: 1 };
+  BACKUP_KEYS.forEach(k => { const v = localStorage.getItem(k); if (v) data[k] = JSON.parse(v); });
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'finanzas_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importarTodo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      let n = 0;
+      BACKUP_KEYS.forEach(k => { if (data[k] !== undefined) { localStorage.setItem(k, JSON.stringify(data[k])); n++; } });
+      if (!n) { alert('El fichero no contiene datos reconocibles.'); return; }
+      nominas = JSON.parse(localStorage.getItem(NOM_KEY) || '[]');
+      loadGanCfg();
+      loadGan();
+      renderResumen();
+      alert(`✓ ${n} secciones restauradas (backup del ${(data._fecha||'').slice(0,10)||'fecha desconocida'}).`);
+    } catch { alert('Error: el fichero no es un JSON válido.'); }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+// ─────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────
+renderResumen();
+</script>
+
+<!-- MODAL GANANCIAS ESPERADAS -->
+<div class="modal-overlay" id="gan-modal-overlay">
+  <div class="modal" style="width:580px">
+    <h3 id="gan-modal-title">Nuevo mes</h3>
+
+    <div style="display:flex;gap:10px">
+      <div class="form-row" style="flex:1;margin-bottom:12px">
+        <label>Mes / Año</label>
+        <input type="month" id="gan-fecha" />
+      </div>
+      <div class="form-row" style="flex:1;margin-bottom:12px">
+        <label>Tarifa guardia (€/hora)</label>
+        <input type="number" id="gan-tarifa-mod" min="0" step="0.01" oninput="calcGanModal()" />
+      </div>
+    </div>
+
+    <hr class="section-sep" />
+    <p class="section-label">Guardias</p>
+    <div style="display:flex;gap:10px">
+      <div class="form-row" style="flex:1;margin-bottom:12px">
+        <label>Guardias de 17h (nº)</label>
+        <input type="number" id="gan-g17" min="0" step="1" placeholder="0" oninput="calcGanModal()" />
+        <span style="font-size:.72rem;color:var(--muted);margin-top:3px" id="gan-res-g17">€ 0,00</span>
+      </div>
+      <div class="form-row" style="flex:1;margin-bottom:12px">
+        <label>Guardias de 24h (nº)</label>
+        <input type="number" id="gan-g24" min="0" step="1" placeholder="0" oninput="calcGanModal()" />
+        <span style="font-size:.72rem;color:var(--muted);margin-top:3px" id="gan-res-g24">€ 0,00</span>
+      </div>
+    </div>
+
+    <hr class="section-sep" />
+    <p class="section-label">Horas extra</p>
+    <div class="form-row" style="margin-bottom:12px">
+      <label>Horas extra (nº de horas)</label>
+      <input type="number" id="gan-hext" min="0" step="0.5" placeholder="0" oninput="calcGanModal()" />
+      <span style="font-size:.72rem;color:var(--muted);margin-top:3px" id="gan-res-hext">€ 0,00</span>
+    </div>
+
+    <hr class="section-sep" />
+    <p class="section-label">Otros ingresos <span style="font-weight:400;text-transform:none;letter-spacing:0">(cursos, festivos especiales…)</span></p>
+    <div id="gan-otros-list" style="margin-bottom:8px"></div>
+    <button class="btn btn-secondary" style="font-size:.78rem;padding:5px 12px;margin-bottom:12px" onclick="addGanOtro()">+ Añadir concepto</button>
+    <div style="font-size:.72rem;color:var(--muted);text-align:right;margin-bottom:12px">
+      Subtotal otros: <strong id="gan-res-otros">€ 0,00</strong>
+    </div>
+
+    <hr class="section-sep" />
+    <p class="section-label">Base + Complementos</p>
+    <div class="form-row" style="margin-bottom:12px">
+      <label>Salario base + complementos (€) — se obtiene automáticamente de la nómina real si existe</label>
+      <input type="number" id="gan-basecomp" min="0" step="0.01" placeholder="0.00" oninput="calcGanModal()" />
+    </div>
+
+    <!-- Resumen -->
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-bottom:10px">Resumen esperado</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center">
+        <div>
+          <div style="font-size:.68rem;color:var(--muted);margin-bottom:3px">PARTE VARIABLE</div>
+          <div style="font-size:1rem;font-weight:700;color:var(--accent)" id="gan-res-var">€ 0,00</div>
+        </div>
+        <div>
+          <div style="font-size:.68rem;color:var(--muted);margin-bottom:3px">BASE + COMP</div>
+          <div style="font-size:1rem;font-weight:700;color:var(--muted)" id="gan-res-base">€ 0,00</div>
+        </div>
+        <div>
+          <div style="font-size:.68rem;color:var(--muted);margin-bottom:3px">BRUTO ESPERADO</div>
+          <div style="font-size:1.1rem;font-weight:700;color:var(--purple)" id="gan-res-total">€ 0,00</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-row" style="margin-bottom:4px">
+      <label>Notas</label>
+      <input type="text" id="gan-notas" placeholder="Opcional..." />
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="gan-btn-delete" style="display:none;margin-right:auto" onclick="deleteGanItem()">Eliminar</button>
+      <button class="btn btn-secondary" onclick="closeGanModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveGan_item()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>

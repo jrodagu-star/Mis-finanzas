@@ -1,0 +1,3059 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contabilidad Personal</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#6c63ff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Finanzas">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #252836;
+      --border: #2e3248; --accent: #6c63ff; --accent2: #38bdf8;
+      --green: #22c55e; --red: #ef4444; --yellow: #f59e0b;
+      --text: #e2e8f0; --muted: #94a3b8; --sidebar-w: 220px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+
+    #sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; z-index: 10; }
+    .sidebar-logo { padding: 20px 16px 14px; font-size: 1.05rem; font-weight: 700; color: var(--accent); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+    .sidebar-section { padding: 12px 8px 4px; font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; margin: 2px 6px; border-radius: 8px; cursor: pointer; font-size: .875rem; color: var(--muted); transition: background .15s, color .15s; }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: var(--accent); color: #fff; }
+    .nav-item .icon { font-size: 1rem; width: 20px; text-align: center; }
+    .sidebar-footer { margin-top: auto; padding: 14px 12px; border-top: 1px solid var(--border); font-size: .72rem; color: var(--muted); text-align: center; }
+
+    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 11px 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    #topbar h1 { font-size: 1.05rem; font-weight: 600; white-space: nowrap; }
+    #content { flex: 1; overflow-y: auto; padding: 22px; }
+
+    .view { display: none; } .view.active { display: block; }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 22px; }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; position: relative; overflow: hidden; }
+    .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent); }
+    .kpi-card.green::before { background: var(--green); }
+    .kpi-card.red::before { background: var(--red); }
+    .kpi-card.yellow::before { background: var(--yellow); }
+    .kpi-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+    .kpi-value { font-size: 1.4rem; font-weight: 700; line-height: 1.2; }
+    .kpi-sub { font-size: .72rem; color: var(--muted); margin-top: 4px; }
+
+    .chart-grid { display: grid; gap: 16px; margin-bottom: 16px; }
+    .chart-grid.cols2 { grid-template-columns: 2fr 1fr; }
+    .chart-grid.cols3 { grid-template-columns: 1fr 1fr 1fr; }
+    .chart-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+    .chart-box h3 { font-size: .78rem; color: var(--muted); margin-bottom: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+
+    .table-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; overflow-x: auto; }
+    .table-box h3 { font-size: .78rem; color: var(--muted); margin-bottom: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+    table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    th { background: var(--surface2); color: var(--muted); font-weight: 600; padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+    #table-txs thead th { position: sticky; top: 0; z-index: 2; }
+    #table-txs tfoot td  { position: sticky; bottom: 0; z-index: 2; }
+    td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+    tfoot td { background: var(--surface2); font-weight: 700; border-top: 1px solid var(--border); }
+
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .68rem; font-weight: 700; white-space: nowrap; }
+    .cat-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .7rem; font-weight: 600; }
+
+    .btn { padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: .85rem; font-weight: 600; transition: opacity .15s; }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-danger { background: var(--red); color: #fff; }
+    .add-btn { background: var(--accent); color: #fff; border: none; padding: 7px 15px; border-radius: 8px; font-size: .82rem; font-weight: 600; cursor: pointer; }
+    .add-btn:hover { opacity: .85; }
+    .icon-btn { background: none; border: none; cursor: pointer; color: var(--muted); padding: 3px 6px; border-radius: 4px; font-size: .85rem; }
+    .icon-btn:hover { background: var(--surface2); color: var(--text); }
+
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; }
+    .filter-bar select, .filter-bar input[type=text], .filter-bar input[type=date] { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 5px 9px; font-size: .8rem; }
+    .filter-bar label { font-size: .75rem; color: var(--muted); }
+
+    .period-nav { display: flex; align-items: center; gap: 6px; }
+    .period-nav button { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 4px 10px; font-size: .8rem; cursor: pointer; }
+    .period-nav button:hover { background: var(--border); }
+    .period-nav .period-label { font-size: .88rem; font-weight: 600; min-width: 130px; text-align: center; color: var(--text); }
+    .period-nav .btn-all { font-size: .75rem; padding: 4px 10px; }
+    .period-nav .btn-all.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.72); z-index: 100; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 26px; width: 480px; max-width: 96vw; max-height: 92vh; overflow-y: auto; }
+    .modal h3 { margin-bottom: 18px; font-size: 1rem; }
+    .form-row { display: flex; flex-direction: column; gap: 5px; margin-bottom: 13px; }
+    .form-row label { font-size: .76rem; color: var(--muted); }
+    .form-row input, .form-row select, .form-row textarea { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: .88rem; width: 100%; }
+    .form-row textarea { resize: vertical; min-height: 56px; font-family: inherit; }
+    .form-row .row2 { display: flex; gap: 10px; }
+    .form-row .row2 > * { flex: 1; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+    .type-toggle { display: flex; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+    .type-toggle button { flex: 1; padding: 8px; border: none; cursor: pointer; font-size: .85rem; font-weight: 600; background: var(--surface2); color: var(--muted); transition: background .15s, color .15s; }
+    .type-toggle button.active-gasto { background: var(--red); color: #fff; }
+    .type-toggle button.active-ingreso { background: var(--green); color: #fff; }
+
+    .drop-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 36px 24px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; margin-bottom: 16px; }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: rgba(108,99,255,.06); }
+    .drop-zone .dz-icon { font-size: 2.4rem; margin-bottom: 10px; }
+    .drop-zone p { color: var(--muted); font-size: .85rem; margin-bottom: 4px; }
+
+    .empty-state { text-align: center; padding: 48px 20px; color: var(--muted); }
+    .empty-state .ei { font-size: 3rem; margin-bottom: 12px; }
+    .empty-state p { font-size: .88rem; }
+
+    .cat-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .cat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px; position: relative; overflow: hidden; cursor: pointer; transition: border-color .15s, background .15s; }
+    .cat-card:hover { border-color: var(--accent); background: var(--surface2); }
+    .cat-card.selected { border-color: var(--accent); background: rgba(108,99,255,.08); }
+    .cat-card .cc-bar { position: absolute; bottom: 0; left: 0; height: 3px; transition: width .3s; }
+    .cat-card .cc-name { font-size: .78rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+    .cat-card .cc-amount { font-size: 1.15rem; font-weight: 700; }
+    .cat-card .cc-meta { font-size: .7rem; color: var(--muted); margin-top: 2px; }
+    .detail-panel { background: var(--surface); border: 1px solid var(--accent); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+    .detail-panel-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .detail-panel-hdr h3 { font-size: .9rem; font-weight: 700; }
+    .subcat-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .subcat-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+    .subcat-card .sc-name { font-size: .72rem; font-weight: 700; color: var(--muted); margin-bottom: 3px; }
+    .subcat-card .sc-amount { font-size: 1rem; font-weight: 700; }
+    .subcat-card .sc-meta { font-size: .68rem; color: var(--muted); margin-top: 2px; }
+
+    .info-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; font-size: .82rem; color: var(--muted); line-height: 1.7; }
+    .info-box strong { color: var(--text); }
+    .bank-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .bank-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: .75rem; color: var(--muted); }
+    .import-preview { overflow-x: auto; }
+    .import-preview table { font-size: .78rem; }
+    .preview-status { font-size: .82rem; color: var(--muted); margin-bottom: 10px; }
+    .preview-status strong { color: var(--text); }
+
+    .amount-ing { color: var(--green); font-weight: 700; }
+    .amount-gas { color: var(--red); font-weight: 700; }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    input[type=date]::-webkit-calendar-picker-indicator { filter: invert(0.6); }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="sidebar-logo">📒 Contabilidad</div>
+  <div class="sidebar-section">Vistas</div>
+  <div class="nav-item active" data-view="resumen"><span class="icon">🏠</span> Resumen</div>
+  <div class="nav-item" data-view="transacciones"><span class="icon">📋</span> Transacciones</div>
+  <div class="nav-item" data-view="categorias"><span class="icon">🏷️</span> Por Categoría</div>
+  <div class="nav-item" data-view="importar"><span class="icon">📥</span> Importar CSV</div>
+  <div class="nav-item" data-view="esperados"><span class="icon">📅</span> Gastos esperados</div>
+  <div class="sidebar-section">Otros</div>
+  <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;padding:9px 14px;margin:2px 6px;border-radius:8px;font-size:.875rem;color:var(--muted);text-decoration:none">📈 Inversiones</a>
+  <a href="nominas.html" style="display:flex;align-items:center;gap:10px;padding:9px 14px;margin:2px 6px;border-radius:8px;font-size:.875rem;color:var(--muted);text-decoration:none">💼 Nóminas</a>
+  <a href="hacienda.html" style="display:flex;align-items:center;gap:10px;padding:9px 14px;margin:2px 6px;border-radius:8px;font-size:.875rem;color:var(--muted);text-decoration:none">🏛️ Hacienda</a>
+  <a href="index.html" style="display:flex;align-items:center;gap:10px;padding:9px 14px;margin:2px 6px;border-radius:8px;font-size:.875rem;color:var(--muted);text-decoration:none">🏠 Inicio</a>
+  <div class="sidebar-footer">Datos guardados localmente</div>
+</nav>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="topbar">
+    <h1 id="page-title">Resumen</h1>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div class="period-nav">
+        <button onclick="shiftPeriod(-1)">◂</button>
+        <span class="period-label" id="period-label">—</span>
+        <button onclick="shiftPeriod(1)">▸</button>
+        <button class="btn-all" id="btn-all" onclick="toggleAllTime()">Ver todo</button>
+      </div>
+      <button class="add-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text)" onclick="recategorizarTodo()" title="Re-aplica las categorías aprendidas y automáticas a todas las transacciones">↻ Recategorizar</button>
+      <button class="add-btn" onclick="openTxModal()">+ Nueva</button>
+      <button class="add-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text)" onclick="exportarTodo()" title="Exportar todos los datos a JSON">⬇ Exportar</button>
+      <label class="add-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);cursor:pointer;margin:0" title="Importar datos desde JSON">⬆ Importar<input type="file" accept=".json" style="display:none" onchange="importarTodo(this)"/></label>
+    </div>
+  </div>
+
+  <div id="content">
+
+    <!-- RESUMEN -->
+    <div class="view active" id="view-resumen">
+      <div class="kpi-grid" id="res-kpis"></div>
+      <div class="chart-grid cols2" style="margin-bottom:16px">
+        <div class="chart-box">
+          <h3>Ingresos vs Gastos (últimos 12 meses)</h3>
+          <canvas id="chart-monthly" height="120"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Gastos por categoría</h3>
+          <canvas id="chart-cat-donut" height="120"></canvas>
+        </div>
+      </div>
+      <div class="table-box">
+        <h3>Últimas transacciones</h3>
+        <table id="table-recent"></table>
+      </div>
+    </div>
+
+    <!-- TRANSACCIONES -->
+    <div class="view" id="view-transacciones">
+      <div class="filter-bar">
+        <label>Desde</label><input type="date" id="f-desde" oninput="renderTransacciones()" />
+        <label>Hasta</label><input type="date" id="f-hasta" oninput="renderTransacciones()" />
+        <select id="f-tipo" onchange="renderTransacciones()">
+          <option value="">Todo</option>
+          <option value="INGRESO">Ingresos</option>
+          <option value="GASTO">Gastos</option>
+        </select>
+        <select id="f-cat" onchange="renderTransacciones()"><option value="">Todas las categorías</option></select>
+        <select id="f-cuenta" onchange="renderTransacciones()"><option value="">Todas las cuentas</option></select>
+        <select id="f-sub" onchange="renderTransacciones()">
+          <option value="">Suscripción: todas</option>
+          <option value="1">✓ Suscripción: Sí</option>
+          <option value="0">— Suscripción: No</option>
+        </select>
+        <input type="text" id="f-search" placeholder="Buscar..." oninput="renderTransacciones()" style="min-width:140px" />
+        <button class="btn btn-secondary" style="padding:5px 12px;font-size:.78rem" onclick="clearFilters()">Limpiar</button>
+      </div>
+      <div class="table-box" style="padding:0; overflow:auto; max-height:calc(100vh - 170px)">
+        <table id="table-txs"></table>
+      </div>
+    </div>
+
+    <!-- CATEGORIAS -->
+    <div class="view" id="view-categorias">
+      <div class="cat-cards" id="cat-cards-gasto"></div>
+      <div id="cat-detail-panel"></div>
+      <div class="chart-box" style="margin-bottom:16px">
+        <h3>Gastos por categoría</h3>
+        <canvas id="chart-cat-bar" height="80"></canvas>
+      </div>
+      <div class="cat-cards" id="cat-cards-ingreso"></div>
+    </div>
+
+    <!-- IMPORTAR -->
+    <div class="view" id="view-importar">
+      <div class="info-box">
+        <strong>Cómo importar un extracto bancario:</strong><br>
+        Descarga el extracto de tu banco en formato CSV y arrástralo aquí o haz clic para seleccionarlo. El sistema detecta automáticamente el formato y propone categorías.
+        <div class="bank-chips">
+          <span class="bank-chip">✓ CaixaBank</span>
+          <span class="bank-chip">✓ BBVA</span>
+          <span class="bank-chip">✓ ING</span>
+          <span class="bank-chip">✓ Santander</span>
+          <span class="bank-chip">✓ Bankinter</span>
+          <span class="bank-chip">✓ Genérico</span>
+        </div>
+      </div>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <div class="dz-icon">📂</div>
+        <p><strong>Arrastra tu CSV aquí</strong></p>
+        <p>o haz clic para seleccionar un archivo</p>
+      </div>
+      <input type="file" id="file-input" accept=".csv,.txt" style="display:none" onchange="handleFileSelect(this)" />
+      <div id="import-result" style="font-size:.82rem;color:var(--muted)"></div>
+    </div>
+
+    <!-- GASTOS ESPERADOS -->
+    <div class="view" id="view-esperados">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <div class="filter-bar" style="flex:1;margin-bottom:0;flex-wrap:wrap">
+          <input type="text" id="ge-search" placeholder="Buscar por cualquier columna..." oninput="renderEsperados()" style="min-width:180px;flex:1" />
+          <select id="ge-f-cat" onchange="renderEsperados()"><option value="">Todas las categorías</option></select>
+          <button class="btn btn-secondary" style="padding:5px 12px;font-size:.78rem" onclick="clearGEFilters()">Limpiar</button>
+        </div>
+        <button class="add-btn" onclick="openGEModal(null)">+ Añadir</button>
+      </div>
+      <div class="table-box" style="padding:0;overflow:auto;max-height:calc(100vh - 170px)">
+        <table id="table-ge"></table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL TRANSACCIÓN -->
+<div class="modal-overlay" id="tx-modal-overlay">
+  <div class="modal">
+    <h3 id="tx-modal-title">Nueva transacción</h3>
+    <div class="type-toggle" style="margin-bottom:14px">
+      <button id="btn-tipo-gasto"  onclick="setTxType('GASTO')"   class="active-gasto">▼ Gasto</button>
+      <button id="btn-tipo-ingreso" onclick="setTxType('INGRESO')" >▲ Ingreso</button>
+    </div>
+    <div style="display:flex;gap:10px">
+      <div class="form-row" style="flex:1"><label>Fecha</label><input type="date" id="tx-fecha" /></div>
+      <div class="form-row" style="flex:1"><label>Importe (€)</label><input type="number" id="tx-importe" step="0.01" min="0" placeholder="0,00" /></div>
+    </div>
+    <div class="form-row"><label>Descripción</label><input type="text" id="tx-desc" placeholder="Ej: Mercadona, Nómina..." oninput="autoFillCategory()" /></div>
+    <div style="display:flex;gap:10px">
+      <div class="form-row" style="flex:1"><label>Categoría</label><select id="tx-cat" onchange="updateSubcatOptions()"></select></div>
+      <div class="form-row" style="flex:1"><label>Subcategoría</label><select id="tx-subcat"><option value="">— Sin subcategoría —</option></select></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <div class="form-row" style="flex:1"><label>Cuenta / Banco</label><input type="text" id="tx-cuenta" list="cuentas-list" placeholder="Principal" /></div>
+      <div class="form-row" style="flex:1"><label>Notas</label><input type="text" id="tx-notas" placeholder="Opcional..." /></div>
+    </div>
+    <div class="form-row" style="flex-direction:row;align-items:center;gap:10px;margin-bottom:6px">
+      <input type="checkbox" id="tx-sub" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer" onchange="toggleSubPeriodo()" />
+      <label for="tx-sub" style="cursor:pointer;font-size:.85rem;color:var(--text)">Es una suscripción recurrente</label>
+    </div>
+    <div class="form-row" id="sub-periodo-row" style="display:none">
+      <label>Periodicidad</label>
+      <select id="tx-sub-periodo">
+        <option value="">— Seleccionar —</option>
+        <option value="Mensual">Mensual</option>
+        <option value="Trimestral">Trimestral</option>
+        <option value="Anual">Anual</option>
+      </select>
+    </div>
+    <datalist id="cuentas-list"></datalist>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="btn-delete-tx" style="display:none;margin-right:auto" onclick="deleteTx()">Eliminar</button>
+      <button class="btn btn-secondary" onclick="closeTxModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveTx()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PREVIEW IMPORTACIÓN -->
+<div class="modal-overlay" id="import-modal-overlay">
+  <div class="modal" style="width:760px;max-width:98vw">
+    <h3>Vista previa de importación</h3>
+    <p class="preview-status" id="preview-status"></p>
+    <div class="import-preview">
+      <table id="table-preview"></table>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeImportModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmImport()">Importar todas</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  CONSTANTES
+// ─────────────────────────────────────────────
+const TX_KEY  = 'conta_txs';
+const SET_KEY = 'conta_settings';
+
+const CATS_GASTO = [
+  'Alimentación','Restaurantes y cafés','Vivienda','Suministros',
+  'Transporte','Salud','Ocio y entretenimiento','Ropa y calzado',
+  'Tecnología','Educación','Seguros','Viajes','Regalos',
+  'Mascotas','Belleza y cuidado','Finanzas y bancos','Donaciones','Otros gastos'
+];
+const CATS_INGRESO = [
+  'Nómina','Inversiones y dividendos','Alquiler cobrado',
+  'Freelance / Extra','Transferencia recibida','Reembolso','Otros ingresos'
+];
+const CAT_COLOR = {
+  'Alimentación':'#22c55e','Restaurantes y cafés':'#f59e0b','Vivienda':'#6366f1',
+  'Suministros':'#38bdf8','Transporte':'#f97316','Salud':'#ec4899',
+  'Ocio y entretenimiento':'#a855f7','Ropa y calzado':'#14b8a6',
+  'Tecnología':'#3b82f6','Educación':'#eab308','Seguros':'#64748b',
+  'Viajes':'#06b6d4','Regalos':'#f43f5e','Mascotas':'#84cc16',
+  'Belleza y cuidado':'#d946ef','Finanzas y bancos':'#94a3b8','Otros gastos':'#71717a',
+  'Nómina':'#22c55e','Inversiones y dividendos':'#f7931a','Alquiler cobrado':'#6366f1',
+  'Freelance / Extra':'#38bdf8','Transferencia recibida':'#a855f7',
+  'Reembolso':'#84cc16','Otros ingresos':'#94a3b8',
+};
+
+const AUTO_RULES = [
+  { kw:['mercadona','lidl','aldi','carrefour',' dia ','eroski','hipercor','alcampo','consum','simply','supermercado','fruteria','panaderia','verduleria','mas y mas','spar '], cat:'Alimentación' },
+  { kw:['repsol','cepsa',' bp ','galp','campsa','shell','gasolinera','renfe',' emt ','metro ','taxi ','cabify','uber ','parking','autopista','peaje','bicing','valenbisi','sevici','bus ','autobus'], cat:'Transporte' },
+  { kw:['netflix','spotify','amazon prime','hbo','disney+','apple tv','youtube premium','google play','app store','twitch','filmin','movistar+','dazn'], cat:'Tecnología' },
+  { kw:['telefonica','movistar','orange','vodafone','jazztel','masmovil','yoigo','digi ','pepephone','lowi','o2 '], cat:'Suministros' },
+  { kw:['endesa','iberdrola','naturgy','gas natural','aguas de','canal isabel','emasesa','global omnium','hidrogestion'], cat:'Suministros' },
+  { kw:['farmacia','clinica','medico','hospital','sanitas','adeslas','optica','dentista','fisioterapeu','podolog','laboratorio'], cat:'Salud' },
+  { kw:['zara','mango','primark','pull&bear','stradivarius','bershka','h&m','shein','zalando','decimas','camper','snipes'], cat:'Ropa y calzado' },
+  { kw:['mcdonalds','burger king','telepizza','glovo','just eat','dominos','kfc','restaurante','cafeteria','cafe ','hamburgueseria','sushi','kebab','delivery','uber eats'], cat:'Restaurantes y cafés' },
+  { kw:['alquiler','comunidad propietarios','ibi ','hipoteca'], cat:'Vivienda' },
+  { kw:['cine','teatro','deporte','gimnasio','decathlon','fnac','steam','playstation','xbox','nintendo','estadio','concierto','entradas'], cat:'Ocio y entretenimiento' },
+  { kw:['seguro','mutua','axa','zurich','generali','mapfre','allianz','linea directa'], cat:'Seguros' },
+  { kw:['vueling','iberia','ryanair','easyjet','wizzair','booking','airbnb','hotel','trivago','edreams'], cat:'Viajes' },
+  { kw:['nomina','nómina','salario','sueldo','haberes','remuneracion'], cat:'Nómina' },
+  { kw:['dividendo','interes abonado','myinvestor','degiro','finanbest','renta 4','openbank inver','xtb'], cat:'Inversiones y dividendos' },
+  { kw:['comision','comisión','mantenimiento cuenta','cuota tarjeta','cargo tarjeta'], cat:'Finanzas y bancos' },
+  { kw:['amazon','aliexpress','ebay','pccomponentes','mediamarkt','leroy merlin','ikea','bricomart'], cat:'Otros gastos' },
+  { kw:['acnur','caritas dioces','medicos sin'], cat:'Donaciones' },
+];
+
+const SUBCAT_RULES = {
+  'Suministros': [
+    { kw:['movistar plus','movistar+','hbo','max ','disney','filmin','dazn','movistar tv'],                        sub:'TV/Streaming' },
+    { kw:['movistar','orange','vodafone','jazztel','masmovil','yoigo','digi ','pepephone','lowi','o2 '],           sub:'Teléfono/Internet' },
+    { kw:['naturgy','gas natural','total energies gas','cepgas'],                                                  sub:'Gas' },
+    { kw:['endesa','iberdrola','enel','holaluz','octopus','acciona energia'],                                      sub:'Electricidad' },
+    { kw:['canal isabel','aguas de','emasesa','hidrogestion','global omnium','emacsa','emasa'],                   sub:'Agua' },
+  ],
+  'Tecnología': [
+    { kw:['netflix'],                    sub:'Netflix' },
+    { kw:['spotify'],                    sub:'Spotify' },
+    { kw:['amazon prime','prime video'], sub:'Amazon Prime/Video' },
+    { kw:['disney'],                     sub:'Disney+' },
+    { kw:['hbo','max '],                 sub:'HBO/Max' },
+    { kw:['apple'],                      sub:'Apple' },
+    { kw:['youtube','google play'],      sub:'Google/YouTube' },
+    { kw:['microsoft','xbox'],           sub:'Microsoft' },
+    { kw:['audible'],                    sub:'Audible' },
+    { kw:['twitch'],                     sub:'Twitch' },
+    { kw:['genspark','chatgpt','claude','openai','perplexity'], sub:'IA / Productividad' },
+  ],
+  'Transporte': [
+    { kw:['repsol','cepsa','bp ','galp','campsa','shell','gasolinera'], sub:'Gasolina' },
+    { kw:['renfe','emt ','metro ','bus ','autobus','bicing'],           sub:'Transporte público' },
+    { kw:['taxi','cabify','uber '],                                     sub:'Taxi/VTC' },
+    { kw:['parking','autopista','peaje'],                               sub:'Parking/Peajes' },
+  ],
+  'Alimentación': [
+    { kw:['mercadona'],         sub:'Mercadona' },
+    { kw:['lidl'],              sub:'Lidl' },
+    { kw:['aldi'],              sub:'Aldi' },
+    { kw:['carrefour'],         sub:'Carrefour' },
+    { kw:['dia '],              sub:'Día' },
+    { kw:['alcampo','hipercor','eroski','consum','simply','spar '], sub:'Otros supers' },
+    { kw:['fruteria','panaderia','verduleria','manacor'],           sub:'Frutería/Mercado' },
+  ],
+  'Restaurantes y cafés': [
+    { kw:['glovo','just eat','uber eats','deliveroo'], sub:'Delivery' },
+    { kw:['mcdonalds','burger king','kfc','telepizza','dominos'], sub:'Fast food' },
+    { kw:['restaurante','urogallo','later'],            sub:'Restaurante' },
+    { kw:['cafeteria','cafe ','coffee'],                sub:'Café/Bar' },
+  ],
+  'Salud': [
+    { kw:['farmacia'],                    sub:'Farmacia' },
+    { kw:['sanitas','adeslas','dkv'],     sub:'Seguro médico' },
+    { kw:['dentista','dental','ortodon'],  sub:'Dental' },
+    { kw:['optica','óptica'],             sub:'Óptica' },
+    { kw:['fisioterapeu','podolog'],       sub:'Fisioterapia/Podología' },
+    { kw:['clinica','medico','hospital'], sub:'Médico/Clínica' },
+  ],
+  'Ocio y entretenimiento': [
+    { kw:['cine','teatro','concierto','entradas'], sub:'Cultura/Espectáculos' },
+    { kw:['steam','playstation','xbox','nintendo'], sub:'Videojuegos' },
+    { kw:['decathlon','nike','adidas'],            sub:'Deporte' },
+    { kw:['fnac'],                                 sub:'Fnac' },
+    { kw:['gimnasio'],                             sub:'Gimnasio' },
+  ],
+  'Donaciones': [
+    { kw:['acnur'],        sub:'ACNUR' },
+    { kw:['caritas'],      sub:'Cáritas' },
+    { kw:['medicos sin'],  sub:'Médicos Sin Fronteras' },
+  ],
+  'Seguros': [
+    { kw:['mutua','mapfre','axa','zurich','generali','allianz','linea directa'], sub:'Seguro' },
+  ],
+  'Finanzas y bancos': [
+    { kw:['prestamo','préstamo','hipoteca','financiacion','financiación'], sub:'Préstamos' },
+    { kw:['aplazado','plazo','cuota','fraccionado'],                       sub:'Pagos a plazos' },
+  ],
+};
+
+function autoSubcat(desc, cat) {
+  const rules = SUBCAT_RULES[cat];
+  if (!rules) return '';
+  const d = desc.toLowerCase();
+  for (const r of rules) { if (r.kw.some(k => d.includes(k))) return r.sub; }
+  return '';
+}
+
+function getSubcatOptions(cat) {
+  const rules = SUBCAT_RULES[cat];
+  if (!rules) return [];
+  return [...new Set(rules.map(r => r.sub))];
+}
+
+function learnedKey(desc, amount) {
+  const d = desc.toLowerCase().trim();
+  return (d.startsWith('apple.com') && amount !== undefined) ? `${d}|${amount}` : d;
+}
+
+function getLearnedEntry(desc, amount) {
+  const all = JSON.parse(localStorage.getItem('conta_learned') || '{}');
+  const raw = all[learnedKey(desc, amount)];
+  if (!raw) return null;
+  return typeof raw === 'string' ? { cat: raw } : raw;
+}
+
+function autoCategory(desc, type, amount) {
+  const entry = getLearnedEntry(desc, amount);
+  if (entry?.cat) return entry.cat;
+  const d = desc.toLowerCase().trim();
+  for (const r of AUTO_RULES) {
+    if (r.kw.some(k => d.includes(k))) {
+      const isIncomeCat = CATS_INGRESO.includes(r.cat);
+      if (type === 'INGRESO' && !isIncomeCat) continue;
+      if (type === 'GASTO' && isIncomeCat) continue;
+      return r.cat;
+    }
+  }
+  return type === 'INGRESO' ? 'Otros ingresos' : 'Otros gastos';
+}
+
+function learnRule(desc, cat, sub, subcat, notes, subPeriodo, amount) {
+  const key = learnedKey(desc, amount);
+  const learned = JSON.parse(localStorage.getItem('conta_learned') || '{}');
+  const base = typeof learned[key] === 'string' ? { cat: learned[key] } : (learned[key] || {});
+  if (cat        !== undefined) base.cat        = cat;
+  if (sub        !== undefined) base.sub        = sub;
+  if (subcat     !== undefined) base.subcat     = subcat;
+  if (notes      !== undefined) base.notes      = notes;
+  if (subPeriodo !== undefined) base.subPeriodo = subPeriodo;
+  learned[key] = base;
+  localStorage.setItem('conta_learned', JSON.stringify(learned));
+}
+
+function recategorizarTodo() {
+  // Para APPLE.COM: mapa importe → {subcat, notes, subPeriodo} de transacciones ya categorizadas
+  const appleByAmount = {};
+  txs.forEach(tx => {
+    if (tx.desc.toUpperCase().startsWith('APPLE.COM') && (tx.subcat || tx.notes || tx.subPeriodo)) {
+      if (!appleByAmount[tx.amount]) appleByAmount[tx.amount] = { subcat: tx.subcat || '', notes: tx.notes || '', subPeriodo: tx.subPeriodo || '' };
+    }
+  });
+
+  txs.forEach(tx => {
+    const entry = getLearnedEntry(tx.desc, tx.amount);
+    if (entry?.cat)                    tx.cat       = entry.cat;
+    else                               tx.cat       = autoCategory(tx.desc, tx.type, tx.amount);
+    if (entry?.sub        !== undefined) tx.sub       = entry.sub;
+    if (entry?.subcat     !== undefined) tx.subcat    = entry.subcat;
+    else if (!tx.subcat)               tx.subcat    = autoSubcat(tx.desc, tx.cat);
+    if (entry?.notes      !== undefined) tx.notes     = entry.notes;
+    if (entry?.subPeriodo !== undefined) tx.subPeriodo = entry.subPeriodo;
+
+    // Inferir subcategoría, notas y periodicidad para APPLE.COM por importe
+    if (tx.desc.toUpperCase().startsWith('APPLE.COM')) {
+      const ref = appleByAmount[tx.amount];
+      if (ref) {
+        if (!tx.subcat     && ref.subcat)     tx.subcat     = ref.subcat;
+        if (!tx.notes      && ref.notes)      tx.notes      = ref.notes;
+        if (!tx.subPeriodo && ref.subPeriodo) tx.subPeriodo = ref.subPeriodo;
+      }
+    }
+  });
+  saveTxs();
+  renderActiveView();
+  if (activeView !== 'resumen') renderResumen();
+}
+
+// ─────────────────────────────────────────────
+//  DATOS
+// ─────────────────────────────────────────────
+let txs = [];
+let settings = { accounts: ['Principal'] };
+let chartInstances = {};
+
+// ─────────────────────────────────────────────
+//  DATOS SEMILLA (CSV importado)
+// ─────────────────────────────────────────────
+const SEED_CSV = `Fecha;Movimiento;Importe;Saldo
+31/03/2026;MOVISTAR PLUS;-9,99;9.246,26
+31/03/2026;Prime Video canal;-7,99;9.256,25
+30/03/2026;NOMINA TRF;5.347,18;9.264,24
+30/03/2026;GENSPARK.AI;-27,32;3.917,06
+30/03/2026;APPLE.COM/BILL;-13,49;3.944,38
+29/03/2026;MANACOR POZUELO;-4,55;3.957,87
+29/03/2026;APPLE.COM/BILL;-1,99;3.962,42
+28/03/2026;NYX*ABServiciosSe;-2,50;3.964,41
+28/03/2026;Microsoft*La prue;-14,99;3.966,91
+28/03/2026;Audible ES;-9,99;3.981,90
+27/03/2026;UROGALLO POZUELO;-70,00;3.991,89
+27/03/2026;Spotify P40BD9A43;-20,99;4.061,89
+27/03/2026;ORANGE MOVIL 0326;-121,05;4.082,88
+26/03/2026;487 - MINIT SPAIN;-40,00;4.203,93
+26/03/2026;Restaurante Later;-8,80;4.243,93
+26/03/2026;WWW.AMAZON;-45,89;4.252,73
+26/03/2026;APPLE.COM/BILL;-23,99;4.298,62
+26/03/2026;RCI BANQUE S;-146,09;4.322,61
+25/03/2026;E.S. POZUELO;-39,39;4.468,70
+25/03/2026;UBER   * EATS PEN;-25,19;4.508,09
+25/03/2026;DELIKIA SP;-1,10;4.533,28
+25/03/2026;APPLE.COM/BILL;-17,99;4.534,38
+25/03/2026;APPLE.COM/BILL;-8,99;4.552,37
+25/03/2026;MAPFRE;-286,47;4.561,36
+24/03/2026;ALCAMPO MAJADAHON;-122,12;4.847,83
+24/03/2026;PADDLE.NET* RENDR;-8,00;4.969,95
+23/03/2026;E.S. POZUELO;-46,39;4.977,95
+23/03/2026;MANACOR POZUELO;-4,00;5.024,34
+23/03/2026;WWW CINESA ES;-28,80;5.028,34
+22/03/2026;NETFLIX.COM;-13,99;5.057,14
+22/03/2026;AMAZON.ES;-9,99;5.071,13
+22/03/2026;SPANDOC GLOBAL SL;-25,00;5.081,12
+21/03/2026;BALBISIANA POZUEL;-12,50;5.106,12
+21/03/2026;PROF.DE LA MED;-36,00;5.118,62
+20/03/2026;SUPERCOR EXPRESS;-28,89;5.154,62
+20/03/2026;HM P. SUR CAFETER;-0,55;5.183,51
+20/03/2026;0182-8391-41-0831;-67,97;5.184,06
+19/03/2026;IBERDROLA CLI.;-78,14;5.252,03
+19/03/2026;NYX*ABServiciosSe;-2,50;5.330,17
+18/03/2026;Prime Video canal;-7,99;5.332,67
+17/03/2026;EL PIMIENTO VERDE;-240,00;5.340,66
+17/03/2026;LinkedIn*P1177649;-34,99;5.580,66
+16/03/2026;LA DESPENSA T166;-49,84;5.615,65
+15/03/2026;QR-CODE.IO;-49,95;5.665,49
+15/03/2026;APPLE.COM/BILL;-35,00;5.715,44
+14/03/2026;BIZUM RECIBIDO;38,00;5.750,44
+14/03/2026;EL CORTE INGLES P;-195,00;5.712,44
+14/03/2026;UROGALLO POZUELO;-59,80;5.907,44
+14/03/2026;EL CORTE INGLES P;-49,55;5.967,24
+14/03/2026;POZUELO H.;-29,70;6.016,79
+14/03/2026;FEVER* RIU PLAZA;-77,00;6.046,49
+14/03/2026;CURSOR, AI POWERE;-63,60;6.123,49
+13/03/2026;WWW.AMAZON;-52,97;6.187,09
+12/03/2026;URRECHU;-140,00;6.240,06
+12/03/2026;P.MALLORCA POZUEL;-6,50;6.380,06
+12/03/2026;Pozuelo;-4,72;6.386,56
+11/03/2026;P.MALLORCA POZUEL;-70,00;6.391,28
+10/03/2026;E.S. POZUELO;-16,13;6.461,28
+10/03/2026;MUTUA MADRILEN;-8,12;6.477,41
+09/03/2026;PLAZA DE ORIENTE;-3,90;6.485,53
+09/03/2026;Canva* 04813-4487;-16,00;6.489,43
+09/03/2026;Prime Video canal;-4,99;6.505,43
+09/03/2026;EasyPark Espana S;-1,20;6.510,42
+08/03/2026;YAMAHA MOTOR MADR;-136,10;6.511,62
+08/03/2026;LICENCIA 872;-24,40;6.647,72
+08/03/2026;TAXI LIC 4641;-19,85;6.672,12
+08/03/2026;Unidad Editorial;-8,99;6.691,97
+07/03/2026;EMPANADAS MALVON;-19,75;6.700,96
+07/03/2026;WWW.AMAZON;-144,49;6.720,71
+07/03/2026;Patreon* Membersh;-5,45;6.865,20
+07/03/2026;MUTUA MADRILEN;-43,64;6.870,65
+06/03/2026;ACNUR;-20,00;6.914,29
+05/03/2026;PAGO TRANSFERENCIAS;-2.300,00;6.934,29
+05/03/2026;NORTE SUR POZUELO;-83,00;9.234,29
+05/03/2026;E.S. POZUELO;-71,13;9.317,29
+05/03/2026;APPLE.COM/BILL;-0,99;9.388,42
+05/03/2026;CARITAS DIOCES;-32,70;9.389,41
+04/03/2026;SUPERCOR EXPRESS;-60,07;9.422,11
+04/03/2026;GRAND SLAM 5;-70,45;9.482,18
+04/03/2026;UNIMEDI WORLD;-66,90;9.552,63
+04/03/2026;FITNESS BARCEL;-34,95;9.619,53
+04/03/2026;MEDICOS SIN;-42,00;9.654,48
+03/03/2026;BIZUM ENVIADO;-120,00;9.696,48
+03/03/2026;SDAD.MADRILENA;-60,00;9.816,48
+03/03/2026;ART OF TEACHIN;-110,00;9.876,48
+03/03/2026;CAIXABANK PAYM;-158,79;9.986,48
+02/03/2026;BAZAR ORIENTAL;-4,95;10.145,27
+02/03/2026;WWW.AMAZON;-26,99;10.150,22
+02/03/2026;APPLE.COM/BILL;-13,49;10.177,21
+02/03/2026;MOVISTAR PLUS;-9,99;10.190,70
+02/03/2026;Prime Video canal;-7,99;10.200,69
+02/03/2026;APPLE.COM/BILL;-1,99;10.208,68
+02/03/2026;PRES.25286723599;-391,02;10.210,67
+01/03/2026;P.MALLORCA POZUEL;-26,45;10.601,69
+01/03/2026;MYCARD;-88,60;10.628,14
+28/02/2026;CINE RENOIR RETIR;-7,80;10.716,74
+28/02/2026;NARVAEZ DELICATES;-7,35;10.724,54
+28/02/2026;DOS CASTILLAS;-1,90;10.731,89
+28/02/2026;Microsoft;-14,99;10.733,79
+28/02/2026;Audible ES;-9,99;10.748,78
+27/02/2026;MANACOR POZUELO;-24,10;10.758,77
+27/02/2026;FEDERACION DE GOL;-24,00;10.782,87
+27/02/2026;SpotifyES;-20,99;10.806,87
+26/02/2026;NOMINA TRF;8.008,99;10.827,86
+26/02/2026;APPLE.COM/BILL;-14,49;2.818,87
+26/02/2026;RCI BANQUE S;-146,09;2.833,36
+26/02/2026;ORANGE MOVIL 0226;-113,40;2.979,45
+25/02/2026;TAQUILLAS VALDESQ;-48,50;3.092,85
+25/02/2026;BAR VALDESQUI;-3,00;3.141,35
+25/02/2026;APPLE.COM/BILL;-17,99;3.144,35
+25/02/2026;APPLE.COM/BILL;-8,99;3.162,34
+24/02/2026;PADDLE.NET* RENDR;-9,68;3.171,33
+23/02/2026;AMAZON.ES* X45XH7;-9,99;3.181,01
+23/02/2026;AMAZON.ES* X45XH7;9,99;3.191,00
+23/02/2026;REST PARRILLA AST;-55,00;3.181,01
+23/02/2026;FRUTAS PABLOS;-31,44;3.236,01
+22/02/2026;SENTIDOS GASTROBA;-7,15;3.267,45
+22/02/2026;NETFLIX.COM;-13,99;3.274,60
+22/02/2026;AMAZON.ES;-9,99;3.288,59
+22/02/2026;SPANDOC GLOBAL SL;-25,00;3.298,58
+21/02/2026;ONCE;-5,00;3.323,58
+21/02/2026;AMAZON;-10,44;3.328,58
+20/02/2026;0182-8391-41-0831;-67,97;3.339,02
+20/02/2026;IBERDROLA CLI.;-90,58;3.406,99
+19/02/2026;URRECHU;-60,00;3.497,57
+18/02/2026;E.S. POZUELO;-67,09;3.557,57
+18/02/2026;MANACOR POZUELO;-5,30;3.624,66
+18/02/2026;Prime Video canal;-7,99;3.629,96
+18/02/2026;CURSOR, AI POWERE;15,61;3.637,95
+17/02/2026;LinkedInPreA *137;-34,99;3.622,34
+17/02/2026;PROF.DE LA MED;-36,00;3.657,33
+16/02/2026;PELUQUERIA JAVIER;-17,00;3.693,33
+15/02/2026;GARRAK;-117,50;3.710,33
+15/02/2026;QR-CODE.IO;-49,95;3.827,83
+15/02/2026;APPLE.COM/BILL;-35,00;3.877,78
+14/02/2026;CURSOR, AI POWERE;-63,60;3.912,78
+13/02/2026;APPLE.COM/BILL;-98,99;3.976,38
+13/02/2026;IBERDROLA GAS 105;-139,30;4.075,37
+12/02/2026;LA DESPENSA T166;-30,72;4.214,67
+11/02/2026;CURSOR, AI POWERE;-21,20;4.245,39
+11/02/2026;CARITAS DIOCES;-32,70;4.266,59
+10/02/2026;MUTUA MADRILEN;-8,12;4.299,29
+09/02/2026;Prime Video canal;-4,99;4.307,41
+08/02/2026;NEW GRAN MATCH;-14,20;4.312,40
+08/02/2026;NEW GRAN MATCH;-8,00;4.326,60
+08/02/2026;DITEHA IBIZA S.A.;-6,40;4.334,60
+08/02/2026;NEW GRAN MATCH;-6,00;4.341,00
+08/02/2026;Unidad Editorial;-8,99;4.347,00
+07/02/2026;AMAZON;-28,77;4.355,99
+07/02/2026;Patreon* Membersh;-5,45;4.384,76
+07/02/2026;MUTUA MADRILEN;-43,64;4.390,21
+06/02/2026;BIZUM RECIBIDO;292,00;4.433,85
+06/02/2026;FARMACIA BATA BLA;-19,95;4.141,85
+06/02/2026;ACNUR;-20,00;4.161,80
+05/02/2026;PAGO TRANSFERENCIAS;-2.300,00;4.181,80
+05/02/2026;APPLE.COM/BILL;-0,99;6.481,80
+04/02/2026;GRAND SLAM 5;-70,45;6.482,79
+04/02/2026;FITNESS BARCEL;-34,95;6.553,24
+04/02/2026;MEDICOS SIN;-42,00;6.588,19
+03/02/2026;AMZN Mktp ES;-33,99;6.630,19
+03/02/2026;UNIMEDI WORLD;-66,90;6.664,18
+03/02/2026;ART OF TEACHIN;-110,00;6.731,08
+02/02/2026;ROOSTIQ BAR;-107,00;6.841,08
+02/02/2026;PRES.25286723599;-391,02;6.948,08
+01/02/2026;FRUTAS PABLOS;-10,62;7.339,10
+31/01/2026;MOVISTAR PLUS;-9,99;7.349,72
+31/01/2026;Prime Video canal;-7,99;7.359,71
+31/01/2026;CAIXABANK PAYM;-158,79;7.367,70
+30/01/2026;APPLE.COM/BILL;-13,49;7.526,49
+30/01/2026;APPLE.COM/BILL;-1,99;7.539,98
+30/01/2026;EasyPark Espana S;-0,97;7.541,97
+29/01/2026;NOMINA TRF;6.575,09;7.542,94
+28/01/2026;APPLE.COM/BILL;-24,99;967,85
+28/01/2026;Microsoft*La prue;-14,99;992,84
+28/01/2026;Audible ES;-9,99;1.007,83
+28/01/2026;ORANGE MOVIL 0126;-107,10;1.017,82
+27/01/2026;Spotify P3EB5FA26;-20,99;1.124,92
+27/01/2026;RCI BANQUE S;-146,09;1.145,91
+27/01/2026;PROF.DE LA MED;-36,00;1.292,00
+25/01/2026;APARCAMIENTO SALA;-17,95;1.328,00
+25/01/2026;AUVISA;-1.893,00;1.345,95
+25/01/2026;APPLE.COM/BILL;-17,99;3.238,95
+25/01/2026;APPLE.COM/BILL;-8,99;3.256,94
+24/01/2026;KIPPU;-300,00;3.265,93
+23/01/2026;AMAZON.ES* 0U9VZ4;-9,99;3.565,93
+23/01/2026;AMAZON.ES* 0U9VZ4;9,99;3.575,92
+23/01/2026;IBERDROLA CLI.;-113,52;3.565,93
+23/01/2026;BIZUM RECIBIDO;42,00;3.679,45
+23/01/2026;BIZUM RECIBIDO;42,00;3.637,45
+22/01/2026;BIZUM RECIBIDO;42,00;3.595,45
+22/01/2026;BIZUM RECIBIDO;42,00;3.553,45
+22/01/2026;BIZUM RECIBIDO;42,00;3.511,45
+22/01/2026;ALCAMPO MAJADAHON;-32,27;3.469,45
+22/01/2026;NETFLIX.COM;-13,99;3.501,72
+22/01/2026;AMAZON.ES;-9,99;3.515,71
+22/01/2026;SPANDOC GLOBAL SL;-25,00;3.525,70
+21/01/2026;TAQUILLAS VALDESQ;-48,50;3.550,70
+21/01/2026;BAR VALDESQUI;-5,00;3.599,20
+21/01/2026;0182-8391-41-0831;-67,97;3.604,20
+19/01/2026;AMAZON;-9,99;3.672,17
+18/01/2026;Prime Video canal;-7,99;3.682,16
+17/01/2026;ALCAMPO MAJADAHON;-55,61;3.690,15
+17/01/2026;PROMESA;-2,50;3.745,76
+17/01/2026;AMAZON* Z79QO09T4;-49,99;3.748,26
+17/01/2026;LinkedInPreA *510;-34,99;3.798,25
+16/01/2026;FARMACIA EUROPA 7;-31,04;3.833,24
+16/01/2026;EasyPark Espana S;-0,77;3.864,28
+16/01/2026;ILUSTRE COL.;-25,00;3.865,05
+15/01/2026;DECATHLON MAJADAH;-49,46;3.890,05
+15/01/2026;NORTH SAILS;-47,00;3.939,51
+15/01/2026;VIENA CAPELLANES;-3,65;3.986,51
+15/01/2026;PARKING CENTRO CO;-0,55;3.990,16
+15/01/2026;QR-CODE.IO;-49,95;3.990,71
+15/01/2026;APPLE.COM/BILL;-35,00;4.040,66
+14/01/2026;EL GRAN ASADOR LE;-120,00;4.075,66
+14/01/2026;E.S. POZUELO;-56,83;4.195,66
+14/01/2026;ENTRAGO 99 SL;-22,60;4.252,49
+14/01/2026;TAXI LICENCIA 324;-7,20;4.275,09
+14/01/2026;PANISIMO;-1,90;4.282,29
+13/01/2026;CARITAS DIOCES;-32,70;4.284,19
+12/01/2026;THAI GARDEN;-166,00;4.316,89
+12/01/2026;LA DESPENSA T166;-3,01;4.482,89
+12/01/2026;WWW.AMAZON.ES;-22,96;4.485,90
+12/01/2026;AMAZON;-6,09;4.508,86
+10/01/2026;UMUSIC-CABARET;-16,00;4.514,95
+10/01/2026;EasyPark Espana S;-1,69;4.530,95
+09/01/2026;ROOSTIQ;-110,00;4.532,64
+09/01/2026;SEITT R3 R5;-0,95;4.642,64
+09/01/2026;SEITT R3 R5;-0,95;4.643,59
+09/01/2026;WORKCENTER SGD;-5,60;4.644,54
+09/01/2026;Prime Video canal;-4,99;4.650,14
+09/01/2026;MUTUA MADRILEN;-43,64;4.655,13
+09/01/2026;MUTUA MADRILEN;-8,12;4.698,77
+08/01/2026;ENTRADAS EVENTOS;-110,00;4.706,89
+08/01/2026;Unidad Editorial;-8,99;4.816,89
+07/01/2026;Patreon* Membersh;-5,45;4.825,88
+07/01/2026;ACNUR;-20,00;4.831,33
+06/01/2026;LA VINOTECA;-8,50;4.851,33
+06/01/2026;FEDERACION GOLF M;-154,20;4.859,83
+06/01/2026;ILUSTRE COL.;-60,17;5.014,03
+06/01/2026;FITNESS BARCEL;-34,95;5.074,20
+06/01/2026;MEDICOS SIN;-42,00;5.109,15
+05/01/2026;PAGO TRANSFERENCIAS;-2.300,00;5.151,15
+05/01/2026;APPLE.COM/BILL;-0,99;7.451,15
+04/01/2026;EL CORTE INGLES P;-90,98;7.452,14
+04/01/2026;E.S. POZUELO;-57,20;7.543,12
+04/01/2026;MANACOR POZUELO;-5,30;7.600,32
+03/01/2026;UNIMEDI WORLD;-157,04;7.605,62
+03/01/2026;GRAND SLAM 5;-70,45;7.762,66
+03/01/2026;UNIMEDI WORLD;-66,90;7.833,11
+03/01/2026;PUBL.TECNICAS;-55,00;7.900,01
+03/01/2026;ART OF TEACHIN;-110,00;7.955,01
+02/01/2026;P.MALLORCA POZUEL;-49,50;8.065,01
+02/01/2026;LA DESPENSA T166;-6,50;8.114,51
+02/01/2026;LA DESPENSA T166;-5,84;8.121,01
+02/01/2026;Amazon.es;-17,95;8.126,85
+02/01/2026;AMZN Mktp ES;-8,50;8.144,80
+02/01/2026;PRES.25286723599;-391,02;8.153,30
+01/01/2026;WORKCENTER SGD;-25,95;8.544,32
+01/01/2026;QR-CODE.IO;-1,45;8.570,27`;
+
+const SEED_CSV_2025 = `Fecha;Movimiento;Importe;Mes
+01/01/2025;PAYPAL EUROPE;-1,99;enero
+01/01/2025;ECITC0105332555;-288,18;enero
+02/01/2025;CARREF MAJADAHOND;-96,49;enero
+02/01/2025;P.MALLORCA POZUEL;-67,00;enero
+02/01/2025;E.S. POZUELO;-59,83;enero
+02/01/2025;MANACOR POZUELO;-33,00;enero
+02/01/2025;Prime Video;-7,99;enero
+02/01/2025;Prime Video;-3,99;enero
+02/01/2025;PRES.25286723599;-391,02;enero
+03/01/2025;PAGO TRANSFERENCIAS;-2.250,00;enero
+03/01/2025;UNIMEDI WORLD;-138,53;enero
+03/01/2025;GRAND SLAM 5;-70,45;enero
+03/01/2025;UNIMEDI WORLD;-59,60;enero
+03/01/2025;ART OF TEACHIN;-106,00;enero
+04/01/2025;2517 STARBUCKS AV;-2,91;enero
+04/01/2025;Prime Video;-3,99;enero
+04/01/2025;ILUSTRE COL.;-51,14;enero
+04/01/2025;FITNESS BARCEL;-34,95;enero
+04/01/2025;PAYPAL EUROPE;-11,99;enero
+04/01/2025;MEDICOS SIN;-42,00;enero
+05/01/2025;Amazon.es;-309,75;enero
+06/01/2025;TRIDOL S.L.;-40,00;enero
+07/01/2025;REST JAI ALAI;-120,00;enero
+07/01/2025;CM333 MAJAHONDA;-27,93;enero
+07/01/2025;PAYPAL EUROPE;-0,99;enero
+08/01/2025;MISTER CHURRO KIN;-15,70;enero
+08/01/2025;Patreon* Membersh;-5,45;enero
+08/01/2025;PUBL.TECNICAS;-55,00;enero
+08/01/2025;PAYPAL EUROPE;-8,99;enero
+08/01/2025;PAYPAL EUROPE;-2,00;enero
+08/01/2025;ACNUR;-20,00;enero
+09/01/2025;MANACOR POZUELO;-16,60;enero
+10/01/2025;DELIKIA SP;-1,30;enero
+10/01/2025;CARITAS DIOCES;-32,70;enero
+11/01/2025;CAFETERIA TEJAR S;-4,20;enero
+11/01/2025;BAKERY BREAD S.L.;-2,65;enero
+11/01/2025;Prime Video;-4,99;enero
+11/01/2025;Prime Video;-2,99;enero
+11/01/2025;MERCEDES BENZ;-509,04;enero
+12/01/2025;LA ESPA/OLA;-55,00;enero
+12/01/2025;LOS TORREZNOS -GO;-1,90;enero
+13/01/2025;certificado empad;-3,00;enero
+13/01/2025;REINT.CAJERO;-100,00;enero
+13/01/2025;EMPANADAS MALVON;-18,50;enero
+13/01/2025;E.S. POZUELO;-14,55;enero
+13/01/2025;FRUTAS PABLOS;-12,43;enero
+13/01/2025;CASTIZO ALCALA;-10,00;enero
+14/01/2025;Prime Video DAZN;-29,99;enero
+14/01/2025;PAYPAL EUROPE;-9,99;enero
+15/01/2025;LM MAJADAHONDA;-27,48;enero
+16/01/2025;Prime Video;-2,99;enero
+17/01/2025;FRUTAS PABLOS;-11,84;enero
+17/01/2025;AMAZON* 6Q8P32S55;-24,99;enero
+18/01/2025;PROF.DE LA MED;-36,00;enero
+18/01/2025;CAFETERIA TEJAR S;-5,60;enero
+18/01/2025;Prime Video *FF55;-29,99;enero
+18/01/2025;FEDERACION DE GOL;-24,00;enero
+18/01/2025;Prime Video canal;26,12;enero
+19/01/2025;LinkedInPre *7307;-34,99;enero
+20/01/2025;E.S. POZUELO;-30,00;enero
+20/01/2025;LAVADO COCHES;-27,00;enero
+20/01/2025;PROFESION DE LA M;-3,20;enero
+20/01/2025;FEDERACION GOLF M;-154,20;enero
+20/01/2025;AMAZON* 9C6EQ0BW5;-98,88;enero
+20/01/2025;Prime Video *QM29;-7,99;enero
+21/01/2025;BOGGI MILANO;-125,10;enero
+21/01/2025;AMAZONICO;-24,00;enero
+21/01/2025;Amazon Music*8I4G;-17,99;enero
+21/01/2025;EasyPark Espana S;-7,82;enero
+21/01/2025;PAYPAL EUROPE;-5,99;enero
+21/01/2025;PAYPAL EUROPE;-2,99;enero
+21/01/2025;IBERDROLA CLI.;-82,70;enero
+22/01/2025;0182-8391-41-0831;-67,97;enero
+22/01/2025;PAYPAL EUROPE;-13,99;enero
+24/01/2025;REINT.CAJERO;-200,00;enero
+24/01/2025;FCIA.ELENA PEREZ;-23,30;enero
+24/01/2025;ILUSTRE COL.;-25,00;enero
+25/01/2025;EMPANADAS MALVON;-18,50;enero
+25/01/2025;FRUTAS PABLOS;-12,91;enero
+25/01/2025;PROFESION DE LA M;-1,60;enero
+25/01/2025;ORANGE MOVIL 0125;-130,16;enero
+26/01/2025;ENTRADAS EVENTOS;-35,34;enero
+27/01/2025;juego llaves jorg;-90,75;enero
+27/01/2025;UMIKO;-210,00;enero
+27/01/2025;PC BOX MADRID PON;-189,99;enero
+27/01/2025;E.S. POZUELO;-66,08;enero
+27/01/2025;PANOD POZUELO;-14,95;enero
+28/01/2025;CAFESTORE MAYPA;-2,05;enero
+28/01/2025;PAYPAL EUROPE;-17,99;enero
+29/01/2025;PAYPAL EUROPE;-17,99;enero
+29/01/2025;PAYPAL EUROPE;-9,99;enero
+30/01/2025;NOMINA TRF;6.612,72;enero
+30/01/2025;MEDIA MARKT MAJAD;-918,99;enero
+30/01/2025;PAYPAL EUROPE;-1,99;enero
+01/02/2025;ECITC0105332555;-764,00;febrero
+02/02/2025;Prime Video *139C;-7,99;febrero
+02/02/2025;Prime Video *AB4X;-3,99;febrero
+02/02/2025;PRES.25286723599;-391,02;febrero
+03/02/2025;SUDEL S.A.;-72,39;febrero
+04/02/2025;JORGE RODRIGUEZ A;-150,00;febrero
+04/02/2025;LA PARRILLA DE LA;-31,50;febrero
+04/02/2025;LA DESPENSA T166;-31,50;febrero
+04/02/2025;Amazon.es;-309,75;febrero
+04/02/2025;Prime Video *G31N;-3,99;febrero
+04/02/2025;GRAND SLAM 5;-70,45;febrero
+04/02/2025;ART OF TEACHIN;-106,00;febrero
+05/02/2025;PAGO TRANSFERENCIAS;-2.250,00;febrero
+05/02/2025;MANACOR POZUELO;-3,80;febrero
+05/02/2025;EasyPark Espana S;-4,43;febrero
+05/02/2025;MUTUA MADRILEN;-127,34;febrero
+05/02/2025;FITNESS BARCEL;-34,95;febrero
+05/02/2025;PAYPAL EUROPE;-11,99;febrero
+05/02/2025;PAYPAL EUROPE;-0,99;febrero
+05/02/2025;MEDICOS SIN;-42,00;febrero
+06/02/2025;BIZUM ENVIADO;-14,00;febrero
+06/02/2025;ORA POZUELO;-25,00;febrero
+06/02/2025;POZUELO DE ALARCO;-10,00;febrero
+06/02/2025;UNIMEDI WORLD;-59,60;febrero
+06/02/2025;ACNUR;-20,00;febrero
+07/02/2025;BIZUM ENVIADO;-28,00;febrero
+07/02/2025;CARREF MAJADAHOND;-77,96;febrero
+07/02/2025;CARITAS DIOCES;-32,70;febrero
+07/02/2025;PAYPAL EUROPE;-2,00;febrero
+07/02/2025;IBERDROLA GAS 105;-257,97;febrero
+08/02/2025;BIZUM ENVIADO;-6,00;febrero
+08/02/2025;NYX*FITVENDINGSL;-3,75;febrero
+08/02/2025;Patreon* Membersh;-5,45;febrero
+08/02/2025;PAYPAL EUROPE;-8,99;febrero
+09/02/2025;RESTAURANTE URREC;-55,00;febrero
+09/02/2025;IKEA ALCORCON HFB;-6,49;febrero
+09/02/2025;AMAZON* TK9AA5LE4;-18,90;febrero
+09/02/2025;WWW.AMAZON.* TK1Q;-4,99;febrero
+10/02/2025;NYX*FITVENDINGSL;-3,75;febrero
+11/02/2025;Prime Video *TK9G;-4,99;febrero
+11/02/2025;Prime Video *TK6T;-2,99;febrero
+11/02/2025;MERCEDES BENZ;-509,04;febrero
+12/02/2025;PANOD POZUELO;-5,11;febrero
+12/02/2025;PAYPAL EUROPE;-9,99;febrero
+13/02/2025;MUTUA MADRILEN;-8,12;febrero
+14/02/2025;REINT.CAJERO;-100,00;febrero
+14/02/2025;NOMINA;1.176,30;febrero
+15/02/2025;FARMACIA DE DON P;-19,83;febrero
+16/02/2025;Prime Video *RT0H;-2,99;febrero
+17/02/2025;URRECHU;-100,00;febrero
+18/02/2025;PROFESION DE LA M;-9,15;febrero
+18/02/2025;LA VINOTECA;-6,00;febrero
+18/02/2025;Prime Video DAZN;-29,99;febrero
+18/02/2025;PROF.DE LA MED;-36,00;febrero
+18/02/2025;TRANSF. A SU FAVOR;25,00;febrero
+19/02/2025;PINTXAKI POZUELO;-55,00;febrero
+19/02/2025;E.S. POZUELO;-25,64;febrero
+19/02/2025;LM MAJADAHONDA;-16,76;febrero
+19/02/2025;LinkedInPre *2684;-34,99;febrero
+20/02/2025;Civitatis Tours;-96,00;febrero
+20/02/2025;AMAZON* RT27F7IV4;-36,05;febrero
+20/02/2025;Prime Video *RT8F;-7,99;febrero
+20/02/2025;Compra de Prime V;-3,99;febrero
+20/02/2025;0182-8391-41-0831;-67,97;febrero
+21/02/2025;LA DESPENSA T166;-12,31;febrero
+21/02/2025;Amazon Music*R88F;-17,99;febrero
+22/02/2025;PAYPAL EUROPE;-13,99;febrero
+23/02/2025;CAFE CENTRAL;-24,00;febrero
+24/02/2025;E.S. POZUELO;-58,15;febrero
+24/02/2025;LM MAJADAHONDA;-32,77;febrero
+26/02/2025;RCI BANQUE S;-146,09;febrero
+26/02/2025;PAYPAL EUROPE;-17,99;febrero
+26/02/2025;ORANGE MOVIL 0225;-156,48;febrero
+27/02/2025;NOMINA TRF;4.408,17;febrero
+27/02/2025;PAYPAL EUROPE;-17,99;febrero
+27/02/2025;PAYPAL EUROPE;-9,99;febrero
+27/02/2025;IBERDROLA CLI.;-97,41;febrero
+28/02/2025;GROSSO;-28,80;febrero
+28/02/2025;AMAZON* R03QG64X4;-7,49;febrero
+01/03/2025;PAYPAL EUROPE;-9,99;marzo
+01/03/2025;CAIXABANK PAYM;-159,57;marzo
+01/03/2025;LM POZUELO;-4,95;marzo
+01/03/2025;SSR CC ZIELO SHO;-4,79;marzo
+02/03/2025;PRES.25286723599;-391,02;marzo
+03/03/2025;LA DESPENSA T166;-42,41;marzo
+03/03/2025;PANADERIA CABALLE;-19,95;marzo
+03/03/2025;FRUTERIA ROSARIO;-5,91;marzo
+04/03/2025;Prime Video *R07I;-7,99;marzo
+04/03/2025;Prime Video *R05F;-3,99;marzo
+04/03/2025;Prime Video *R08R;-3,99;marzo
+04/03/2025;GRAND SLAM 5;-70,45;marzo
+04/03/2025;UNIMEDI WORLD;-59,60;marzo
+04/03/2025;PAYPAL EUROPE;-1,99;marzo
+04/03/2025;ART OF TEACHIN;-106,00;marzo
+05/03/2025;PAGO TRANSFERENCIAS;-2.250,00;marzo
+05/03/2025;FITNESS BARCEL;-34,95;marzo
+05/03/2025;PAYPAL EUROPE;-11,99;marzo
+05/03/2025;MUTUA MADRILEN;-8,12;marzo
+05/03/2025;PAYPAL EUROPE;-0,99;marzo
+05/03/2025;MEDICOS SIN;-42,00;marzo
+06/03/2025;MANACOR POZUELO;-28,80;marzo
+06/03/2025;Amazon.es;-309,75;marzo
+06/03/2025;CARITAS DIOCES;-32,70;marzo
+06/03/2025;ACNUR;-20,00;marzo
+07/03/2025;PAYPAL EUROPE;-2,00;marzo
+08/03/2025;LA DESPENSA T166;-6,91;marzo
+08/03/2025;Patreon* Membersh;-5,45;marzo
+08/03/2025;PAYPAL EUROPE;-8,99;marzo
+08/03/2025;MUTUA MADRILEN;-8,12;marzo
+09/03/2025;E.S. POZUELO;-61,32;marzo
+09/03/2025;AREA 103;-25,05;marzo
+10/03/2025;BAZAR ORIENTAL;-6,75;marzo
+10/03/2025;BAZAR ORIENTAL;-4,80;marzo
+11/03/2025;Prime Video *R23Y;-4,99;marzo
+11/03/2025;Prime Video *R217;-2,99;marzo
+12/03/2025;MERCEDES BENZ;-509,04;marzo
+12/03/2025;PAYPAL EUROPE;-9,99;marzo
+13/03/2025;FRUTAS PABLOS;-29,34;marzo
+13/03/2025;HERMOSILLA 58;-18,30;marzo
+14/03/2025;FW* PAPATEACHME;-24,10;marzo
+15/03/2025;UROGALLO POZUELO;-70,00;marzo
+15/03/2025;PUERTA DEL HIERRO;-1,80;marzo
+16/03/2025;ITV ARAVACA;-56,80;marzo
+16/03/2025;Prime Video *RB57;-2,99;marzo
+17/03/2025;CRED MAJADAHONDA;-64,87;marzo
+17/03/2025;059-FEU VERT;-54,95;marzo
+17/03/2025;MI ALCAMPO AVENID;-37,31;marzo
+17/03/2025;LM MAJADAHONDA;-6,67;marzo
+17/03/2025;PANADERIA CABALLE;-5,70;marzo
+17/03/2025;LA ANTIGUA TERRAZ;-3,00;marzo
+17/03/2025;PLAZA DE ORIENTE;-1,05;marzo
+18/03/2025;FERREIRO;-3,30;marzo
+18/03/2025;Prime Video *RI1I;-29,99;marzo
+18/03/2025;PROF.DE LA MED;-36,00;marzo
+19/03/2025;E.S. POZUELO;-15,30;marzo
+19/03/2025;LinkedInPre *8465;-34,99;marzo
+19/03/2025;PAYPAL EUROPE;-22,99;marzo
+19/03/2025;PAYPAL EUROPE;-22,99;marzo
+19/03/2025;PAYPAL EUROPE;-9,99;marzo
+19/03/2025;PAYPAL EUROPE;-7,99;marzo
+19/03/2025;PAYPAL EUROPE;-6,99;marzo
+19/03/2025;PAYPAL EUROPE;-6,99;marzo
+19/03/2025;PAYPAL EUROPE;-6,99;marzo
+19/03/2025;PAYPAL EUROPE;-6,99;marzo
+19/03/2025;IBERDROLA CLI.;-56,81;marzo
+20/03/2025;EL CIELO DE URREC;-25,00;marzo
+20/03/2025;AMZN Mktp ES*RI50;-100,43;marzo
+20/03/2025;LOUVRETICKET INT2;-56,00;marzo
+20/03/2025;Prime Video *RI16;-7,99;marzo
+20/03/2025;0182-8391-41-0831;-67,97;marzo
+21/03/2025;FEDERACION GOLF M;-154,20;marzo
+21/03/2025;Amazon Music*RI8V;-17,99;marzo
+22/03/2025;E.S. POZUELO;-58,98;marzo
+22/03/2025;LA DESPENSA T166;-57,56;marzo
+22/03/2025;LATERAL CANA;-8,60;marzo
+22/03/2025;PAYPAL EUROPE;-13,99;marzo
+23/03/2025;RESTAURANTE EXIMI;-154,00;marzo
+23/03/2025;SAN LUCAS;-7,65;marzo
+24/03/2025;POZUELO H.;-29,48;marzo
+24/03/2025;Kindle Unltd*RW31;-9,99;marzo
+25/03/2025;MAPFRE;-257,19;marzo
+26/03/2025;1486LND -  Jorge;-300,00;marzo
+26/03/2025;LA DESPENSA T166;-21,49;marzo
+26/03/2025;RCI BANQUE S;-146,09;marzo
+26/03/2025;PAYPAL EUROPE;-17,99;marzo
+26/03/2025;PAYPAL EUROPE;-7,99;marzo
+27/03/2025;Lateral;-7,50;marzo
+27/03/2025;PAYPAL EUROPE;-17,99;marzo
+27/03/2025;PAYPAL EUROPE;-9,99;marzo
+27/03/2025;ORANGE MOVIL 0325;-142,41;marzo
+28/03/2025;NOMINA TRF;3.612,47;marzo
+29/03/2025;IBERDROLA GAS 105;-179,18;marzo
+30/03/2025;Lateral;-12,10;marzo
+31/03/2025;BIZUM ENVIADO;-18,00;marzo
+01/04/2025;LEROY MERLIN ALCO;-25,98;abril
+01/04/2025;PAYPAL EUROPE;-1,99;abril
+02/04/2025;LA DESPENSA T166;-47,36;abril
+02/04/2025;MUSEO DEL PAN GAL;-44,68;abril
+02/04/2025;CHOCOLATERIAS VAL;-12,40;abril
+02/04/2025;MUSEO DEL PAN GAL;-9,99;abril
+02/04/2025;CHOCOLATERIA 1902;-5,00;abril
+02/04/2025;CHOCOLATERIAS VAL;-5,00;abril
+02/04/2025;HABERLAS HAYLAS;-3,40;abril
+02/04/2025;Amazon.es*RZ4EP36;-129,00;abril
+02/04/2025;Prime Video *RZ3F;-7,99;abril
+02/04/2025;UNIMEDI WORLD;-680,69;abril
+02/04/2025;UNIMEDI WORLD;-138,43;abril
+02/04/2025;UNIMEDI WORLD;-59,60;abril
+02/04/2025;ART OF TEACHIN;-106,00;abril
+02/04/2025;CAIXABANK PAYM;-159,57;abril
+02/04/2025;PRES.25286723599;-391,02;abril
+03/04/2025;STARBUCKS PLAZA N;-3,90;abril
+03/04/2025;GRAND SLAM 5;-70,45;abril
+03/04/2025;ILUSTRE COL.;-60,17;abril
+03/04/2025;MEDICOS SIN;-42,00;abril
+04/04/2025;PAGO TRANSFERENCIAS;-2.300,00;abril
+04/04/2025;TAQUILLAS VALDESQ;-48,00;abril
+04/04/2025;ES MARTINEZ SANCH;-47,47;abril
+04/04/2025;IRANZO MADRID;-29,00;abril
+04/04/2025;BAR VALDESQUI;-7,00;abril
+04/04/2025;SOMAMFYC;-104,00;abril
+04/04/2025;FITNESS BARCEL;-34,95;abril
+04/04/2025;CARITAS DIOCES;-32,70;abril
+04/04/2025;PAYPAL EUROPE;-11,99;abril
+05/04/2025;GRUPO SUP AHORRAM;-7,52;abril
+05/04/2025;PAYPAL EUROPE;-0,99;abril
+06/04/2025;RIU P ESPA#A-TICK;-10,00;abril
+06/04/2025;RIU P ESPA#A-TICK;-10,00;abril
+06/04/2025;Amazon.es*RN59145;-23,99;abril
+07/04/2025;CARREF MAJADAHOND;-255,31;abril
+07/04/2025;EasyPark Espana S;-16,39;abril
+08/04/2025;BAZAR ORIENTAL;-16,85;abril
+08/04/2025;Patreon* Membersh;-5,45;abril
+08/04/2025;ACNUR;-20,00;abril
+09/04/2025;AREA 103;-46,75;abril
+09/04/2025;PAYPAL EUROPE;-8,99;abril
+09/04/2025;MUTUA MADRILEN;-8,12;abril
+09/04/2025;PAYPAL EUROPE;-2,00;abril
+10/04/2025;Comida J.Eugenio;-70,00;abril
+10/04/2025;BIZUM ENVIADO;-8,00;abril
+10/04/2025;MATTLEN AND BRG,;-5,70;abril
+10/04/2025;MERCEDES BENZ;-509,04;abril
+11/04/2025;TRANSFER. EN DIV.;712,65;abril
+11/04/2025;Prime Video *R62N;-4,99;abril
+12/04/2025;BIZUM ENVIADO;-35,00;abril
+12/04/2025;PUERTA DEL HIERRO;-5,60;abril
+12/04/2025;PAYPAL EUROPE;-9,99;abril
+13/04/2025;EL BARCO APARICIO;-65,00;abril
+13/04/2025;FITNESS PARK ALCO;-2,00;abril
+15/04/2025;FARMACIA DE DON P;-17,16;abril
+15/04/2025;Compra de Prime V;-12,99;abril
+16/04/2025;PROF.DE LA MED;-36,00;abril
+17/04/2025;FRUTAS PABLOS;-11,03;abril
+17/04/2025;IBERDROLA CLI.;-77,92;abril
+18/04/2025;CARREF MAJADAHOND;-92,06;abril
+18/04/2025;LM MAJADAHONDA;-66,76;abril
+18/04/2025;Lateral;-8,60;abril
+18/04/2025;AMZN Mktp ES*RH45;-23,90;abril
+19/04/2025;E.S. MAYPA, S.L.;-49,26;abril
+19/04/2025;CAFESTORE MAYPA;-2,10;abril
+19/04/2025;LinkedInPre *4850;-34,99;abril
+19/04/2025;SEITT R3 R5;-1,05;abril
+20/04/2025;Prime Video *RH3N;-7,99;abril
+21/04/2025;Amazon Music*RH6M;-17,99;abril
+22/04/2025;BIZUM RECIBIDO;685,00;abril
+22/04/2025;LA DESPENSA T166;-38,71;abril
+23/04/2025;AMAZON MEDI* RA16;-12,83;abril
+24/04/2025;CATTLEYA VINOS;-7,00;abril
+24/04/2025;SOFTWAREMYPC.COM;-84,50;abril
+24/04/2025;Kindle Unltd*RA8G;-9,99;abril
+24/04/2025;0182-8391-41-0831;-67,97;abril
+24/04/2025;PAYPAL EUROPE;-13,99;abril
+25/04/2025;MANACOR POZUELO;-21,50;abril
+25/04/2025;Pozuelo;-2,50;abril
+26/04/2025;AMZN Mktp ES*RA3N;-39,58;abril
+26/04/2025;RCI BANQUE S;-146,09;abril
+26/04/2025;PAYPAL EUROPE;-17,99;abril
+26/04/2025;ORANGE MOVIL 0425;-141,90;abril
+27/04/2025;P.MALLORCA POZUEL;-20,00;abril
+28/04/2025;LA LONJA DEL MAR;-350,00;abril
+28/04/2025;TORRONS VICENS;-25,05;abril
+28/04/2025;MUSEO DEL PAN GAL;-24,50;abril
+28/04/2025;PLAZA DE ORIENTE;-14,65;abril
+28/04/2025;Pozuelo;-14,25;abril
+29/04/2025;BIZUM RECIBIDO;500,00;abril
+29/04/2025;BIZUM RECIBIDO;500,00;abril
+29/04/2025;CASA LUIS;-281,80;abril
+29/04/2025;3H LABRANDERO S.L;-67,50;abril
+29/04/2025;FRUTAS PABLOS;-16,22;abril
+29/04/2025;PAYPAL EUROPE;-17,99;abril
+29/04/2025;PAYPAL EUROPE;-9,99;abril
+30/04/2025;PAYPAL EUROPE;-1,99;abril
+30/04/2025;P.MALLORCA POZUEL;-18,75;abril
+30/04/2025;POZUELO H.;-7,94;abril
+30/04/2025;NOMINA TRF;6.224,08;abril
+01/05/2025;CAIXABANK PAYM;-159,57;mayo
+01/05/2025;ECITC0105332555;-235,00;mayo
+02/05/2025;PRES.25286723599;-391,02;mayo
+02/05/2025;AMZN Mktp ES*YR0F;-68,35;mayo
+03/05/2025;ART OF TEACHIN;-106,00;mayo
+03/05/2025;ILUSTRE COL.;-25,00;mayo
+03/05/2025;UNIMEDI WORLD;-59,60;mayo
+03/05/2025;GRAND SLAM 5;-70,45;mayo
+03/05/2025;SEITT;-5,05;mayo
+03/05/2025;Prime Video *E45H;-7,99;mayo
+03/05/2025;Taxis on Booking;-77,61;mayo
+03/05/2025;IKEA ALCORCON HFB;-6,00;mayo
+03/05/2025;E.S. POZUELO;-12,14;mayo
+03/05/2025;C DENTAL TERRON O;-40,00;mayo
+03/05/2025;CARREF MAJADAHOND;-61,22;mayo
+04/05/2025;BAZAR ORIENTAL;-7,50;mayo
+05/05/2025;CMN E-BILLETS   2;-52,00;mayo
+05/05/2025;PAGO TRANSFERENCIAS;-2.300,00;mayo
+06/05/2025;MEDICOS SIN;-42,00;mayo
+06/05/2025;PAYPAL EUROPE;-11,99;mayo
+06/05/2025;FITNESS BARCEL;-34,95;mayo
+07/05/2025;ACNUR;-20,00;mayo
+07/05/2025;PAYPAL EUROPE;-0,99;mayo
+07/05/2025;PAYPAL EUROPE;-2,00;mayo
+07/05/2025;MATTLEN AND BRG,;-6,80;mayo
+08/05/2025;MUTUA MADRILEN;-8,12;mayo
+08/05/2025;PAYPAL EUROPE;-8,99;mayo
+08/05/2025;CARITAS DIOCES;-32,70;mayo
+08/05/2025;ATPSEITT  Aeropue;-0,60;mayo
+08/05/2025;ATPSEITT  Alcoben;-0,60;mayo
+08/05/2025;Patreon* Membersh;-5,45;mayo
+08/05/2025;ZIELO - RIVERA.;-78,00;mayo
+09/05/2025;MANACOR POZUELO;-15,00;mayo
+09/05/2025;Levi Strauss de E;-160,50;mayo
+10/05/2025;BKG*BOOKING.COM H;-1.058,40;mayo
+10/05/2025;220 - PRET A MANG;-4,25;mayo
+11/05/2025;Taxis on Booking;77,61;mayo
+11/05/2025;Prime Video *BB7S;-4,99;mayo
+11/05/2025;AMAZON MEDI* 875R;-10,44;mayo
+11/05/2025;OLIVEIRA CELINE;-88,00;mayo
+12/05/2025;ROCKTHESPORT;-42,05;mayo
+12/05/2025;RATP;-12,50;mayo
+14/05/2025;PAYPAL EUROPE;-9,99;mayo
+14/05/2025;RATP;-2,50;mayo
+14/05/2025;RATP;-2,50;mayo
+14/05/2025;RATP;-10,00;mayo
+14/05/2025;MELIA PARIS LA DE;-200,00;mayo
+15/05/2025;BUY PARIS DUTY  4;-8,30;mayo
+15/05/2025;LA DESPENSA T166;-14,15;mayo
+15/05/2025;FRUTAS PABLOS;-14,38;mayo
+15/05/2025;E.S. POZUELO;-65,31;mayo
+01/06/2025;MANACOR POZUELO;-15,00;junio
+01/06/2025;CEDIPSA E.S. LEMA;-10,00;junio
+02/06/2025;CORTEFIEL, S.A.;-61,28;junio
+02/06/2025;Prime Video *HT49;-7,99;junio
+02/06/2025;PRES.25286723599;-391,02;junio
+03/06/2025;UNIMEDI WORLD;-59,60;junio
+03/06/2025;ART OF TEACHIN;-106,00;junio
+03/06/2025;AYTO.DE POZUEL;-25,00;junio
+04/06/2025;BIZUM ENVIADO;-316,76;junio
+04/06/2025;E.S. POZUELO;-62,68;junio
+04/06/2025;LA DESPENSA T166;-17,77;junio
+04/06/2025;GRAND SLAM 5;-70,45;junio
+04/06/2025;FITNESS BARCEL;-34,95;junio
+04/06/2025;PAYPAL EUROPE;-11,99;junio
+04/06/2025;MEDICOS SIN;-42,00;junio
+05/06/2025;PAGO TRANSFERENCIAS;-2.300,00;junio
+05/06/2025;PELUQUERIA JAVIER;-17,00;junio
+05/06/2025;LA DESPENSA T166;-13,98;junio
+05/06/2025;PAYPAL EUROPE;-0,99;junio
+06/06/2025;ACNUR;-20,00;junio
+07/06/2025;BAKERY BREAD S.L.;-1,65;junio
+08/06/2025;GRUPO SUP AHORRAM;-9,59;junio
+08/06/2025;NYX*FITVENDINGSL;-3,75;junio
+08/06/2025;EXCELENTIA;-70,00;junio
+08/06/2025;Patreon* Membersh;-5,45;junio
+08/06/2025;EasyPark Espana S;-3,00;junio
+09/06/2025;MATTLEN AND BRG,;-7,10;junio
+10/06/2025;SENTIDOS GASTROBA;-45,00;junio
+10/06/2025;EL CORTE INGLES P;-16,13;junio
+10/06/2025;CARITAS DIOCES;-32,70;junio
+10/06/2025;PAYPAL EUROPE;-8,99;junio
+10/06/2025;MUTUA MADRILEN;-8,12;junio
+11/06/2025;El Doble de Pozue;-7,00;junio
+11/06/2025;Prime Video *BV3L;-4,99;junio
+12/06/2025;LA DESPENSA T166;-40,48;junio
+13/06/2025;MATTLEN AND BRG,;-3,70;junio
+13/06/2025;WWW.AMAZON.* RE8C;-19,70;junio
+13/06/2025;IBERDROLA GAS 105;-145,66;junio
+14/06/2025;BAR MIRADOR EXPOS;-5,00;junio
+15/06/2025;LA DESPENSA T166;-30,91;junio
+16/06/2025;OPAZO DESDE 1911;-235,00;junio
+16/06/2025;OPAZO DESDE 1911;-235,00;junio
+17/06/2025;RTE.LA INDEPENDEN;-33,00;junio
+17/06/2025;VIRGEN DEL CORTIJ;-7,50;junio
+17/06/2025;DEVOLUCION HACIENDA;1.798,95;junio
+18/06/2025;NOMINA TRF;2.494,09;junio
+18/06/2025;APPLE.COM/BILL;-6,99;junio
+18/06/2025;IBERDROLA CLI.;-88,03;junio
+20/06/2025;AYTO.MADRID-DEPOR;-40,00;junio
+20/06/2025;QUE GUAPOS PET SO;-38,00;junio
+20/06/2025;FRUTAS PABLOS;-26,74;junio
+20/06/2025;MATTLEN AND BRG,;-7,60;junio
+20/06/2025;BKG*BOOKING.COM H;-1.300,84;junio
+20/06/2025;LinkedInPreA *576;-34,99;junio
+20/06/2025;Prime Video *G17Z;-7,99;junio
+20/06/2025;0182-8391-41-0831;-67,97;junio
+21/06/2025;Pozuelo;-17,20;junio
+21/06/2025;SENTIDOS GASTROBA;-13,00;junio
+21/06/2025;PUERTA DEL HIERRO;-2,80;junio
+21/06/2025;PROF.DE LA MED;-36,00;junio
+24/06/2025;SENTIDOS GASTROBA;-63,00;junio
+24/06/2025;Kindle Unltd*BV12;-9,99;junio
+24/06/2025;PAYPAL EUROPE;-13,99;junio
+25/06/2025;LA DESPENSA T166;-63,93;junio
+25/06/2025;E.S. POZUELO;-13,66;junio
+26/06/2025;FRUTAS PABLOS;-10,42;junio
+26/06/2025;HERMOSILLA 58;-4,20;junio
+26/06/2025;RCI BANQUE S;-146,09;junio
+26/06/2025;ORANGE MOVIL 0625;-141,90;junio
+27/06/2025;NOMINA TRF;6.365,91;junio
+27/06/2025;D.G. JUEGOS ONCE;-50,00;junio
+27/06/2025;APPLE.COM/BILL;-17,99;junio
+28/06/2025;GRUPO SUP AHORRAM;-5,48;junio
+29/06/2025;URRECHU;-115,00;junio
+29/06/2025;PASTELERIA MARIME;-3,90;junio
+29/06/2025;POLIDEPORTIVO CAR;-3,50;junio
+29/06/2025;SpotifyES;-17,99;junio
+01/07/2025;E.S. POZUELO;-63,61;julio
+01/07/2025;FEDERACION GOLF M;-154,20;julio
+01/07/2025;APPLE.COM/BILL;-1,99;julio
+01/07/2025;ECITC0105332555;-133,00;julio
+02/07/2025;REINT.CAJERO;-300,00;julio
+02/07/2025;EL CORTE INGLES P;-139,00;julio
+02/07/2025;EL CORTE INGLES P;-10,09;julio
+02/07/2025;EL CORTE INGLES P;-10,00;julio
+02/07/2025;UNIMEDI WORLD;-138,43;julio
+02/07/2025;GRAND SLAM 5;-70,45;julio
+02/07/2025;UNIMEDI WORLD;-59,60;julio
+02/07/2025;CAIXABANK PAYM;-158,79;julio
+02/07/2025;PRES.25286723599;-391,02;julio
+03/07/2025;EL JARDIN DE ARZA;-140,00;julio
+03/07/2025;Pozuelo;-30,55;julio
+03/07/2025;EMPRESA RUIZ;-18,60;julio
+03/07/2025;Prime Video *BF4L;-7,99;julio
+03/07/2025;APPLE.COM/BILL;-4,99;julio
+03/07/2025;CARITAS DIOCES;-32,70;julio
+03/07/2025;MEDICOS SIN;-42,00;julio
+04/07/2025;PAGO TRANSFERENCIAS;-2.300,00;julio
+04/07/2025;MANACOR POZUELO;-15,00;julio
+04/07/2025;ILUSTRE COL.;-60,17;julio
+04/07/2025;FITNESS BARCEL;-34,95;julio
+05/07/2025;E.S. CEDIPSA SANT;-7,89;julio
+05/07/2025;SALAMANQUILLA;-4,55;julio
+07/07/2025;AIRES;-99,98;julio
+07/07/2025;AMAZON MEDI* DS5P;-8,54;julio
+07/07/2025;APPLE.COM/BILL;-0,99;julio
+08/07/2025;Patreon* Membersh;-5,45;julio
+08/07/2025;MUTUA MADRILEN;-49,61;julio
+08/07/2025;ACNUR;-20,00;julio
+09/07/2025;Unidad Editorial;-8,99;julio
+09/07/2025;MUTUA MADRILEN;-8,12;julio
+10/07/2025;APPLE.COM/BILL;-5,99;julio
+11/07/2025;HOTEL QUINTA;-7,00;julio
+11/07/2025;Prime Video *RC0Z;-4,99;julio
+11/07/2025;ILUSTRE COL.;-25,00;julio
+13/07/2025;H R CLUB QTA MARI;-25,00;julio
+14/07/2025;AUCHAN CASCAIS NA;-222,93;julio
+14/07/2025;P.MALLORCA POZUEL;-3,00;julio
+15/07/2025;AUCHAN CASCAIS NA;-62,06;julio
+15/07/2025;H R CLUB QTA MARI;-25,00;julio
+15/07/2025;HOTEL QUINTA;-3,15;julio
+16/07/2025;CARREF MAJADAHOND;-62,51;julio
+16/07/2025;HOTEL QUINTA;-40,00;julio
+16/07/2025;FRUTAS PABLOS;-15,16;julio
+16/07/2025;PROF.DE LA MED;-36,00;julio
+17/07/2025;POLIDEPORTIVO CAR;-3,50;julio
+17/07/2025;WORKCENTER SGD;-7,11;julio
+18/07/2025;Pozuelo;-16,50;julio
+18/07/2025;LA DESPENSA T166;-14,03;julio
+18/07/2025;IBERDROLA CLI.;-190,54;julio
+19/07/2025;LinkedInPreA *048;-34,99;julio
+20/07/2025;POLIDEPORTIVO CAR;-3,50;julio
+20/07/2025;HM P. SUR CAFETER;-3,10;julio
+20/07/2025;Prime Video *RY8G;-7,99;julio
+21/07/2025;SENTIDOS GASTROBA;-60,00;julio
+21/07/2025;DOS CASTILLAS;-5,60;julio
+21/07/2025;BAKERY BREAD S.L.;-1,65;julio
+21/07/2025;WORKCENTER SGD;-6,78;julio
+22/07/2025;Four Seasons Madr;-230,00;julio
+22/07/2025;MANACOR POZUELO;-7,60;julio
+22/07/2025;FITNESS PARK PRIN;-1,90;julio
+22/07/2025;0182-8391-41-0831;-67,97;julio
+23/07/2025;LM MAJADAHONDA;-32,98;julio
+23/07/2025;LM MAJADAHONDA;-29,99;julio
+23/07/2025;MANACOR POZUELO;-3,90;julio
+23/07/2025;POLIDEPORTIVO CAR;-3,50;julio
+24/07/2025;STARBUCKS CC.XANA;-1,90;julio
+24/07/2025;NETFLIX.COM;-13,99;julio
+24/07/2025;Kindle Unltd*RY6O;-9,99;julio
+24/07/2025;GOOGLE *YouTube V;-2,49;julio
+25/07/2025;EL BARCO APARICIO;-60,00;julio
+25/07/2025;FRUTAS PABLOS;-9,35;julio
+26/07/2025;RCI BANQUE S;-146,09;julio
+26/07/2025;PAYPAL EUROPE;-48,39;julio
+26/07/2025;ORANGE MOVIL 0725;-142,16;julio
+27/07/2025;APPLE.COM/BILL;-17,99;julio
+29/07/2025;LA FABRICA DEL AR;-63,80;julio
+29/07/2025;P.MALLORCA POZUEL;-8,00;julio
+29/07/2025;SpotifyES;-17,99;julio
+30/07/2025;NOMINA TRF;4.944,66;julio
+30/07/2025;CARREF MAJADAHOND;-77,77;julio
+30/07/2025;E.S. POZUELO;-54,72;julio
+30/07/2025;E.S. POZUELO;-14,36;julio
+31/07/2025;Restaurante Later;-35,00;julio
+31/07/2025;SSR CC ZIELO SHO;-17,72;julio
+31/07/2025;POLIDEPORTIVO CAR;-3,50;julio
+31/07/2025;Compra de Prime V;-3,99;julio
+31/07/2025;APPLE.COM/BILL;-1,99;julio
+31/07/2025;CAIXABANK PAYM;-158,79;julio
+01/08/2025;LA DESPENSA T166;-49,22;agosto
+01/08/2025;ECITC0105332555;-110,68;agosto
+02/08/2025;PRES.25286723599;-391,02;agosto
+02/08/2025;GRAND SLAM 5;-70,45;agosto
+02/08/2025;UNIMEDI WORLD;-59,60;agosto
+02/08/2025;AMAZON* RJ58Q3X44;-43,88;agosto
+02/08/2025;Prime Video *RJ5V;-7,99;agosto
+03/08/2025;BIZUM RECIBIDO;31,00;agosto
+03/08/2025;BIZUM RECIBIDO;186,00;agosto
+03/08/2025;BIZUM RECIBIDO;93,00;agosto
+04/08/2025;BAZAR ORIENTAL;-21,50;agosto
+05/08/2025;TRILLO BALNEARIO;-371,70;agosto
+05/08/2025;PAGO TRANSFERENCIAS;-2.300,00;agosto
+06/08/2025;LIBERTAD DIGIT;-110,00;agosto
+06/08/2025;FITNESS BARCEL;-34,95;agosto
+06/08/2025;MEDICOS SIN;-42,00;agosto
+06/08/2025;ACNUR;-20,00;agosto
+07/08/2025;FRUTAS PABLOS;-21,72;agosto
+07/08/2025;LA DESPENSA T166;-5,14;agosto
+07/08/2025;POLIDEPORTIVO CAR;-3,50;agosto
+07/08/2025;APPLE.COM/BILL;-0,99;agosto
+07/08/2025;MUTUA MADRILEN;-43,64;agosto
+08/08/2025;CARREF MAJADAHOND;-78,28;agosto
+08/08/2025;SENTIDOS GASTROBA;-36,00;agosto
+08/08/2025;PROMESA;-2,50;agosto
+08/08/2025;IKEA IBERICA WEB;-269,00;agosto
+08/08/2025;AMAZON* RV97P6QF4;-99,99;agosto
+08/08/2025;Patreon* Membersh;-5,45;agosto
+08/08/2025;CARITAS DIOCES;-32,70;agosto
+09/08/2025;Restaurante Later;-44,05;agosto
+09/08/2025;PROMESA;-2,50;agosto
+09/08/2025;AMAZON* RV6K68UU4;-27,98;agosto
+09/08/2025;Unidad Editorial;-8,99;agosto
+09/08/2025;MUTUA MADRILEN;-8,12;agosto
+10/08/2025;MOTOCARD MADRID-1;-252,76;agosto
+11/08/2025;MANACOR POZUELO;-5,25;agosto
+11/08/2025;Prime Video *RF1G;-4,99;agosto
+12/08/2025;Lateral Ponzano;-15,60;agosto
+13/08/2025;LA DESPENSA T166;-6,24;agosto
+14/08/2025;E.S. POZUELO;-67,47;agosto
+14/08/2025;FRUTAS PABLOS;-29,28;agosto
+14/08/2025;AMAZON MEDI* RF4A;-9,95;agosto
+14/08/2025;IBERDROLA GAS 105;-49,63;agosto
+15/08/2025;PROF.DE LA MED;-36,00;agosto
+16/08/2025;MICROSOFT*STORE;-1,00;agosto
+17/08/2025;POLIDEPORTIVO CAR;-3,50;agosto
+17/08/2025;ERMITA II CAFETER;-3,00;agosto
+17/08/2025;SEITT R3 R5;-1,05;agosto
+18/08/2025;LA DESPENSA T166;-34,14;agosto
+18/08/2025;LA FABRICA DEL AR;-73,80;agosto
+19/08/2025;Restaurante Later;-40,00;agosto
+19/08/2025;P.MALLORCA POZUEL;-19,75;agosto
+19/08/2025;LinkedInPreA *587;-34,99;agosto
+20/08/2025;FRUTAS PABLOS;-14,25;agosto
+20/08/2025;LA DESPENSA T166;-9,92;agosto
+20/08/2025;PROMESA;-2,50;agosto
+20/08/2025;Prime Video *RM90;-7,99;agosto
+20/08/2025;0182-8391-41-0831;-67,97;agosto
+21/08/2025;PROMESA;-2,50;agosto
+22/08/2025;GRUPO SUP AHORRAM;-9,98;agosto
+23/08/2025;SENTIDOS GASTROBA;-45,00;agosto
+23/08/2025;Netflix.com;-13,99;agosto
+24/08/2025;PROMESA;-2,50;agosto
+24/08/2025;AMAZON MEDI* RU31;-9,99;agosto
+25/08/2025;HM MONTEPRINCIPE;-4,50;agosto
+26/08/2025;LA DESPENSA T166;-33,98;agosto
+26/08/2025;LA FABRICA DEL AR;-23,90;agosto
+26/08/2025;DOS CASTILLAS;-10,55;agosto
+26/08/2025;WORKCENTER SGD;-13,36;agosto
+26/08/2025;RCI BANQUE S;-146,09;agosto
+27/08/2025;APPLE.COM/BILL;-17,99;agosto
+27/08/2025;IBERDROLA CLI.;-219,65;agosto
+27/08/2025;ORANGE MOVIL 0825;-142,16;agosto
+28/08/2025;REINT.CAJERO;-100,00;agosto
+28/08/2025;FRUTAS PABLOS;-13,87;agosto
+28/08/2025;LOOMISP*LA CERVEC;-7,00;agosto
+28/08/2025;SUSCRIPCION A REM;-60,50;agosto
+29/08/2025;E.S. POZUELO;-66,30;agosto
+29/08/2025;SpotifyES;-17,99;agosto
+29/08/2025;NOMINA TRF;5.691,73;agosto
+30/08/2025;FARMACIA EUROPA 7;-13,95;agosto
+30/08/2025;Microsoft*La prue;-11,99;agosto
+31/08/2025;LA DESPENSA T166;-35,55;agosto
+31/08/2025;MOVISTAR PLUS;-9,99;agosto
+01/09/2025;APPLE.COM/BILL;-1,99;septiembre
+02/09/2025;Prime Video *R442;-7,99;septiembre
+02/09/2025;GRAND SLAM 5;-70,45;septiembre
+02/09/2025;UNIMEDI WORLD;-59,60;septiembre
+02/09/2025;CAIXABANK PAYM;-158,79;septiembre
+02/09/2025;PRES.25286723599;-391,02;septiembre
+03/09/2025;MANACOR POZUELO;-15,00;septiembre
+03/09/2025;ESTACIONAMIENTOS;-1,95;septiembre
+03/09/2025;ESTACIONAMIENTOS;-0,60;septiembre
+03/09/2025;PAYPAL EUROPE;-149,00;septiembre
+03/09/2025;MEDICOS SIN;-42,00;septiembre
+04/09/2025;BIZUM RECIBIDO;5,00;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,50;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;8,60;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;8,60;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;5,00;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;5,00;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;BIZUM RECIBIDO;4,30;septiembre
+04/09/2025;LA DESPENSA T166;-33,48;septiembre
+04/09/2025;FRUTAS PABLOS;-11,39;septiembre
+04/09/2025;DYV TINTORERIA;-7,99;septiembre
+04/09/2025;FITNESS BARCEL;-34,95;septiembre
+05/09/2025;BIZUM RECIBIDO;4,30;septiembre
+05/09/2025;TANATORIO FUNER.;-191,00;septiembre
+05/09/2025;AMZN Mktp ES*RK6Q;-89,00;septiembre
+05/09/2025;PAGO TRANSFERENCIAS;-2.300,00;septiembre
+05/09/2025;CARITAS DIOCES;-32,70;septiembre
+06/09/2025;Pozuelo;-14,00;septiembre
+06/09/2025;AMZN Mktp ES*RK06;-18,97;septiembre
+06/09/2025;ACNUR;-20,00;septiembre
+07/09/2025;E.S. POZUELO;-70,11;septiembre
+07/09/2025;BOOK CENTER;-21,20;septiembre
+07/09/2025;E.S. POZUELO;-14,43;septiembre
+07/09/2025;MANACOR POZUELO;-5,30;septiembre
+07/09/2025;APPLE.COM/BILL;-0,99;septiembre
+08/09/2025;Patreon* Membersh;-5,45;septiembre
+09/09/2025;BIZUM RECIBIDO;5,00;septiembre
+09/09/2025;BIZUM RECIBIDO;4,30;septiembre
+09/09/2025;SEITT R2;-5,05;septiembre
+09/09/2025;Unidad Editorial;-8,99;septiembre
+09/09/2025;MUTUA MADRILEN;-43,64;septiembre
+10/09/2025;FARMACIA EUROPA 7;-28,45;septiembre
+10/09/2025;MUTUA MADRILEN;-8,12;septiembre
+11/09/2025;LA DESPENSA T166;-23,58;septiembre
+11/09/2025;Prime Video *ZT8O;-4,99;septiembre
+12/09/2025;FARMACIA EUROPA 7;-14,45;septiembre
+13/09/2025;SENTIDOS GASTROBA;-48,00;septiembre
+13/09/2025;LA DESPENSA T166;-19,97;septiembre
+13/09/2025;FRUTAS PABLOS;-15,33;septiembre
+15/09/2025;MANACOR POZUELO;-1,95;septiembre
+15/09/2025;NYX*BP;-1,50;septiembre
+16/09/2025;SENTIDOS GASTROBA;-53,85;septiembre
+16/09/2025;FRUTAS PABLOS;-14,15;septiembre
+16/09/2025;MANACOR POZUELO;-5,30;septiembre
+17/09/2025;COND.CUOTA TARJETA;36,00;septiembre
+17/09/2025;CUOTA T. Debit;-36,00;septiembre
+17/09/2025;E.S. POZUELO;-56,68;septiembre
+17/09/2025;FRUTAS PABLOS;-8,41;septiembre
+18/09/2025;SENTIDOS GASTROBA;-47,00;septiembre
+18/09/2025;P.MALLORCA POZUEL;-33,00;septiembre
+18/09/2025;ART OF TEACHIN;-122,00;septiembre
+18/09/2025;IBERDROLA CLI.;-126,24;septiembre
+19/09/2025;MANACOR POZUELO;-28,30;septiembre
+19/09/2025;LinkedInPreA *131;-34,99;septiembre
+19/09/2025;PROF.DE LA MED;-36,00;septiembre
+20/09/2025;BIZUM ENVIADO;-5,00;septiembre
+20/09/2025;URRECHU;-70,00;septiembre
+20/09/2025;Prime Video *JD9L;-7,99;septiembre
+20/09/2025;0182-8391-41-0831;-67,97;septiembre
+21/09/2025;PINTXAKI POZUELO;-50,00;septiembre
+23/09/2025;INGRESO CAJERO;500,00;septiembre
+23/09/2025;TRASPASO PROPIO;1.000,00;septiembre
+23/09/2025;Furla Madrid;-215,00;septiembre
+23/09/2025;AMZN Mktp ES*5Y9J;-20,99;septiembre
+23/09/2025;AMAZON* ZB53T6NF5;-6,29;septiembre
+24/09/2025;EXCELENTIA;-159,80;septiembre
+24/09/2025;Netflix.com;-13,99;septiembre
+24/09/2025;AMAZON.ES* IU3AD0;-9,99;septiembre
+26/09/2025;AMZN Mktp ES*M74N;-37,99;septiembre
+26/09/2025;RCI BANQUE S;-146,09;septiembre
+26/09/2025;ORANGE MOVIL 0925;-105,39;septiembre
+27/09/2025;APPLE.COM/BILL;-17,99;septiembre
+28/09/2025;BIZUM RECIBIDO;83,33;septiembre
+29/09/2025;NOMINA TRF;6.020,90;septiembre
+29/09/2025;SpotifyES;-20,99;septiembre
+30/09/2025;BIZUM ENVIADO;-10,30;septiembre
+30/09/2025;MICROSOFT*LA PRUE;-11,99;septiembre
+30/09/2025;Audible ES;-9,99;septiembre
+01/10/2025;BIZUM RECIBIDO;500,00;octubre
+01/10/2025;Amazon Prime*0V1Q;-49,90;octubre
+01/10/2025;MOVISTAR PLUS;-9,99;octubre
+01/10/2025;APPLE.COM/BILL;-1,99;octubre
+01/10/2025;ECITC0105332555;-244,34;octubre
+01/10/2025;CAIXABANK PAYM;-158,79;octubre
+02/10/2025;APPLE.COM/BILL;-13,49;octubre
+02/10/2025;UNIMEDI WORLD;-138,43;octubre
+02/10/2025;GRAND SLAM 5;-70,45;octubre
+02/10/2025;UNIMEDI WORLD;-59,60;octubre
+02/10/2025;PRES.25286723599;-391,02;octubre
+03/10/2025;PAGO TRANSFERENCIAS;-2.300,00;octubre
+03/10/2025;BERRIA;-39,00;octubre
+03/10/2025;AMAZON* 8U97X1YR5;-34,98;octubre
+03/10/2025;Prime Video *2A5K;-7,99;octubre
+03/10/2025;ILUSTRE COL.;-60,17;octubre
+03/10/2025;ART OF TEACHIN;-158,00;octubre
+03/10/2025;MEDICOS SIN;-42,00;octubre
+04/10/2025;DECATHLON MAJADAH;-54,99;octubre
+04/10/2025;AMAZON* 0A3OT5N35;-38,50;octubre
+04/10/2025;MANACOR POZUELO;-22,15;octubre
+04/10/2025;CATTLEYA VINOS;-7,80;octubre
+04/10/2025;FITNESS BARCEL;-34,95;octubre
+04/10/2025;CARITAS DIOCES;-32,70;octubre
+07/10/2025;LA DESPENSA T166;-9,80;octubre
+07/10/2025;D.G. JUEGOS ONCE;-50,00;octubre
+07/10/2025;WORKCENTER SGD;-5,55;octubre
+07/10/2025;APPLE.COM/BILL;-0,99;octubre
+08/10/2025;Patreon* Membersh;-5,45;octubre
+08/10/2025;ANUL.DEVOL.WWW.AM;263,73;octubre
+08/10/2025;ACNUR;-20,00;octubre
+09/10/2025;E.S. POZUELO;-68,61;octubre
+09/10/2025;FRUTAS PABLOS;-9,17;octubre
+09/10/2025;Unidad Editorial;-8,99;octubre
+09/10/2025;MUTUA MADRILEN;-43,64;octubre
+09/10/2025;MUTUA MADRILEN;-8,12;octubre
+10/10/2025;IBERDROLA GAS 105;-37,16;octubre
+11/10/2025;SENTIDOS GASTROBA;-47,00;octubre
+11/10/2025;Prime Video *5D1U;-4,99;octubre
+11/10/2025;TECH EDUCATION;-1.663,00;octubre
+12/10/2025;LA DESPENSA T166;-43,52;octubre
+13/10/2025;BAZAR ORIENTAL;-7,80;octubre
+14/10/2025;LA VINOTECA;-7,80;octubre
+14/10/2025;SEITT R2;-5,05;octubre
+14/10/2025;SEITT R2;-0,60;octubre
+14/10/2025;SEITT R2;-0,60;octubre
+15/10/2025;APPLE.COM/BILL;-31,99;octubre
+16/10/2025;LA DESPENSA T166;-13,83;octubre
+16/10/2025;ILUSTRE COL.;-25,00;octubre
+18/10/2025;E.S. POZUELO;-14,61;octubre
+18/10/2025;MANACOR POZUELO;-5,30;octubre
+18/10/2025;WORKCENTER SGD;-14,81;octubre
+18/10/2025;IBERDROLA CLI.;-97,36;octubre
+19/10/2025;LA DESPENSA T166;-71,14;octubre
+19/10/2025;LinkedInPreA *720;-34,99;octubre
+19/10/2025;AMAZON* WG8E75455;-10,99;octubre
+20/10/2025;Prime Video *531D;-7,99;octubre
+21/10/2025;A28822773;-13,90;octubre
+22/10/2025;SPANDOC GLOBAL SL;-25,00;octubre
+22/10/2025;MOVILIDAD ACM;-2,41;octubre
+22/10/2025;0182-8391-41-0831;-67,97;octubre
+23/10/2025;MERCADONA MONTECL;-83,73;octubre
+23/10/2025;E.S. POZUELO;-55,34;octubre
+23/10/2025;Netflix.com;-13,99;octubre
+24/10/2025;PUERTA DEL HIERRO;-1,80;octubre
+24/10/2025;AMAZON.ES* OE8JO9;-9,99;octubre
+25/10/2025;MANACOR POZUELO;-8,80;octubre
+25/10/2025;PROF.DE LA MED;-36,00;octubre
+26/10/2025;YABAI 2020;-146,17;octubre
+26/10/2025;RESTAURANTE RONDA;-85,00;octubre
+26/10/2025;D PICNIC;-6,20;octubre
+27/10/2025;FEDERACION GOLF M;-154,20;octubre
+28/10/2025;APPLE.COM/BILL;-17,99;octubre
+28/10/2025;APPLE.COM/BILL;-8,99;octubre
+28/10/2025;RCI BANQUE S;-146,09;octubre
+29/10/2025;GRUPO SUP AHORRAM;-9,45;octubre
+29/10/2025;NYX*ABServiciosSe;-2,50;octubre
+29/10/2025;SpotifyES;-20,99;octubre
+29/10/2025;ORANGE MOVIL 1025;-105,39;octubre
+30/10/2025;BIZUM RECIBIDO;100,00;octubre
+30/10/2025;Lateral;-7,25;octubre
+30/10/2025;5728 AUDITORIO NA;-5,50;octubre
+30/10/2025;NYX*ABServiciosSe;-3,40;octubre
+30/10/2025;MICROSOFT*LA PRUE;-11,99;octubre
+30/10/2025;Audible ES;-9,99;octubre
+31/10/2025;MOVISTAR PLUS;-9,99;octubre
+31/10/2025;APPLE.COM/BILL;-1,99;octubre
+31/10/2025;CAIXABANK PAYM;-158,79;octubre
+31/10/2025;NOMINA TRF;5.621,52;octubre
+01/11/2025;PROMESA;-4,50;noviembre
+01/11/2025;APPLE.COM/BILL;-13,49;noviembre
+02/11/2025;Prime Video *671S;-7,99;noviembre
+02/11/2025;PRES.25286723599;-391,02;noviembre
+04/11/2025;UNIMEDI WORLD;-59,60;noviembre
+04/11/2025;ART OF TEACHIN;-110,00;noviembre
+05/11/2025;PAGO TRANSFERENCIAS;-2.300,00;noviembre
+05/11/2025;DON FINARDO;-129,51;noviembre
+05/11/2025;FARMACIA EUROPA 7;-7,68;noviembre
+05/11/2025;MANACOR POZUELO;-5,30;noviembre
+05/11/2025;GRAND SLAM 5;-70,45;noviembre
+05/11/2025;FITNESS BARCEL;-34,95;noviembre
+05/11/2025;MEDICOS SIN;-42,00;noviembre
+06/11/2025;MUTUA MADRILEN;-43,64;noviembre
+06/11/2025;CARITAS DIOCES;-32,70;noviembre
+06/11/2025;ACNUR;-20,00;noviembre
+07/11/2025;LA DESPENSA T166;-37,45;noviembre
+07/11/2025;P.MALLORCA POZUEL;-13,10;noviembre
+07/11/2025;NYX*ABServiciosSe;-3,40;noviembre
+07/11/2025;APPLE.COM/BILL;-0,99;noviembre
+08/11/2025;FCIA.ELENA PEREZ;-24,50;noviembre
+08/11/2025;Patreon* Membersh;-5,45;noviembre
+08/11/2025;MUTUA MADRILEN;-8,12;noviembre
+09/11/2025;URRECHU;-183,00;noviembre
+09/11/2025;LA DESPENSA T166;-5,85;noviembre
+09/11/2025;Unidad Editorial;-8,99;noviembre
+10/11/2025;E.S. POZUELO;-60,82;noviembre
+11/11/2025;TERRAZA LOBO;-45,00;noviembre
+11/11/2025;APARCAMIENTO AUDI;-9,45;noviembre
+11/11/2025;Prime Video *LK3P;-4,99;noviembre
+14/11/2025;CRONO WORLD;-28,71;noviembre
+14/11/2025;MANACOR POZUELO;-4,00;noviembre
+14/11/2025;FEDERACION DE GOL;-24,00;noviembre
+15/11/2025;AMAZON* RU4IM5ZM5;-68,48;noviembre
+16/11/2025;HOTEL CIUDADELA;-263,26;noviembre
+16/11/2025;AREA 103;-10,75;noviembre
+17/11/2025;ASADOR MARTINTXO;-150,00;noviembre
+17/11/2025;QUESERIA YOLANDA.;-56,34;noviembre
+18/11/2025;ADMIN LOTERIA SAN;-60,00;noviembre
+18/11/2025;LICORES AZANZA S.;-97,00;noviembre
+19/11/2025;LA DESPENSA T166;-72,49;noviembre
+19/11/2025;E.S. POZUELO;-14,02;noviembre
+19/11/2025;LinkedInPreA *340;-34,99;noviembre
+20/11/2025;COOKING DOCTOR SL;-14,60;noviembre
+20/11/2025;TABERNA ALCALA;-13,00;noviembre
+20/11/2025;Prime Video *BQ4L;-7,99;noviembre
+20/11/2025;0182-8391-41-0831;-67,97;noviembre
+21/11/2025;NYX*ABServiciosSe;-3,40;noviembre
+21/11/2025;IBERDROLA CLI.;-108,34;noviembre
+22/11/2025;URRECHU;-110,00;noviembre
+22/11/2025;SPANDOC GLOBAL SL;-25,00;noviembre
+22/11/2025;PROF.DE LA MED;-36,00;noviembre
+23/11/2025;NETFLIX.COM;-13,99;noviembre
+24/11/2025;AMAZON.ES* Z329Q0;-9,99;noviembre
+25/11/2025;MERCADO PROVENSAL;-19,80;noviembre
+25/11/2025;PLAZA DE ORIENTE;-6,35;noviembre
+26/11/2025;RCI BANQUE S;-146,09;noviembre
+26/11/2025;ORANGE MOVIL 1125;-105,90;noviembre
+27/11/2025;NOMINA TRF;4.980,93;noviembre
+27/11/2025;BIZUM ENVIADO;-4,10;noviembre
+27/11/2025;APPLE.COM/BILL;-17,99;noviembre
+27/11/2025;APPLE.COM/BILL;-8,99;noviembre
+28/11/2025;AMAZON* ZL0QF9QW4;-21,85;noviembre
+29/11/2025;BIZUM RECIBIDO;100,00;noviembre
+29/11/2025;E.S. POZUELO;-62,74;noviembre
+29/11/2025;SpotifyES;-20,99;noviembre
+30/11/2025;ALCAMPO ALCORCON;-95,07;noviembre
+30/11/2025;FRUTAS PABLOS;-60,96;noviembre
+30/11/2025;SSR CC ZIELO SHO;-49,96;noviembre
+30/11/2025;LA DESPENSA T166;-36,93;noviembre
+30/11/2025;Microsoft;-14,99;noviembre
+30/11/2025;Audible ES;-9,99;noviembre
+01/12/2025;059-FEU VERT;-89,95;diciembre
+01/12/2025;P.MALLORCA POZUEL;-16,50;diciembre
+01/12/2025;LA DESPENSA T166;-2,70;diciembre
+01/12/2025;NYX*BP;-1,50;diciembre
+01/12/2025;TRENES.COM;-94,05;diciembre
+01/12/2025;AMAZON* ZR6987GF4;-14,75;diciembre
+01/12/2025;MOVISTAR PLUS;-9,99;diciembre
+01/12/2025;APPLE.COM/BILL;-1,99;diciembre
+02/12/2025;MANACOR POZUELO;-26,90;diciembre
+02/12/2025;APPLE.COM/BILL;-13,49;diciembre
+02/12/2025;UNIMEDI WORLD;-59,60;diciembre
+02/12/2025;ART OF TEACHIN;-110,00;diciembre
+02/12/2025;CAIXABANK PAYM;-158,79;diciembre
+02/12/2025;PRES.25286723599;-391,02;diciembre
+03/12/2025;HULOT HOTELES;-185,28;diciembre
+03/12/2025;Area 112 Algora;-66,18;diciembre
+03/12/2025;MARMOT;-38,00;diciembre
+03/12/2025;HULOT HOTELES;-60,00;diciembre
+03/12/2025;Prime Video *ZR2P;-7,99;diciembre
+03/12/2025;GRAND SLAM 5;-70,45;diciembre
+03/12/2025;CARITAS DIOCES;-32,70;diciembre
+03/12/2025;MEDICOS SIN;-42,00;diciembre
+04/12/2025;BAQUEIRA FORFAITS;-206,00;diciembre
+04/12/2025;RESTAURANT ALL I;-73,50;diciembre
+04/12/2025;LOCKERS BAQUEIRA;-39,00;diciembre
+04/12/2025;Booking.com Hotel;-269,09;diciembre
+04/12/2025;FITNESS BARCEL;-34,95;diciembre
+05/12/2025;PAGO TRANSFERENCIAS;-2.300,00;diciembre
+05/12/2025;CEPSA NAUT ARAN;-51,08;diciembre
+06/12/2025;ACNUR;-20,00;diciembre
+07/12/2025;APPLE.COM/BILL;-0,99;diciembre
+08/12/2025;TRASPASO PROPIO;600,00;diciembre
+08/12/2025;GINZA 41 SUSHI AN;-80,00;diciembre
+08/12/2025;HOTELS HESPERIA;-8,36;diciembre
+08/12/2025;Patreon* Membersh;-5,45;diciembre
+09/12/2025;PDPAOLA;-268,00;diciembre
+09/12/2025;HIPER ANDORRA 2;-90,15;diciembre
+09/12/2025;LA DESPENSA T166;-49,83;diciembre
+09/12/2025;APPLE.COM/BILL;-10,99;diciembre
+09/12/2025;Unidad Editorial;-8,99;diciembre
+09/12/2025;Compra de Prime V;-3,99;diciembre
+10/12/2025;INGRESO CAJERO;300,00;diciembre
+10/12/2025;AMAZON;-21,48;diciembre
+10/12/2025;Prime Video canal;-4,99;diciembre
+10/12/2025;MUTUA MADRILEN;-43,64;diciembre
+11/12/2025;BIZUM ENVIADO;-292,00;diciembre
+11/12/2025;MUTUA MADRILEN;-8,12;diciembre
+12/12/2025;PELUQUERIA JAVIER;-17,00;diciembre
+12/12/2025;VIENA CAPELLANES;-3,65;diciembre
+12/12/2025;IBERDROLA GAS 105;-67,25;diciembre
+13/12/2025;BIZUM ENVIADO;-23,00;diciembre
+15/12/2025;VIENA CAPELLANES;-18,35;diciembre
+15/12/2025;APPLE.COM/BILL;-35,00;diciembre
+17/12/2025;LinkedInPreA *897;-34,99;diciembre
+18/12/2025;NOMINA TRF;2.472,92;diciembre
+18/12/2025;Prime Video canal;-7,99;diciembre
+18/12/2025;SEMFYC;-195,00;diciembre
+18/12/2025;IBERDROLA CLI.;-73,08;diciembre
+20/12/2025;URRECHU;-55,00;diciembre
+20/12/2025;MANACOR POZUELO;-18,80;diciembre
+20/12/2025;OBRAMAT MAJADAHON;-10,86;diciembre
+20/12/2025;OBRAMAT MAJADAHON;-7,90;diciembre
+20/12/2025;0182-8391-41-0831;-67,97;diciembre
+22/12/2025;E.S. POZUELO;-61,62;diciembre
+22/12/2025;NETFLIX.COM;-13,99;diciembre
+22/12/2025;AMAZON.ES;-9,99;diciembre
+22/12/2025;SPANDOC GLOBAL SL;-25,00;diciembre
+23/12/2025;AMAZON.ES* ZD07V9;-9,99;diciembre
+23/12/2025;AMAZON.ES* ZD07V9;9,99;diciembre
+23/12/2025;MANACOR POZUELO;-6,70;diciembre
+24/12/2025;Hugo Boss Espaa;-79,00;diciembre
+24/12/2025;MISTER CHURRO KIN;-13,20;diciembre
+24/12/2025;APARCAMIENTO COLO;-2,65;diciembre
+24/12/2025;POZUELO DE AL.;-25,00;diciembre
+24/12/2025;PROF.DE LA MED;-36,00;diciembre
+25/12/2025;MANACOR POZUELO;-31,95;diciembre
+25/12/2025;LA DESPENSA T166;-23,08;diciembre
+25/12/2025;SSR CC ZIELO SHO;-9,25;diciembre
+25/12/2025;APPLE.COM/BILL;-17,99;diciembre
+25/12/2025;APPLE.COM/BILL;-8,99;diciembre
+25/12/2025;ORANGE MOVIL 1225;-123,40;diciembre
+26/12/2025;EasyPark Espana S;-1,15;diciembre
+27/12/2025;SpotifyES;-20,99;diciembre
+28/12/2025;Microsoft*La prue;-14,99;diciembre
+28/12/2025;Audible ES;-9,99;diciembre
+30/12/2025;NOMINA TRF;5.398,27;diciembre
+30/12/2025;BIZUM RECIBIDO;300,00;diciembre
+30/12/2025;LA DESPENSA T166;-17,58;diciembre
+30/12/2025;APPLE.COM/BILL;-13,49;diciembre
+30/12/2025;APPLE.COM/BILL;-1,99;diciembre
+30/12/2025;RCI BANQUE S;-146,09;diciembre
+31/12/2025;MOVISTAR PLUS;-9,99;diciembre
+31/12/2025;Prime Video canal;-7,99;diciembre
+31/12/2025;CAIXABANK PAYM;-158,79;diciembre`;
+
+function seedFromCSV() {
+  try {
+    const rows = [...parseCSV(SEED_CSV), ...parseCSV(SEED_CSV_2025)];
+    if (!localStorage.getItem(TX_KEY)) {
+      rows.forEach(r => { r.id = nextId(); r.account = 'Principal'; });
+      txs = rows;
+    } else {
+      let added = 0;
+      rows.forEach(r => {
+        const dup = txs.some(t => t.date === r.date && t.amount === r.amount &&
+          t.desc.toLowerCase() === r.desc.toLowerCase());
+        if (!dup) { txs.push({ id: nextId(), account: 'Principal', ...r }); added++; }
+      });
+      if (!added) return;
+    }
+    saveTxs();
+  } catch(e) { console.error('Error cargando datos semilla:', e); }
+}
+
+function loadData() {
+  try { txs = JSON.parse(localStorage.getItem(TX_KEY) || '[]'); } catch(e) { txs = []; }
+  try { const s = JSON.parse(localStorage.getItem(SET_KEY) || '{}'); settings = { ...settings, ...s }; } catch(e) {}
+}
+function saveTxs()     { localStorage.setItem(TX_KEY,  JSON.stringify(txs)); }
+function saveSettings(){ localStorage.setItem(SET_KEY, JSON.stringify(settings)); }
+function nextId()      { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+function fmt(v) {
+  return v.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+function fmtSign(v, type) {
+  return (type === 'INGRESO' ? '+' : '-') + fmt(Math.abs(v));
+}
+
+// ─────────────────────────────────────────────
+//  PERÍODO
+// ─────────────────────────────────────────────
+const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+let period = { year: new Date().getFullYear(), month: new Date().getMonth(), allTime: false };
+
+function shiftPeriod(dir) {
+  period.allTime = false;
+  period.month += dir;
+  if (period.month < 0)  { period.month = 11; period.year--; }
+  if (period.month > 11) { period.month = 0;  period.year++; }
+  updatePeriodUI();
+  renderActiveView();
+}
+function toggleAllTime() {
+  period.allTime = !period.allTime;
+  updatePeriodUI();
+  renderActiveView();
+}
+function updatePeriodUI() {
+  document.getElementById('period-label').textContent = period.allTime
+    ? 'Todo el tiempo'
+    : MONTHS_ES[period.month] + ' ' + period.year;
+  document.getElementById('btn-all').classList.toggle('active', period.allTime);
+}
+function inPeriod(tx) {
+  if (period.allTime) return true;
+  const d = new Date(tx.date + 'T00:00:00');
+  return d.getFullYear() === period.year && d.getMonth() === period.month;
+}
+function periodTxs() { return txs.filter(inPeriod); }
+
+// ─────────────────────────────────────────────
+//  NAVEGACIÓN
+// ─────────────────────────────────────────────
+const VIEW_TITLES = { resumen:'Resumen', transacciones:'Transacciones', categorias:'Por Categoría', importar:'Importar CSV', esperados:'Gastos esperados' };
+let activeView = 'resumen';
+
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+    activeView = el.dataset.view;
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + activeView).classList.add('active');
+    document.getElementById('page-title').textContent = VIEW_TITLES[activeView];
+    renderActiveView();
+  });
+});
+
+function renderActiveView() {
+  if (activeView === 'resumen')            renderResumen();
+  else if (activeView === 'transacciones') renderTransacciones();
+  else if (activeView === 'categorias')    renderCategorias();
+  else if (activeView === 'esperados')     renderEsperados();
+}
+
+// ─────────────────────────────────────────────
+//  HELPERS CHART
+// ─────────────────────────────────────────────
+function mkChart(id, config) {
+  if (chartInstances[id]) chartInstances[id].destroy();
+  const c = document.getElementById(id);
+  if (!c) return;
+  chartInstances[id] = new Chart(c.getContext('2d'), config);
+}
+function destroyChart(id) {
+  if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+function catPill(cat, type) {
+  const color = CAT_COLOR[cat] || '#94a3b8';
+  const bg = color + '22';
+  return `<span class="cat-pill" style="background:${bg};color:${color}">${cat}</span>`;
+}
+function typeBadge(type) {
+  return type === 'INGRESO'
+    ? '<span class="badge" style="background:#14532d;color:#86efac">INGRESO</span>'
+    : '<span class="badge" style="background:#450a0a;color:#fca5a5">GASTO</span>';
+}
+
+// ─────────────────────────────────────────────
+//  RESUMEN
+// ─────────────────────────────────────────────
+function renderResumen() {
+  const pts = periodTxs();
+  const ingresos = pts.filter(t => t.type === 'INGRESO').reduce((s, t) => s + t.amount, 0);
+  const gastos   = pts.filter(t => t.type === 'GASTO').reduce((s, t) => s + t.amount, 0);
+  const balance  = ingresos - gastos;
+  const totalTxs = txs.length;
+
+  // Saldo acumulado histórico
+  const saldoHist = txs.reduce((s, t) => s + (t.type === 'INGRESO' ? t.amount : -t.amount), 0);
+  const ahorro    = ingresos > 0 ? (balance / ingresos * 100) : 0;
+
+  document.getElementById('res-kpis').innerHTML = [
+    { label: period.allTime ? 'Ingresos totales'  : 'Ingresos del mes',  value: fmt(ingresos), color: 'green' },
+    { label: period.allTime ? 'Gastos totales'    : 'Gastos del mes',    value: fmt(gastos),   color: 'red'   },
+    { label: period.allTime ? 'Balance total'     : 'Balance del mes',   value: fmt(balance),  color: balance >= 0 ? 'green' : 'red' },
+    { label: period.allTime ? 'Tasa de ahorro'    : 'Tasa de ahorro',    value: ahorro.toFixed(1) + '%', color: ahorro >= 20 ? 'green' : ahorro >= 0 ? 'yellow' : 'red' },
+    { label: 'Saldo acumulado',   value: fmt(saldoHist), color: saldoHist >= 0 ? '' : 'red' },
+    { label: 'Transacciones',     value: totalTxs + ' registros', color: '' },
+  ].map(k => `<div class="kpi-card ${k.color}">
+    <div class="kpi-label">${k.label}</div>
+    <div class="kpi-value" style="font-size:1.2rem;color:${k.color==='green'?'var(--green)':k.color==='red'?'var(--red)':'var(--text)'}">${k.value}</div>
+  </div>`).join('');
+
+  // Chart 1: últimos 12 meses ingresos vs gastos
+  const now = new Date();
+  const months12 = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months12.push({ year: d.getFullYear(), month: d.getMonth() });
+  }
+  const m12ing  = months12.map(m => txs.filter(t => { const d = new Date(t.date+'T00:00:00'); return t.type==='INGRESO' && d.getFullYear()===m.year && d.getMonth()===m.month; }).reduce((s,t)=>s+t.amount,0));
+  const m12gas  = months12.map(m => txs.filter(t => { const d = new Date(t.date+'T00:00:00'); return t.type==='GASTO'   && d.getFullYear()===m.year && d.getMonth()===m.month; }).reduce((s,t)=>s+t.amount,0));
+  const m12labs = months12.map(m => MONTHS_ES[m.month].slice(0,3) + ' ' + String(m.year).slice(2));
+
+  mkChart('chart-monthly', {
+    type: 'bar',
+    data: {
+      labels: m12labs,
+      datasets: [
+        { label: 'Ingresos', data: m12ing, backgroundColor: 'rgba(34,197,94,.75)', borderRadius: 4 },
+        { label: 'Gastos',   data: m12gas, backgroundColor: 'rgba(239,68,68,.75)', borderRadius: 4 },
+      ]
+    },
+    options: { responsive: true, plugins: { legend: { labels: { color:'#94a3b8', font:{size:11} } } }, scales: {
+      x: { ticks: { color:'#94a3b8', font:{size:9} }, grid: { color:'#2e3248' } },
+      y: { ticks: { color:'#94a3b8', font:{size:10}, callback: v => fmt(v) }, grid: { color:'#2e3248' } }
+    }}
+  });
+
+  // Chart 2: donut gastos por cat
+  const catMap = {};
+  pts.filter(t => t.type === 'GASTO').forEach(t => { catMap[t.cat] = (catMap[t.cat]||0) + t.amount; });
+  const catKeys = Object.keys(catMap).sort((a,b) => catMap[b]-catMap[a]);
+  if (catKeys.length) {
+    mkChart('chart-cat-donut', {
+      type: 'doughnut',
+      data: {
+        labels: catKeys,
+        datasets: [{ data: catKeys.map(k => catMap[k]), backgroundColor: catKeys.map(k => CAT_COLOR[k]||'#94a3b8'), borderWidth: 2, borderColor: '#1a1d27' }]
+      },
+      options: { responsive: true, plugins: { legend: { position:'right', labels:{ color:'#94a3b8', font:{size:10}, boxWidth:12 } } } }
+    });
+  }
+
+  // Tabla últimas 10
+  const last10 = [...txs].sort((a,b) => b.date.localeCompare(a.date)).slice(0,10);
+  const tbl = document.getElementById('table-recent');
+  if (!last10.length) {
+    tbl.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted)">Sin transacciones. Añade una o importa un CSV.</td></tr>';
+    return;
+  }
+  tbl.innerHTML = `<thead><tr><th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Cuenta</th><th style="text-align:right">Importe</th></tr></thead>
+  <tbody>${last10.map(t => `<tr>
+    <td style="color:var(--muted)">${t.date}</td>
+    <td>${t.desc}</td>
+    <td>${catPill(t.cat, t.type)}</td>
+    <td style="color:var(--muted);font-size:.75rem">${t.account||'—'}</td>
+    <td style="text-align:right" class="${t.type==='INGRESO'?'amount-ing':'amount-gas'}">${t.type==='INGRESO'?'+':'-'}${fmt(t.amount)}</td>
+  </tr>`).join('')}</tbody>`;
+}
+
+// ─────────────────────────────────────────────
+//  TRANSACCIONES
+// ─────────────────────────────────────────────
+function populateFilterSelects() {
+  const cats  = [...new Set(txs.map(t => t.cat))].sort();
+  const cuentas = [...new Set(txs.map(t => t.account).filter(Boolean))].sort();
+  const fcat = document.getElementById('f-cat');
+  const fcuenta = document.getElementById('f-cuenta');
+  const prev_cat = fcat.value;
+  const prev_cta = fcuenta.value;
+  fcat.innerHTML    = '<option value="">Todas las categorías</option>' + cats.map(c=>`<option value="${c}">${c}</option>`).join('');
+  fcuenta.innerHTML = '<option value="">Todas las cuentas</option>' + cuentas.map(c=>`<option value="${c}">${c}</option>`).join('');
+  fcat.value    = prev_cat;
+  fcuenta.value = prev_cta;
+}
+
+let sortCol = 'date', sortDir = -1;
+
+function getFilteredTxs() {
+  const desde  = document.getElementById('f-desde').value;
+  const hasta  = document.getElementById('f-hasta').value;
+  const tipo   = document.getElementById('f-tipo').value;
+  const cat    = document.getElementById('f-cat').value;
+  const cuenta = document.getElementById('f-cuenta').value;
+  const sub    = document.getElementById('f-sub').value;
+  const search = document.getElementById('f-search').value.toLowerCase();
+  const usePeriod = !desde && !hasta;
+
+  return [...txs]
+    .filter(t => usePeriod ? inPeriod(t) : (!desde || t.date >= desde) && (!hasta || t.date <= hasta))
+    .filter(t => !tipo   || t.type === tipo)
+    .filter(t => !cat    || t.cat === cat)
+    .filter(t => !cuenta || t.account === cuenta)
+    .filter(t => sub === '' || (sub === '1' ? t.sub : !t.sub))
+    .filter(t => !search || t.desc.toLowerCase().includes(search) || (t.notes||'').toLowerCase().includes(search) || String(t.amount).includes(search) || t.amount.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}).includes(search))
+    .sort((a, b) => {
+      let va = a[sortCol] ?? '', vb = b[sortCol] ?? '';
+      if (sortCol === 'amount') { va = +va; vb = +vb; }
+      if (va < vb) return -sortDir;
+      if (va > vb) return  sortDir;
+      return b.date.localeCompare(a.date);
+    });
+}
+
+function setSort(col) {
+  if (sortCol === col) sortDir *= -1; else { sortCol = col; sortDir = -1; }
+  renderTransacciones();
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function renderTransacciones() {
+  populateFilterSelects();
+  const list = getFilteredTxs();
+  const tbl  = document.getElementById('table-txs');
+
+  if (!list.length) {
+    tbl.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">Sin transacciones con estos filtros.</td></tr>';
+    return;
+  }
+
+  const totalIng = list.filter(t=>t.type==='INGRESO').reduce((s,t)=>s+t.amount,0);
+  const totalGas = list.filter(t=>t.type==='GASTO').reduce((s,t)=>s+t.amount,0);
+
+  const groupByCat = sortCol === 'cat';
+  const sortArrow  = d => d === sortDir ? '▲' : '▼';
+  const thStyle    = 'cursor:pointer;user-select:none';
+
+  const thDate  = `<th style="${thStyle}" onclick="setSort('date')">Fecha ${sortCol==='date'?sortArrow(1):''}</th>`;
+  const thDesc  = `<th style="${thStyle}" onclick="setSort('desc')">Descripción ${sortCol==='desc'?sortArrow(1):''}</th>`;
+  const thCat   = `<th style="${thStyle}" onclick="setSort('cat')">Categoría ${sortCol==='cat'?'📂':''}</th>`;
+  const thAmt   = `<th style="${thStyle};text-align:right" onclick="setSort('amount')">Importe ${sortCol==='amount'?sortArrow(1):''}</th>`;
+
+  let bodyHTML = '';
+  if (groupByCat) {
+    const catGroups = {};
+    list.forEach(t => { if (!catGroups[t.cat]) catGroups[t.cat]=[]; catGroups[t.cat].push(t); });
+    Object.keys(catGroups).sort().forEach(cat => {
+      const grp = catGroups[cat];
+      const grpTotal = grp.reduce((s,t)=>s+t.amount,0);
+      const grpType  = grp[0].type;
+      bodyHTML += `<tr style="background:var(--surface2)">
+        <td colspan="7" style="font-size:.72rem;font-weight:700;color:var(--muted);padding:5px 10px">
+          ${catPill(cat, grpType)} ${grp.length} transacciones · ${grpType==='INGRESO'?'+':'-'}${fmt(grpTotal)}
+        </td><td></td></tr>`;
+      bodyHTML += grp.map(t => rowHTML(t)).join('');
+    });
+  } else {
+    bodyHTML = list.map(t => rowHTML(t)).join('');
+  }
+
+  function rowHTML(t) { return `<tr>
+    <td style="color:var(--muted);white-space:nowrap">${fmtDate(t.date)}</td>
+    <td>${t.desc}${t.notes?`<br><span style="font-size:.7rem;color:var(--muted)">${t.notes}</span>`:''}</td>
+    <td>${typeBadge(t.type)}</td>
+    <td>${catPill(t.cat, t.type)}${t.subcat?`<span style="font-size:.68rem;color:var(--muted);margin-left:4px">${t.subcat}</span>`:''}</td>
+    <td style="color:var(--muted);font-size:.75rem">${t.account||'—'}</td>
+    <td style="text-align:right" class="${t.type==='INGRESO'?'amount-ing':'amount-gas'}">${t.type==='INGRESO'?'+':'-'}${fmt(t.amount)}</td>
+    <td style="text-align:center">
+      <button onclick="toggleSub('${t.id}')" style="border:none;background:none;cursor:pointer;padding:2px 8px;border-radius:999px;font-size:.75rem;font-weight:700;${t.sub?'background:#312e81;color:#c4b5fd':'background:var(--surface2);color:var(--muted)'}">${t.sub?'✓ Sí'+(t.subPeriodo?' · '+t.subPeriodo:''):'— No'}</button>
+    </td>
+    <td style="text-align:center;white-space:nowrap">
+      <button class="icon-btn" onclick="openTxModal('${t.id}')" title="Editar">✏️</button>
+      <button class="icon-btn" onclick="confirmDelete('${t.id}')" title="Eliminar">🗑️</button>
+    </td>
+  </tr>`; }
+
+  tbl.innerHTML = `<thead><tr>${thDate}${thDesc}<th>Tipo</th>${thCat}<th>Cuenta</th>${thAmt}<th style="text-align:center">Suscripción</th><th style="text-align:center">Acc.</th></tr></thead>
+  <tbody>${bodyHTML}</tbody>
+  <tfoot><tr>
+    <td colspan="5" style="text-align:right;font-size:.78rem;color:var(--muted)">${list.length} transacciones · ${list.filter(t=>t.sub).length} suscripciones (${fmt(list.filter(t=>t.sub).reduce((s,t)=>s+t.amount,0))})</td>
+    <td style="text-align:right"><span class="amount-ing">+${fmt(totalIng)}</span> / <span class="amount-gas">-${fmt(totalGas)}</span></td>
+    <td></td><td></td>
+  </tr></tfoot>`;
+}
+
+function clearFilters() {
+  ['f-desde','f-hasta','f-search'].forEach(id => document.getElementById(id).value = '');
+  ['f-tipo','f-cat','f-cuenta','f-sub'].forEach(id => document.getElementById(id).value = '');
+  sortCol = 'date'; sortDir = -1;
+  renderTransacciones();
+}
+
+// ─────────────────────────────────────────────
+//  CATEGORÍAS
+// ─────────────────────────────────────────────
+function renderCategorias() {
+  const pts = periodTxs();
+
+  function buildCards(type, containerId) {
+    const map = {};
+    pts.filter(t => t.type === type).forEach(t => {
+      if (!map[t.cat]) map[t.cat] = { amount: 0, count: 0 };
+      map[t.cat].amount += t.amount;
+      map[t.cat].count++;
+    });
+    const keys  = Object.keys(map).sort((a,b) => map[b].amount - map[a].amount);
+    const max   = keys.length ? map[keys[0]].amount : 1;
+    const cont  = document.getElementById(containerId);
+
+    if (!keys.length) {
+      cont.innerHTML = `<div style="grid-column:1/-1;padding:12px;color:var(--muted);font-size:.82rem">Sin ${type === 'GASTO' ? 'gastos' : 'ingresos'} en este período.</div>`;
+      return;
+    }
+    // Section header
+    const hdr = type === 'GASTO' ? '▼ Gastos por categoría' : '▲ Ingresos por categoría';
+    const totalType = Object.values(map).reduce((s,v)=>s+v.amount,0);
+    cont.innerHTML = `<div style="grid-column:1/-1;font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${hdr}</div>` +
+      keys.map(k => {
+        const color = CAT_COLOR[k] || '#94a3b8';
+        const pct   = (map[k].amount / max * 100).toFixed(0);
+        const pctTotal = totalType ? (map[k].amount / totalType * 100).toFixed(0) : 0;
+        return `<div class="cat-card" onclick="openCatDetail('${k}','${type}',this)" title="Pulsa para ver detalle">
+          <div class="cc-name">${k}</div>
+          <div class="cc-amount" style="color:${type==='INGRESO'?'var(--green)':'var(--red)'}">${fmt(map[k].amount)}</div>
+          <div class="cc-meta">${map[k].count} op. · ${pctTotal}% del total</div>
+          <div class="cc-bar" style="width:${pct}%;background:${color}"></div>
+        </div>`;
+      }).join('');
+  }
+
+  buildCards('GASTO',   'cat-cards-gasto');
+  buildCards('INGRESO', 'cat-cards-ingreso');
+
+  // Bar chart gastos
+  const catMapG = {};
+  pts.filter(t=>t.type==='GASTO').forEach(t => { catMapG[t.cat]=(catMapG[t.cat]||0)+t.amount; });
+  const gKeys = Object.keys(catMapG).sort((a,b) => catMapG[b]-catMapG[a]);
+  if (gKeys.length) {
+    mkChart('chart-cat-bar', {
+      type: 'bar',
+      data: {
+        labels: gKeys,
+        datasets: [{ label: 'Gastos (€)', data: gKeys.map(k=>catMapG[k]), backgroundColor: gKeys.map(k=>CAT_COLOR[k]||'#94a3b8'), borderRadius: 4 }]
+      },
+      options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: {
+        x: { ticks: { color:'#94a3b8', font:{size:9}, callback: v => fmt(v) }, grid: { color:'#2e3248' } },
+        y: { ticks: { color:'#94a3b8', font:{size:10} }, grid: { color:'#2e3248' } }
+      }}
+    });
+  }
+}
+
+// ─────────────────────────────────────────────
+//  DETALLE CATEGORÍA
+// ─────────────────────────────────────────────
+let openCat = null;
+
+function openCatDetail(cat, type, cardEl) {
+  // toggle: si ya está abierta la misma, cerrar
+  if (openCat === cat) {
+    openCat = null;
+    document.getElementById('cat-detail-panel').innerHTML = '';
+    document.querySelectorAll('.cat-card.selected').forEach(c => c.classList.remove('selected'));
+    return;
+  }
+  openCat = cat;
+  document.querySelectorAll('.cat-card.selected').forEach(c => c.classList.remove('selected'));
+  cardEl.classList.add('selected');
+
+  const allTxs    = txs.filter(t => t.cat === cat && t.type === type);
+  const color     = CAT_COLOR[cat] || '#6c63ff';
+  const colorFade = color + '33';
+  const isGasto   = type === 'GASTO';
+  const amtColor  = isGasto ? 'var(--red)' : 'var(--green)';
+
+  // ── Subcategory breakdown ──
+  const subcatMap = {};
+  allTxs.forEach(t => {
+    const sc = t.subcat || '— Sin subcategoría';
+    if (!subcatMap[sc]) subcatMap[sc] = { amount: 0, count: 0 };
+    subcatMap[sc].amount += t.amount;
+    subcatMap[sc].count++;
+  });
+  const scKeys = Object.keys(subcatMap).sort((a,b) => subcatMap[b].amount - subcatMap[a].amount);
+
+  // ── Monthly evolution (last 12 months) ──
+  const monthMap = {};
+  allTxs.forEach(t => {
+    const ym = t.date.slice(0,7);
+    monthMap[ym] = (monthMap[ym] || 0) + t.amount;
+  });
+  const sortedMonths = Object.keys(monthMap).sort();
+  const MONTHS_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const mLabels = sortedMonths.map(ym => { const [y,m]=ym.split('-'); return MONTHS_ES[parseInt(m)-1]+' '+y; });
+  const mVals   = sortedMonths.map(ym => monthMap[ym]);
+
+  // ── Monthly subcategory breakdown (stacked) ──
+  const scColors = ['#6c63ff','#22c55e','#f59e0b','#ef4444','#38bdf8','#a855f7','#f97316','#14b8a6','#e879f9'];
+  const scDatasets = scKeys.map((sc, i) => ({
+    label: sc,
+    data: sortedMonths.map(ym => {
+      return allTxs.filter(t => t.date.slice(0,7) === ym && (t.subcat||'— Sin subcategoría') === sc)
+                   .reduce((s,t) => s + t.amount, 0);
+    }),
+    backgroundColor: scColors[i % scColors.length] + 'cc',
+    borderRadius: 3,
+  }));
+
+  // ── Per-description breakdown (company) ──
+  const descMap = {};
+  allTxs.forEach(t => {
+    if (!descMap[t.desc]) descMap[t.desc] = { amount: 0, count: 0, subcat: t.subcat || '' };
+    descMap[t.desc].amount += t.amount;
+    descMap[t.desc].count++;
+  });
+  const descKeys = Object.keys(descMap).sort((a,b) => descMap[b].amount - descMap[a].amount);
+
+  // ── Mes anterior / período completo ──
+  const totalAll = allTxs.reduce((s,t)=>s+t.amount,0);
+  const nMonths  = sortedMonths.length || 1;
+  const avgMonth = totalAll / nMonths;
+
+  const panel = document.getElementById('cat-detail-panel');
+  panel.innerHTML = `
+    <div class="detail-panel">
+      <div class="detail-panel-hdr">
+        <h3 style="color:${color}">${cat} — Detalle completo</h3>
+        <button onclick="openCatDetail('${cat}','${type}',document.querySelector('.cat-card.selected'))" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:1.2rem;padding:0 4px">✕</button>
+      </div>
+
+      ${scKeys.length > 1 ? `
+      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-bottom:8px">Subcategorías</div>
+      <div class="subcat-cards">
+        ${scKeys.map((sc,i) => `
+          <div class="subcat-card">
+            <div class="sc-name" style="color:${scColors[i%scColors.length]}">${sc}</div>
+            <div class="sc-amount" style="color:${amtColor}">${fmt(subcatMap[sc].amount)}</div>
+            <div class="sc-meta">${subcatMap[sc].count} operaciones · ${totalAll?(subcatMap[sc].amount/totalAll*100).toFixed(0):0}%</div>
+          </div>`).join('')}
+      </div>` : ''}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div style="background:var(--surface2);border-radius:8px;padding:14px">
+          <div style="font-size:.7rem;color:var(--muted);margin-bottom:10px;font-weight:700;text-transform:uppercase">Evolución mensual</div>
+          <canvas id="chart-detail-evol" height="120"></canvas>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:14px">
+          <div style="font-size:.7rem;color:var(--muted);margin-bottom:10px;font-weight:700;text-transform:uppercase">Por subcategoría / mes</div>
+          <canvas id="chart-detail-stack" height="120"></canvas>
+        </div>
+      </div>
+
+      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-bottom:8px">
+        Desglose por empresa / descripción
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>Descripción</th><th>Subcategoría</th>
+            <th style="text-align:right">Total</th>
+            <th style="text-align:right">Media/mes</th>
+            <th style="text-align:right">Veces</th>
+          </tr></thead>
+          <tbody>
+            ${descKeys.map(d => {
+              const entry = descMap[d];
+              const avg   = entry.amount / nMonths;
+              return `<tr>
+                <td>${d}</td>
+                <td style="color:var(--muted);font-size:.75rem">${entry.subcat||'—'}</td>
+                <td style="text-align:right;color:${amtColor}">${fmt(entry.amount)}</td>
+                <td style="text-align:right;color:var(--muted)">${fmt(avg)}</td>
+                <td style="text-align:right;color:var(--muted)">${entry.count}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+          <tfoot><tr>
+            <td colspan="2" style="color:var(--muted)">Total · ${allTxs.length} operaciones · media ${fmt(avgMonth)}/mes</td>
+            <td style="text-align:right;color:${amtColor}">${fmt(totalAll)}</td>
+            <td colspan="2"></td>
+          </tr></tfoot>
+        </table>
+      </div>
+    </div>`;
+
+  // Render charts
+  destroyChart('detail-evol');
+  chartInstances['detail-evol'] = new Chart(document.getElementById('chart-detail-evol'), {
+    type: 'line',
+    data: { labels: mLabels, datasets: [{
+      data: mVals, borderColor: color, backgroundColor: colorFade,
+      fill: true, tension: .3, pointRadius: 4, pointBackgroundColor: color
+    }]},
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: {
+      x: { ticks: { color:'#94a3b8', font:{size:9} }, grid: { color:'#2e3248' } },
+      y: { ticks: { color:'#94a3b8', font:{size:9}, callback: v => '€'+Math.round(v) }, grid: { color:'#2e3248' } }
+    }}
+  });
+
+  destroyChart('detail-stack');
+  chartInstances['detail-stack'] = new Chart(document.getElementById('chart-detail-stack'), {
+    type: 'bar',
+    data: { labels: mLabels, datasets: scDatasets.length ? scDatasets : [{ label: cat, data: mVals, backgroundColor: color+'cc', borderRadius:3 }] },
+    options: { responsive: true, plugins: { legend: { labels: { color:'#94a3b8', font:{size:9}, boxWidth:10 } } }, scales: {
+      x: { stacked: true, ticks: { color:'#94a3b8', font:{size:9} }, grid: { color:'#2e3248' } },
+      y: { stacked: true, ticks: { color:'#94a3b8', font:{size:9}, callback: v => '€'+Math.round(v) }, grid: { color:'#2e3248' } }
+    }}
+  });
+}
+
+// ─────────────────────────────────────────────
+//  MODAL TRANSACCIÓN
+// ─────────────────────────────────────────────
+let editTxId = null;
+let txType   = 'GASTO';
+
+function populateCatSelect(type) {
+  const cats = type === 'GASTO' ? CATS_GASTO : CATS_INGRESO;
+  document.getElementById('tx-cat').innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+function setTxType(type) {
+  txType = type;
+  document.getElementById('btn-tipo-gasto').className   = type === 'GASTO'   ? 'active-gasto'   : '';
+  document.getElementById('btn-tipo-ingreso').className = type === 'INGRESO' ? 'active-ingreso' : '';
+  populateCatSelect(type);
+  autoFillCategory();
+}
+
+function updateSubcatOptions(forceCat) {
+  const cat  = forceCat || document.getElementById('tx-cat').value;
+  const opts = getSubcatOptions(cat);
+  const sel  = document.getElementById('tx-subcat');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">— Sin subcategoría —</option>' +
+    opts.map(o => `<option value="${o}">${o}</option>`).join('');
+  if (opts.includes(prev)) sel.value = prev;
+}
+
+function toggleSubPeriodo() {
+  const show = document.getElementById('tx-sub').checked;
+  document.getElementById('sub-periodo-row').style.display = show ? '' : 'none';
+  if (!show) document.getElementById('tx-sub-periodo').value = '';
+}
+
+function autoFillCategory() {
+  const desc = document.getElementById('tx-desc').value;
+  if (!desc) return;
+  const cat = autoCategory(desc, txType);
+  document.getElementById('tx-cat').value = cat;
+  updateSubcatOptions(cat);
+  const sc = autoSubcat(desc, cat);
+  if (sc) document.getElementById('tx-subcat').value = sc;
+}
+
+function openTxModal(id) {
+  editTxId = id || null;
+  document.getElementById('tx-modal-title').textContent = id ? 'Editar transacción' : 'Nueva transacción';
+  document.getElementById('btn-delete-tx').style.display = id ? 'inline-block' : 'none';
+
+  const dl = document.getElementById('cuentas-list');
+  dl.innerHTML = settings.accounts.map(a => `<option value="${a}">`).join('');
+
+  if (id) {
+    const tx = txs.find(t => t.id === id);
+    if (!tx) return;
+    setTxType(tx.type);
+    document.getElementById('tx-fecha').value    = tx.date;
+    document.getElementById('tx-importe').value  = tx.amount;
+    document.getElementById('tx-desc').value     = tx.desc;
+    document.getElementById('tx-cat').value      = tx.cat;
+    document.getElementById('tx-cuenta').value   = tx.account || '';
+    document.getElementById('tx-notas').value       = tx.notes      || '';
+    document.getElementById('tx-sub').checked       = !!tx.sub;
+    document.getElementById('tx-sub-periodo').value = tx.subPeriodo || '';
+    updateSubcatOptions(tx.cat);
+    document.getElementById('tx-subcat').value      = tx.subcat     || '';
+  } else {
+    setTxType('GASTO');
+    document.getElementById('tx-fecha').value       = new Date().toISOString().slice(0,10);
+    document.getElementById('tx-importe').value     = '';
+    document.getElementById('tx-desc').value        = '';
+    document.getElementById('tx-cuenta').value      = settings.accounts[0] || 'Principal';
+    document.getElementById('tx-notas').value       = '';
+    document.getElementById('tx-sub').checked       = false;
+    document.getElementById('tx-sub-periodo').value = '';
+    updateSubcatOptions('');
+    document.getElementById('tx-subcat').value      = '';
+  }
+  document.getElementById('tx-modal-overlay').classList.add('open');
+  toggleSubPeriodo();
+  setTimeout(() => document.getElementById('tx-desc').focus(), 50);
+}
+
+function closeTxModal() {
+  document.getElementById('tx-modal-overlay').classList.remove('open');
+}
+
+function saveTx() {
+  const fecha   = document.getElementById('tx-fecha').value;
+  const importe = parseFloat(document.getElementById('tx-importe').value);
+  const desc    = document.getElementById('tx-desc').value.trim();
+  const cat     = document.getElementById('tx-cat').value;
+  const cuenta  = document.getElementById('tx-cuenta').value.trim() || 'Principal';
+  const notas      = document.getElementById('tx-notas').value.trim();
+  const sub        = document.getElementById('tx-sub').checked;
+  const subPeriodo = document.getElementById('tx-sub-periodo').value;
+  const subcat     = document.getElementById('tx-subcat').value;
+
+  if (!fecha || !(importe > 0) || !desc) {
+    alert('Completa fecha, importe (> 0) y descripción.'); return;
+  }
+
+  if (!settings.accounts.includes(cuenta)) {
+    settings.accounts.push(cuenta);
+    saveSettings();
+  }
+
+  if (editTxId) {
+    const tx = txs.find(t => t.id === editTxId);
+    if (tx) { tx.date = fecha; tx.amount = importe; tx.type = txType; tx.desc = desc; tx.cat = cat; tx.account = cuenta; tx.notes = notas; tx.sub = sub; tx.subPeriodo = subPeriodo; tx.subcat = subcat; }
+  } else {
+    txs.push({ id: nextId(), date: fecha, amount: importe, type: txType, desc, cat, account: cuenta, notes: notas, sub, subPeriodo, subcat });
+  }
+  learnRule(desc, cat, sub, subcat, notas, subPeriodo, importe);
+  saveTxs();
+  closeTxModal();
+  renderActiveView();
+  if (activeView !== 'resumen') renderResumen();
+}
+
+function deleteTx() {
+  if (!editTxId) return;
+  if (!confirm('¿Eliminar esta transacción?')) return;
+  txs = txs.filter(t => t.id !== editTxId);
+  saveTxs();
+  closeTxModal();
+  renderActiveView();
+}
+
+function toggleSub(id) {
+  const tx = txs.find(t => t.id === id);
+  if (!tx) return;
+  tx.sub = !tx.sub;
+  if (!tx.sub) tx.subPeriodo = '';
+  learnRule(tx.desc, undefined, tx.sub, undefined, undefined, undefined, tx.amount);
+  saveTxs();
+  renderTransacciones();
+}
+
+function confirmDelete(id) {
+  if (!confirm('¿Eliminar esta transacción?')) return;
+  txs = txs.filter(t => t.id !== id);
+  saveTxs();
+  renderTransacciones();
+}
+
+// ─────────────────────────────────────────────
+//  IMPORTACIÓN CSV
+// ─────────────────────────────────────────────
+let importRows = [];
+
+const DROP_ZONE = document.getElementById('drop-zone');
+DROP_ZONE.addEventListener('dragover', e => { e.preventDefault(); DROP_ZONE.classList.add('drag-over'); });
+DROP_ZONE.addEventListener('dragleave', () => DROP_ZONE.classList.remove('drag-over'));
+DROP_ZONE.addEventListener('drop', e => {
+  e.preventDefault(); DROP_ZONE.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processCSVFile(file);
+});
+
+function handleFileSelect(input) {
+  const file = input.files[0];
+  if (file) processCSVFile(file);
+  input.value = '';
+}
+
+function processCSVFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = parseCSV(e.target.result);
+      if (!parsed.length) { showImportError('No se encontraron filas válidas.'); return; }
+      importRows = parsed;
+      showImportPreview(parsed);
+    } catch(err) {
+      showImportError('Error al procesar el archivo: ' + err.message);
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+function showImportError(msg) {
+  document.getElementById('import-result').innerHTML = `<div style="color:var(--red);margin-top:10px">${msg}</div>`;
+}
+
+function detectDelimiter(text) {
+  const line = text.split('\n')[0];
+  const counts = { ';': (line.match(/;/g)||[]).length, ',': (line.match(/,/g)||[]).length, '\t': (line.match(/\t/g)||[]).length };
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0];
+}
+
+function parseEurNum(s) {
+  if (!s) return NaN;
+  s = s.trim().replace(/[€$\s"']/g,'');
+  // Detect European format: 1.234,56
+  if (/\d\.\d{3},/.test(s) || (s.includes(',') && !s.includes('.'))) {
+    s = s.replace(/\./g,'').replace(',','.');
+  } else if (s.includes(',') && s.includes('.')) {
+    // Could be 1,234.56 (American) or 1.234,56 (European)
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+      s = s.replace(/\./g,'').replace(',','.');
+    } else {
+      s = s.replace(/,/g,'');
+    }
+  } else {
+    s = s.replace(/,/g,'');
+  }
+  return parseFloat(s);
+}
+
+function parseDateStr(s) {
+  if (!s) return null;
+  s = s.trim().replace(/['"]/g,'');
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) { const [d,m,y]=s.split('/'); return `${y}-${m}-${d}`; }
+  if (/^\d{2}-\d{2}-\d{4}$/.test(s))   { const [d,m,y]=s.split('-'); return `${y}-${m}-${d}`; }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s))   return s;
+  if (/^\d{8}$/.test(s)) { return `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`; }
+  return null;
+}
+
+function splitCSVLine(line, delim) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; continue; }
+    if (c === delim && !inQ) { result.push(cur.trim()); cur = ''; }
+    else cur += c;
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function detectColumns(headers) {
+  const h = headers.map(s => s.toLowerCase().replace(/['"]/g,'').trim());
+  const find = (...kws) => h.findIndex(x => kws.some(k => x.includes(k)));
+
+  // Known bank formats
+  if (h.includes('concepto') && h.some(x=>x.includes('importe'))) {
+    // CaixaBank / Santander style
+    return { bank:'CaixaBank/Santander', dateCol: find('fecha'), descCol: find('concepto'), amtCol: find('importe'), balCol: find('saldo') };
+  }
+  if (h.some(x=>x.includes('descripci')) && h.some(x=>x.includes('importe'))) {
+    return { bank:'BBVA', dateCol: find('fecha'), descCol: find('descripci','nombre'), amtCol: find('importe'), balCol: find('disponible','saldo') };
+  }
+  if (h.some(x=>x.includes('movimiento')) || h.some(x=>x.includes('subcategor'))) {
+    return { bank:'ING', dateCol: 0, descCol: 1, amtCol: find('importe'), balCol: find('saldo') };
+  }
+  if (h.some(x=>x.includes('concepto')) && h.some(x=>x.includes('cargo'))) {
+    return { bank:'Bankinter', dateCol: find('fecha'), descCol: find('concepto'), amtCol: find('cargo','abono'), balCol: find('saldo') };
+  }
+  // Generic
+  return {
+    bank: 'Genérico',
+    dateCol: find('fecha','date','fec'),
+    descCol: find('concepto','descripci','nombre','desc'),
+    amtCol:  find('importe','amount','cargo','abono','amount'),
+    balCol:  find('saldo','balance','disponible')
+  };
+}
+
+function parseCSV(raw) {
+  const lines = raw.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) throw new Error('El archivo parece vacío o sin datos.');
+
+  const delim   = detectDelimiter(lines[0]);
+  const headers = splitCSVLine(lines[0], delim);
+  const cols    = detectColumns(headers);
+
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cells = splitCSVLine(lines[i], delim);
+    if (cells.length < 2) continue;
+
+    const rawDate = cells[cols.dateCol] || '';
+    const rawDesc = cells[cols.descCol] || '';
+    const rawAmt  = cells[cols.amtCol]  || '';
+
+    const date = parseDateStr(rawDate);
+    if (!date) continue;
+
+    const desc = rawDesc.replace(/\s+/g,' ').trim();
+    if (!desc) continue;
+
+    const amount = parseEurNum(rawAmt);
+    if (isNaN(amount) || amount === 0) continue;
+
+    const type      = amount > 0 ? 'INGRESO' : 'GASTO';
+    const absAmount = Math.abs(amount);
+    const cat       = autoCategory(desc, type, absAmount);
+    const entry     = getLearnedEntry(desc, absAmount);
+    const sub       = entry?.sub === true;
+    const subPeriodo = entry?.subPeriodo || '';
+    const subcat    = entry?.subcat || autoSubcat(desc, cat);
+
+    rows.push({ date, desc, amount: absAmount, type, cat, account: cols.bank, notes: entry?.notes || '', sub, subPeriodo, subcat });
+  }
+
+  if (!rows.length) throw new Error('No se pudo extraer ninguna fila válida. Comprueba el formato del archivo.');
+  return rows;
+}
+
+function showImportPreview(rows) {
+  const preview5 = rows.slice(0, 8);
+  const ingresos = rows.filter(r=>r.type==='INGRESO').reduce((s,r)=>s+r.amount,0);
+  const gastos   = rows.filter(r=>r.type==='GASTO').reduce((s,r)=>s+r.amount,0);
+
+  document.getElementById('preview-status').innerHTML =
+    `Se encontraron <strong>${rows.length}</strong> transacciones — Ingresos: <strong class="amount-ing">+${fmt(ingresos)}</strong> · Gastos: <strong class="amount-gas">-${fmt(gastos)}</strong>. Mostrando las primeras ${preview5.length}:`;
+
+  document.getElementById('table-preview').innerHTML = `
+    <thead><tr><th>Fecha</th><th>Descripción</th><th>Tipo</th><th>Categoría auto</th><th style="text-align:right">Importe</th></tr></thead>
+    <tbody>${preview5.map(r=>`<tr>
+      <td style="color:var(--muted)">${r.date}</td>
+      <td>${r.desc.slice(0,50)}${r.desc.length>50?'…':''}</td>
+      <td>${typeBadge(r.type)}</td>
+      <td>${catPill(r.cat, r.type)}</td>
+      <td style="text-align:right" class="${r.type==='INGRESO'?'amount-ing':'amount-gas'}">${r.type==='INGRESO'?'+':'-'}${fmt(r.amount)}</td>
+    </tr>`).join('')}</tbody>`;
+
+  document.getElementById('import-modal-overlay').classList.add('open');
+}
+
+function closeImportModal() {
+  document.getElementById('import-modal-overlay').classList.remove('open');
+  importRows = [];
+}
+
+function confirmImport() {
+  if (!importRows.length) return;
+
+  // Dedup: skip rows where same date+desc+amount already exists
+  let added = 0, skipped = 0;
+  importRows.forEach(r => {
+    const dup = txs.some(t => t.date === r.date && t.amount === r.amount &&
+      t.desc.toLowerCase() === r.desc.toLowerCase());
+    if (dup) { skipped++; return; }
+    txs.push({ id: nextId(), ...r });
+    added++;
+  });
+  saveTxs();
+  closeImportModal();
+
+  const res = document.getElementById('import-result');
+  res.innerHTML = `<div style="color:var(--green);margin-top:10px;font-weight:600">✓ ${added} transacciones importadas${skipped?` (${skipped} duplicadas omitidas)`:''}</div>`;
+
+  renderActiveView();
+  if (activeView !== 'resumen') renderResumen();
+}
+
+// ─────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────
+document.getElementById('tx-modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('tx-modal-overlay')) closeTxModal();
+});
+document.getElementById('import-modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('import-modal-overlay')) closeImportModal();
+});
+
+// ─── Exportar / Importar ──────────────────────
+const BACKUP_KEYS = [
+  'conta_txs','conta_settings','conta_learned','conta_esperados',
+  'inv_positions','inv_notes','user_cripto',
+  'nom_nominas','nom_ganancias','nom_ganancia_cfg'
+];
+function exportarTodo() {
+  const data = { _fecha: new Date().toISOString(), _version: 1 };
+  BACKUP_KEYS.forEach(k => { const v = localStorage.getItem(k); if (v) data[k] = JSON.parse(v); });
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'finanzas_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importarTodo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      let n = 0;
+      BACKUP_KEYS.forEach(k => { if (data[k] !== undefined) { localStorage.setItem(k, JSON.stringify(data[k])); n++; } });
+      if (!n) { alert('El fichero no contiene datos reconocibles.'); return; }
+      loadData();
+      renderActiveView();
+      if (activeView !== 'resumen') renderResumen();
+      alert(`✓ ${n} secciones restauradas (backup del ${(data._fecha||'').slice(0,10)||'fecha desconocida'}).`);
+    } catch { alert('Error: el fichero no es un JSON válido.'); }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+loadData();
+seedFromCSV();
+updatePeriodUI();
+populateCatSelect('GASTO');
+renderResumen();
+
+// ─────────────────────────────────────────────
+//  GASTOS ESPERADOS
+// ─────────────────────────────────────────────
+const GE_KEY = 'conta_esperados';
+let gastosEsperados = [];
+function loadGE()   { try { gastosEsperados = JSON.parse(localStorage.getItem(GE_KEY) || '[]'); } catch(e) { gastosEsperados = []; } }
+function saveGE()   { localStorage.setItem(GE_KEY, JSON.stringify(gastosEsperados)); }
+loadGE();
+
+let editGEId = null;
+let geTipo   = 'GASTO';
+
+function setGETipo(t) {
+  geTipo = t;
+  document.getElementById('ge-btn-gasto').className   = t === 'GASTO'   ? 'active-gasto'   : '';
+  document.getElementById('ge-btn-ingreso').className = t === 'INGRESO' ? 'active-ingreso' : '';
+  const cats = t === 'INGRESO' ? CATS_INGRESO : CATS_GASTO;
+  const sel  = document.getElementById('ge-cat');
+  const prev = sel.value;
+  sel.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
+  if (cats.includes(prev)) sel.value = prev;
+  updateGESubcatOptions();
+}
+
+function updateGESubcatOptions() {
+  const cat  = document.getElementById('ge-cat').value;
+  const opts = getSubcatOptions(cat);
+  const sel  = document.getElementById('ge-subcat');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">— Sin subcategoría —</option>' + opts.map(o => `<option value="${o}">${o}</option>`).join('');
+  if (opts.includes(prev)) sel.value = prev;
+}
+
+function toggleGEPeriodico() {
+  const show = document.getElementById('ge-periodico').checked;
+  document.getElementById('ge-periodo-row').style.display = show ? '' : 'none';
+  if (!show) document.getElementById('ge-periodo').value = '';
+}
+
+function openGEModal(id) {
+  editGEId = id || null;
+  document.getElementById('ge-modal-title').textContent = id ? 'Editar gasto esperado' : 'Nuevo gasto esperado';
+  document.getElementById('ge-btn-delete').style.display = id ? 'inline-block' : 'none';
+  if (id) {
+    const ge = gastosEsperados.find(g => g.id === id);
+    if (!ge) return;
+    document.getElementById('ge-fecha').value        = ge.fecha          || '';
+    document.getElementById('ge-desc').value         = ge.desc           || '';
+    document.getElementById('ge-tipo-sus').value     = ge.tipoSuscripcion|| '';
+    document.getElementById('ge-pago').value         = ge.pago           || '';
+    document.getElementById('ge-importe').value      = ge.amount         || '';
+    document.getElementById('ge-periodico').checked  = !!ge.periodico;
+    document.getElementById('ge-periodo').value      = ge.periodo        || '';
+    setGETipo(ge.tipo || 'GASTO');
+    document.getElementById('ge-cat').value          = ge.cat            || '';
+    updateGESubcatOptions();
+    document.getElementById('ge-subcat').value       = ge.subcat         || '';
+  } else {
+    document.getElementById('ge-fecha').value        = '';
+    document.getElementById('ge-desc').value         = '';
+    document.getElementById('ge-tipo-sus').value     = '';
+    document.getElementById('ge-pago').value         = '';
+    document.getElementById('ge-importe').value      = '';
+    document.getElementById('ge-periodico').checked  = false;
+    document.getElementById('ge-periodo').value      = '';
+    setGETipo('GASTO');
+    updateGESubcatOptions();
+    document.getElementById('ge-subcat').value       = '';
+  }
+  toggleGEPeriodico();
+  document.getElementById('ge-modal-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('ge-desc').focus(), 50);
+}
+
+function closeGEModal() {
+  document.getElementById('ge-modal-overlay').classList.remove('open');
+}
+
+function saveGEItem() {
+  const fecha          = document.getElementById('ge-fecha').value.trim();
+  const desc           = document.getElementById('ge-desc').value.trim();
+  const tipoSuscripcion= document.getElementById('ge-tipo-sus').value.trim();
+  const pago           = document.getElementById('ge-pago').value;
+  const importe        = parseFloat(document.getElementById('ge-importe').value);
+  const cat            = document.getElementById('ge-cat').value;
+  const subcat         = document.getElementById('ge-subcat').value;
+  const periodico      = document.getElementById('ge-periodico').checked;
+  const periodo        = document.getElementById('ge-periodo').value;
+  if (!desc || !(importe > 0)) { alert('Completa al menos descripción e importe.'); return; }
+  const data = { fecha, desc, tipoSuscripcion, pago, tipo: geTipo, cat, subcat, amount: importe, periodico, periodo };
+  if (editGEId) {
+    const ge = gastosEsperados.find(g => g.id === editGEId);
+    if (ge) Object.assign(ge, data);
+  } else {
+    gastosEsperados.push({ id: nextId(), ...data });
+  }
+  saveGE();
+  closeGEModal();
+  renderEsperados();
+}
+
+function deleteGEItem() {
+  if (!editGEId || !confirm('¿Eliminar este gasto esperado?')) return;
+  gastosEsperados = gastosEsperados.filter(g => g.id !== editGEId);
+  saveGE();
+  closeGEModal();
+  renderEsperados();
+}
+
+function confirmDeleteGE(id) {
+  if (!confirm('¿Eliminar este gasto esperado?')) return;
+  gastosEsperados = gastosEsperados.filter(g => g.id !== id);
+  saveGE();
+  renderEsperados();
+}
+
+function clearGEFilters() {
+  document.getElementById('ge-search').value = '';
+  document.getElementById('ge-f-cat').value  = '';
+  renderEsperados();
+}
+
+function renderEsperados() {
+  const search = document.getElementById('ge-search').value.toLowerCase();
+  const cat    = document.getElementById('ge-f-cat').value;
+
+  const allCats = [...new Set(gastosEsperados.map(g => g.cat).filter(Boolean))].sort();
+  const fcat    = document.getElementById('ge-f-cat');
+  const prevCat = fcat.value;
+  fcat.innerHTML = '<option value="">Todas las categorías</option>' + allCats.map(c => `<option value="${c}"${c===prevCat?' selected':''}>${c}</option>`).join('');
+
+  const list = gastosEsperados
+    .filter(g => !cat || g.cat === cat)
+    .filter(g => !search ||
+      (g.fecha||'').toLowerCase().includes(search)          ||
+      (g.desc||'').toLowerCase().includes(search)           ||
+      (g.tipoSuscripcion||'').toLowerCase().includes(search)||
+      (g.cat||'').toLowerCase().includes(search)            ||
+      (g.subcat||'').toLowerCase().includes(search)         ||
+      (g.periodo||'').toLowerCase().includes(search)        ||
+      (g.pago||'').toLowerCase().includes(search)           ||
+      String(g.amount).includes(search)                     ||
+      g.amount.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}).includes(search)
+    );
+
+  const COLS = 8;
+  const tbl  = document.getElementById('table-ge');
+  if (!list.length) {
+    tbl.innerHTML = `<thead><tr><th>Fecha</th><th>Descripción</th><th>Tipo suscripción</th><th>Categoría</th><th style="text-align:center">Periódico</th><th>Pago</th><th style="text-align:right">Importe</th><th style="text-align:center">Acc.</th></tr></thead>
+      <tbody><tr><td colspan="${COLS}" style="text-align:center;padding:40px;color:var(--muted)">${gastosEsperados.length?'Sin resultados para estos filtros.':'Todavía no hay gastos esperados. Pulsa <strong>+ Añadir</strong> para crear el primero.'}</td></tr></tbody>`;
+    return;
+  }
+
+  const totalGas = list.filter(g=>g.tipo==='GASTO').reduce((s,g)=>s+g.amount,0);
+  const totalIng = list.filter(g=>g.tipo==='INGRESO').reduce((s,g)=>s+g.amount,0);
+
+  const periodicoBadge = g => g.periodico
+    ? `<span style="background:#312e81;color:#c4b5fd;padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:700">✓ ${g.periodo||'Sí'}</span>`
+    : `<span style="background:var(--surface2);color:var(--muted);padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:700">— No</span>`;
+
+  const rows = list.map(g => `<tr>
+    <td style="color:var(--muted);text-align:center;white-space:nowrap">${g.fecha||'—'}</td>
+    <td>${g.desc}</td>
+    <td style="color:var(--muted);font-size:.8rem">${g.tipoSuscripcion||'—'}</td>
+    <td>${catPill(g.cat,g.tipo)}${g.subcat?`<span style="font-size:.68rem;color:var(--muted);margin-left:4px">${g.subcat}</span>`:''}</td>
+    <td style="text-align:center">${periodicoBadge(g)}</td>
+    <td style="color:var(--muted);font-size:.8rem">${g.pago||'—'}</td>
+    <td style="text-align:right" class="${g.tipo==='INGRESO'?'amount-ing':'amount-gas'}">${g.tipo==='INGRESO'?'+':'-'}${fmt(g.amount)}</td>
+    <td style="text-align:center;white-space:nowrap">
+      <button class="icon-btn" onclick="openGEModal('${g.id}')" title="Editar">✏️</button>
+      <button class="icon-btn" onclick="confirmDeleteGE('${g.id}')" title="Eliminar">🗑️</button>
+    </td>
+  </tr>`).join('');
+
+  tbl.innerHTML = `
+    <thead><tr>
+      <th style="text-align:center">Fecha</th>
+      <th>Descripción</th>
+      <th>Tipo suscripción</th>
+      <th>Categoría / Subcategoría</th>
+      <th style="text-align:center">Periódico</th>
+      <th>Pago</th>
+      <th style="text-align:right">Importe</th>
+      <th style="text-align:center">Acc.</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr>
+      <td colspan="5" style="text-align:right;font-size:.78rem;color:var(--muted)">${list.length} entradas</td>
+      <td></td>
+      <td style="text-align:right"><span class="amount-ing">+${fmt(totalIng)}</span> / <span class="amount-gas">-${fmt(totalGas)}</span></td>
+      <td></td>
+    </tr></tfoot>`;
+}
+</script>
+
+<!-- MODAL GASTOS ESPERADOS -->
+<div class="modal-overlay" id="ge-modal-overlay">
+  <div class="modal">
+    <h3 id="ge-modal-title">Nuevo gasto esperado</h3>
+    <div class="type-toggle" style="margin-bottom:14px">
+      <button id="ge-btn-gasto"   onclick="setGETipo('GASTO')"   class="active-gasto">▼ Gasto</button>
+      <button id="ge-btn-ingreso" onclick="setGETipo('INGRESO')">▲ Ingreso</button>
+    </div>
+    <div style="display:flex;gap:10px">
+      <div class="form-row" style="flex:1"><label>Fecha / Día</label><input type="text" id="ge-fecha" placeholder="Ej: 1, 15, fin de mes..." /></div>
+      <div class="form-row" style="flex:1"><label>Importe (€)</label><input type="number" id="ge-importe" step="0.01" min="0" placeholder="0,00" /></div>
+    </div>
+    <div class="form-row"><label>Descripción</label><input type="text" id="ge-desc" placeholder="Ej: Netflix, Hipoteca, Nómina..." /></div>
+    <div style="display:flex;gap:10px">
+      <div class="form-row" style="flex:1"><label>Tipo suscripción</label><input type="text" id="ge-tipo-sus" placeholder="streaming, software, seguro..." /></div>
+      <div class="form-row" style="flex:1"><label>Pago</label><select id="ge-pago"><option value="">— Seleccionar —</option><option value="CC">CC</option><option value="Tarjeta">Tarjeta</option><option value="Apple">Apple</option><option value="Otro">Otro</option></select></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <div class="form-row" style="flex:1"><label>Categoría</label><select id="ge-cat" onchange="updateGESubcatOptions()"></select></div>
+      <div class="form-row" style="flex:1"><label>Subcategoría</label><select id="ge-subcat"><option value="">— Sin subcategoría —</option></select></div>
+    </div>
+    <div class="form-row" style="flex-direction:row;align-items:center;gap:10px;margin-bottom:6px">
+      <input type="checkbox" id="ge-periodico" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer" onchange="toggleGEPeriodico()" />
+      <label for="ge-periodico" style="cursor:pointer;font-size:.85rem;color:var(--text)">Gasto periódico</label>
+    </div>
+    <div class="form-row" id="ge-periodo-row" style="display:none">
+      <label>Periodicidad</label>
+      <select id="ge-periodo">
+        <option value="">— Seleccionar —</option>
+        <option value="Mensual">Mensual</option>
+        <option value="Trimestral">Trimestral</option>
+        <option value="Anual">Anual</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="ge-btn-delete" style="display:none;margin-right:auto" onclick="deleteGEItem()">Eliminar</button>
+      <button class="btn btn-secondary" onclick="closeGEModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveGEItem()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>

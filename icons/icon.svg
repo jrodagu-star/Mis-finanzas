@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Fondo redondeado -->
+  <rect width="512" height="512" rx="96" fill="#0f172a"/>
+  <!-- Barras del gráfico (ascendentes de izquierda a derecha) -->
+  <rect x="72"  y="312" width="88" height="148" rx="14" fill="#6c63ff"/>
+  <rect x="212" y="228" width="88" height="232" rx="14" fill="#7c74ff" opacity="0.85"/>
+  <rect x="352" y="132" width="88" height="328" rx="14" fill="#8b83ff" opacity="0.70"/>
+  <!-- Línea de tendencia -->
+  <polyline
+    points="116,312 256,228 396,132"
+    fill="none"
+    stroke="#38bdf8"
+    stroke-width="16"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <!-- Puntos de la línea -->
+  <circle cx="116" cy="312" r="13" fill="#38bdf8"/>
+  <circle cx="256" cy="228" r="13" fill="#38bdf8"/>
+  <circle cx="396" cy="132" r="13" fill="#38bdf8"/>
+</svg>
