@@ -2557,23 +2557,35 @@ function renderNotas() {
   };
 
   const container = document.getElementById('notas-por-posicion');
-  container.innerHTML = '<h4 style="margin-bottom:12px;color:var(--muted)">Notas por posición</h4>';
-  positions.forEach(p => {
-    const key = 'pos_' + p.id;
-    container.innerHTML += `<div style="margin-bottom:12px">
-      <label style="font-size:.8rem;font-weight:600">${p.name}</label>
-      <textarea class="note-area" id="note-${p.id}" placeholder="Nota para ${p.name}...">${saved[key]||''}</textarea>
-    </div>`;
-  });
-  positions.forEach(p => {
-    const ta = document.getElementById('note-' + p.id);
-    if (!ta) return;
-    ta.oninput = () => {
-      const n = JSON.parse(localStorage.getItem('inv_notes') || '{}');
-      n['pos_' + p.id] = ta.value;
-      localStorage.setItem('inv_notes', JSON.stringify(n));
-    };
-  });
+  const alreadyBuilt = !!document.getElementById('note-' + positions[0]?.id);
+
+  if (!alreadyBuilt) {
+    container.innerHTML = '<h4 style="margin-bottom:12px;color:var(--muted)">Notas por posición</h4>';
+    positions.forEach(p => {
+      const key = 'pos_' + p.id;
+      container.innerHTML += `<div style="margin-bottom:12px">
+        <label style="font-size:.8rem;font-weight:600">${p.name}</label>
+        <textarea class="note-area" id="note-${p.id}" placeholder="Nota para ${p.name}...">${saved[key]||''}</textarea>
+      </div>`;
+    });
+    positions.forEach(p => {
+      const ta = document.getElementById('note-' + p.id);
+      if (!ta) return;
+      ta.oninput = () => {
+        const n = JSON.parse(localStorage.getItem('inv_notes') || '{}');
+        n['pos_' + p.id] = ta.value;
+        localStorage.setItem('inv_notes', JSON.stringify(n));
+      };
+    });
+  } else {
+    // Actualizar solo los valores sin reconstruir el DOM (evita perder el foco)
+    positions.forEach(p => {
+      const ta = document.getElementById('note-' + p.id);
+      if (ta && document.activeElement !== ta) {
+        ta.value = saved['pos_' + p.id] || '';
+      }
+    });
+  }
 }
 
 // ─────────────────────────────────────────────

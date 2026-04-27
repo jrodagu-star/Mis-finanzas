@@ -1,5 +1,5 @@
 // Incrementa este número cada vez que cambies los archivos de la app
-const CACHE_VERSION = 'mis-finanzas-v4';
+const CACHE_VERSION = 'mis-finanzas-v5';
 
 const STATIC_ASSETS = [
   './',

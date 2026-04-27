@@ -75,7 +75,9 @@ window.fbReady = new Promise(resolve => {
   if (document.body) showSpinner();
   else document.addEventListener('DOMContentLoaded', showSpinner, { once: true });
 
-  _fbDoc.onSnapshot(snap => {
+  _fbDoc.onSnapshot({ includeMetadataChanges: true }, snap => {
+    // Ignorar snapshots causados por nuestra propia escritura local
+    if (snap.metadata.hasPendingWrites) return;
     if (!snap.exists) {
       if (firstLoad) { firstLoad = false; _fbBanner('☁️ Firebase conectado', 2000); resolve(); }
       return;
