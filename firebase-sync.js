@@ -29,12 +29,23 @@ _fbDb.enablePersistence({ synchronizeTabs: true }).catch(() => {});
 const _lsSet = localStorage.setItem.bind(localStorage);
 
 // ── Interceptor: cada guardado local también sube a Firestore ─────────────────
+// Debounce: agrupa escrituras rápidas (ej: tecla por tecla en notas)
+// en una sola subida a Firestore tras 1 segundo de inactividad.
+let _fbSaveTimer = null;
+let _fbPendingData = {};
+
 localStorage.setItem = function(key, value) {
   _lsSet(key, value);
   if (_SYNC_KEYS.includes(key)) {
-    try {
-      _fbDoc.set({ [key]: JSON.parse(value) }, { merge: true }).catch(() => {});
-    } catch(e) {}
+    try { _fbPendingData[key] = JSON.parse(value); } catch(e) { return; }
+    clearTimeout(_fbSaveTimer);
+    _fbSaveTimer = setTimeout(() => {
+      const payload = Object.assign({}, _fbPendingData);
+      _fbPendingData = {};
+      _fbDoc.set(payload, { merge: true })
+        .then(() => _fbBanner('☁️ Guardado en la nube', 1500))
+        .catch(() => _fbBanner('⚠️ Error al guardar — sin conexión', 3000));
+    }, 1000);
   }
 };
 
