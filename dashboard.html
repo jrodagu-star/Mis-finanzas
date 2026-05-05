@@ -2722,7 +2722,15 @@ function importarTodo(input) {
 }
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(() => {});
+  const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
+  if (isLocalhost) {
+    navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister())).catch(() => {});
+    if (window.caches && caches.keys) {
+      caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
+    }
+  } else {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
 }
 </script>
 </body>

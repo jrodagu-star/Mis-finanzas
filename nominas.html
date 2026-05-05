@@ -14,6 +14,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="firebase-sync.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.5.136/build/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <style>
     :root {
       --bg: #0f1117; --surface: #1a1d27; --surface2: #252836;
@@ -149,15 +151,56 @@
   <div id="topbar">
     <h1 id="page-title">Resumen de Nóminas</h1>
     <div style="display:flex;align-items:center;gap:10px">
-      <button class="add-btn" onclick="openNominaModal()">+ Nueva nómina</button>
+      <button class="add-btn" type="button" onclick="openImportFormatModal()">⬆ Importar nómina</button>
+      <input type="file" id="import-json-file" accept=".json,application/json" style="display:none" onchange="importarTodo(this)" />
+      <input type="file" id="import-nomina-file" accept=".pdf,.txt,.csv,.doc,.docx" style="display:none" />
       <button class="add-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text)" onclick="exportarTodo()" title="Exportar todos los datos a JSON">⬇ Exportar</button>
-      <label class="add-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);cursor:pointer;margin:0" title="Importar datos desde JSON">⬆ Importar<input type="file" accept=".json" style="display:none" onchange="importarTodo(this)"/></label>
+      <button type="button" class="add-btn" style="background:var(--surface2);border:1px solid var(--red);color:var(--red)" onclick="openDeleteMonthModal()" title="Eliminar todas las nóminas de un mes concreto">🗑️ Borrar por mes</button>
+      <span id="import-progress-pill" style="display:none;font-size:.76rem;background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:5px 10px;color:var(--accent)">Procesando importación...</span>
+      <span id="import-status-pill" style="display:none;font-size:.76rem;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.45);border-radius:999px;padding:5px 10px;color:var(--red)"></span>
     </div>
   </div>
   <div id="content">
 
     <!-- ── RESUMEN ── -->
     <div class="view active" id="view-resumen">
+      <div class="table-box" style="padding:12px 14px;margin-bottom:14px">
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div class="form-row" style="margin:0;min-width:170px">
+            <label>Año del resumen</label>
+            <select id="resumen-year" onchange="applyResumenFilter()">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="form-row" style="margin:0;min-width:170px">
+            <label>Tipo de comparativa</label>
+            <select id="compare-scope" onchange="renderResumen()">
+              <option value="year" selected>Año</option>
+              <option value="month">Mes</option>
+            </select>
+          </div>
+          <div class="form-row" style="margin:0;min-width:170px">
+            <label>Comparar año A</label>
+            <select id="compare-year-a" onchange="renderResumen()">
+              <option value="">Seleccionar</option>
+            </select>
+          </div>
+          <div class="form-row" style="margin:0;min-width:170px">
+            <label>Comparar año B</label>
+            <select id="compare-year-b" onchange="renderResumen()">
+              <option value="">Seleccionar</option>
+            </select>
+          </div>
+          <div class="form-row" style="margin:0;min-width:170px">
+            <label>Comparar mes A</label>
+            <input type="month" id="compare-month-a" onchange="renderResumen()" />
+          </div>
+          <div class="form-row" style="margin:0;min-width:170px">
+            <label>Comparar mes B</label>
+            <input type="month" id="compare-month-b" onchange="renderResumen()" />
+          </div>
+        </div>
+      </div>
       <div class="kpi-grid" id="kpi-resumen"></div>
       <div class="chart-grid cols2">
         <div class="chart-box">
@@ -181,6 +224,12 @@
         <div class="chart-box">
           <h3>Coste empresa total</h3>
           <canvas id="chart-coste" height="140"></canvas>
+        </div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-box">
+          <h3>Comparativa anual (A vs B)</h3>
+          <canvas id="chart-compare-years" height="120"></canvas>
         </div>
       </div>
     </div>
@@ -359,6 +408,99 @@
       <button class="btn btn-danger" id="btn-delete" style="margin-right:auto;display:none" onclick="deleteNomina()">Eliminar</button>
       <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
       <button class="btn btn-primary" onclick="saveNomina()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────── MODAL ELEGIR FORMATO IMPORTACIÓN ─────────────── -->
+<div class="modal-overlay" id="import-format-overlay">
+  <div class="modal" style="width:460px">
+    <h3>Importar nómina</h3>
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:14px;line-height:1.45">
+      Elige el formato de origen para continuar.
+    </p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <button type="button" class="btn btn-primary" onclick="chooseImportFile('pdf')">PDF</button>
+      <button type="button" class="btn btn-primary" onclick="chooseImportFile('json')">JSON</button>
+      <button type="button" class="btn btn-primary" onclick="chooseImportFile('txt')">TXT</button>
+      <button type="button" class="btn btn-primary" onclick="chooseImportFile('doc')">DOC</button>
+      <button type="button" class="btn btn-primary" style="grid-column:1 / -1" onclick="chooseImportFile('docx')">DOCX</button>
+      <button type="button" class="btn btn-secondary" style="grid-column:1 / -1" onclick="handleImportFormat('manual')">Manual</button>
+    </div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button type="button" class="btn btn-secondary" onclick="closeImportFormatModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────── MODAL VISTA PREVIA IMPORTACIÓN ─────────────── -->
+<div class="modal-overlay" id="import-preview-overlay">
+  <div class="modal" style="width:760px">
+    <h3>Vista previa de importación</h3>
+    <div id="import-preview-summary" style="font-size:.82rem;color:var(--muted);margin-bottom:10px"></div>
+    <div id="import-preview-warnings" style="display:none;font-size:.78rem;line-height:1.45;color:var(--yellow);background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.35);border-radius:8px;padding:10px;margin-bottom:10px"></div>
+    <div class="table-box" style="margin-bottom:0;padding:0;max-height:320px;overflow:auto">
+      <table style="font-size:.78rem">
+        <thead><tr>
+          <th>Fecha</th>
+          <th>Empresa</th>
+          <th style="text-align:right">Bruto</th>
+          <th style="text-align:right">Neto</th>
+        </tr></thead>
+        <tbody id="import-preview-tbody"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" onclick="closeImportPreviewModal()">Cancelar</button>
+      <button type="button" class="btn btn-primary" onclick="confirmImportPreview()">Importar ahora</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────── MODAL IMPORTAR TEXTO ─────────────── -->
+<div class="modal-overlay" id="import-texto-overlay">
+  <div class="modal" style="width:640px">
+    <h3>Importar nóminas desde texto plano</h3>
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:12px;line-height:1.45">
+      <strong>Recibo PDF:</strong> pega el texto completo del «Recibo de haberes» (copiar del PDF). Se detecta solo y rellena empresa, mes, devengos e IRPF/SS.<br/>
+      <strong>Tabla:</strong> datos desde Excel / CSV — tabulador, <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">;</code> o <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">,</code>. Cabecera opcional (<code style="font-size:.72rem">fecha</code>, <code style="font-size:.72rem">empresa</code>, …).
+    </p>
+    <details style="margin-bottom:12px;font-size:.76rem;color:var(--muted)">
+      <summary style="cursor:pointer;color:var(--accent)">Formato sin cabecera (orden de columnas)</summary>
+      <pre style="margin-top:8px;padding:10px;background:var(--surface2);border-radius:8px;overflow-x:auto;white-space:pre-wrap;font-size:.72rem;line-height:1.4">fecha; empresa; salario_base; pagas_extra; complementos; horas_extra; otros_devengos; bruto; irpf_pct; ss_pct; otras_ded; sse_pct; notas</pre>
+      <p style="margin-top:8px">Si omites <strong>bruto</strong>, se calcula sumando devengos. Opcionales extra: <code>irpf</code>, <code>ss</code>, <code>neto</code>, <code>sse</code>, <code>coste_total</code> (si no van, se derivan de los %).</p>
+    </details>
+    <label class="form-row" style="margin-bottom:10px">
+      <span style="font-size:.76rem;color:var(--muted)">Archivo</span>
+      <input type="file" id="import-texto-file" accept=".txt,.csv,text/plain" style="font-size:.82rem" />
+    </label>
+    <div class="form-row">
+      <label>Contenido</label>
+      <textarea id="import-texto-area" placeholder="2026-01	HM Hospitales	1628.08	0	369.99	0	8477.59	10475.66	33.94	3.29	0	16.31	Enero…" style="min-height:220px;font-family:ui-monospace,Consolas,monospace;font-size:.78rem"></textarea>
+    </div>
+    <div id="import-texto-msg" style="font-size:.78rem;margin-top:8px"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" onclick="closeImportTextoModal()">Cancelar</button>
+      <button type="button" class="btn btn-primary" onclick="confirmImportTexto()">Importar nóminas</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────── MODAL BORRAR POR MES ─────────────── -->
+<div class="modal-overlay" id="delete-month-overlay">
+  <div class="modal" style="width:440px">
+    <h3>Borrar nóminas por mes</h3>
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:14px;line-height:1.45">
+      Se eliminan <strong>todas</strong> las nóminas cuyo mes coincida (incluidas varias empresas en el mismo mes). No afecta a «Ganancias esperadas» ni a otros datos de la app.
+    </p>
+    <div class="form-row">
+      <label>Mes / año a vaciar</label>
+      <input type="month" id="delete-month-input" />
+    </div>
+    <div id="delete-month-preview" style="font-size:.76rem;color:var(--muted);margin-top:10px;max-height:120px;overflow-y:auto"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" onclick="closeDeleteMonthModal()">Cancelar</button>
+      <button type="button" class="btn btn-danger" onclick="confirmDeleteNominasByMonth()">Borrar nóminas de ese mes</button>
     </div>
   </div>
 </div>
@@ -765,18 +907,19 @@ const SEED_NOMINAS = [
   }
 ];
 
-function seedNominas() {
+const NOM_SEED_FLAG_KEY = 'nom_seed_done_v1';
+function seedNominasOnce() {
+  // Solo sembrar en el primer arranque real. Si el usuario borra meses,
+  // no deben reaparecer por sincronización o recargas posteriores.
+  if (localStorage.getItem(NOM_SEED_FLAG_KEY) === '1') return;
   const stored = JSON.parse(localStorage.getItem(NOM_KEY) || '[]');
-  let changed = false;
-  SEED_NOMINAS.forEach(s => {
-    if (!stored.find(x => x.id === s.id)) { stored.push(s); changed = true; }
-  });
-  if (changed) {
-    stored.sort((a, b) => a.fecha.localeCompare(b.fecha));
-    localStorage.setItem(NOM_KEY, JSON.stringify(stored));
+  if (!stored.length) {
+    const seeded = [...SEED_NOMINAS].sort((a, b) => a.fecha.localeCompare(b.fecha));
+    localStorage.setItem(NOM_KEY, JSON.stringify(seeded));
   }
+  localStorage.setItem(NOM_SEED_FLAG_KEY, '1');
 }
-seedNominas();
+seedNominasOnce();
 
 let nominas = JSON.parse(localStorage.getItem(NOM_KEY) || '[]');
 function saveNominas() { localStorage.setItem(NOM_KEY, JSON.stringify(nominas)); }
@@ -788,8 +931,25 @@ let chartInstances = {};
 // ─────────────────────────────────────────────
 let activeView = 'resumen';
 let selectedId = null;
-let listFilterYear  = '';
+let listFilterYear  = String(new Date().getFullYear());
 let listFilterMonth = '';
+let resumenYear = String(new Date().getFullYear());
+
+function idsEqual(a, b) {
+  return String(a) === String(b);
+}
+
+function availableYearsFromNominas() {
+  return [...new Set((nominas || []).map(n => String(n.fecha || '').slice(0, 4)).filter(y => /^\d{4}$/.test(y)))]
+    .sort()
+    .reverse();
+}
+
+function applyResumenFilter() {
+  const sel = document.getElementById('resumen-year');
+  resumenYear = sel ? sel.value : '';
+  renderResumen();
+}
 
 document.querySelectorAll('.nav-item[data-view]').forEach(el => {
   el.addEventListener('click', () => {
@@ -810,6 +970,10 @@ document.querySelectorAll('.nav-item[data-view]').forEach(el => {
 // ─────────────────────────────────────────────
 function fmt(v) { return '€ ' + v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ','); }
 function fmtPct(v) { return v.toFixed(2).replace('.', ',') + ' %'; }
+function fmtNum(v) {
+  const n = Number(v || 0);
+  return Number.isInteger(n) ? String(n) : n.toFixed(2).replace('.', ',');
+}
 
 function monthLabel(ym) {
   if (!ym) return '';
@@ -954,7 +1118,37 @@ function deleteNomina() {
 //  RENDER RESUMEN
 // ─────────────────────────────────────────────
 function renderResumen() {
-  const sorted = [...nominas].sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const years = availableYearsFromNominas();
+  const ySel = document.getElementById('resumen-year');
+  const yA = document.getElementById('compare-year-a');
+  const yB = document.getElementById('compare-year-b');
+  const scopeSel = document.getElementById('compare-scope');
+  const mA = document.getElementById('compare-month-a');
+  const mB = document.getElementById('compare-month-b');
+  if (ySel) {
+    const cur = resumenYear;
+    ySel.innerHTML = '<option value="">Todos</option>' +
+      years.map(y => `<option value="${y}"${y === cur ? ' selected' : ''}>${y}</option>`).join('');
+  }
+  if (yA) {
+    const curA = yA.value;
+    yA.innerHTML = '<option value="">Seleccionar</option>' +
+      years.map(y => `<option value="${y}"${y === curA ? ' selected' : ''}>${y}</option>`).join('');
+  }
+  if (yB) {
+    const curB = yB.value;
+    yB.innerHTML = '<option value="">Seleccionar</option>' +
+      years.map(y => `<option value="${y}"${y === curB ? ' selected' : ''}>${y}</option>`).join('');
+  }
+  const compareScope = scopeSel ? scopeSel.value : 'year';
+  if (yA) yA.disabled = compareScope !== 'year';
+  if (yB) yB.disabled = compareScope !== 'year';
+  if (mA) mA.disabled = compareScope !== 'month';
+  if (mB) mB.disabled = compareScope !== 'month';
+
+  const base = [...nominas];
+  const filteredByYear = resumenYear ? base.filter(x => String(x.fecha).startsWith(resumenYear + '-')) : base;
+  const sorted = filteredByYear.sort((a, b) => a.fecha.localeCompare(b.fecha));
   const n = sorted.length;
   const totalNeto  = sorted.reduce((s, x) => s + x.neto, 0);
   const totalBruto = sorted.reduce((s, x) => s + x.bruto, 0);
@@ -965,19 +1159,24 @@ function renderResumen() {
 
   document.getElementById('kpi-resumen').innerHTML = `
     <div class="kpi-card green">
-      <div class="kpi-label">Último neto</div>
+      <div class="kpi-label">Último neto ${resumenYear ? '(' + resumenYear + ')' : ''}</div>
       <div class="kpi-value">${fmt(lastNeto)}</div>
       <div class="kpi-sub">${n ? monthLabel(sorted[n-1].fecha) : '—'}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">Neto medio mensual</div>
       <div class="kpi-value">${fmt(avgNeto)}</div>
-      <div class="kpi-sub">${n} nóminas</div>
+      <div class="kpi-sub">${n} nóminas ${resumenYear ? 'en ' + resumenYear : ''}</div>
     </div>
     <div class="kpi-card yellow">
       <div class="kpi-label">Total neto acumulado</div>
       <div class="kpi-value">${fmt(totalNeto)}</div>
       <div class="kpi-sub">Bruto: ${fmt(totalBruto)}</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">Total bruto acumulado</div>
+      <div class="kpi-value">${fmt(totalBruto)}</div>
+      <div class="kpi-sub">${resumenYear ? 'Año ' + resumenYear : 'Todos los años'}</div>
     </div>
     <div class="kpi-card red">
       <div class="kpi-label">IRPF medio</div>
@@ -1062,6 +1261,77 @@ function renderResumen() {
       y: { stacked: true, ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => '€'+Math.round(v) }, grid: { color: '#2e3248' } }
     }}
   });
+
+  // Comparativa A vs B
+  const yearA = yA ? yA.value : '';
+  const yearB = yB ? yB.value : '';
+  const monthA = mA ? mA.value : '';
+  const monthB = mB ? mB.value : '';
+  destroyChart('compareYears');
+  if (compareScope === 'year' && yearA && yearB) {
+    const agg = (period, scope) => {
+      const arr = scope === 'year'
+        ? nominas.filter(x => String(x.fecha).startsWith(period + '-'))
+        : nominas.filter(x => String(x.fecha) === period);
+      return {
+        bruto: arr.reduce((s, x) => s + Number(x.bruto || 0), 0),
+        neto: arr.reduce((s, x) => s + Number(x.neto || 0), 0),
+        coste: arr.reduce((s, x) => s + Number(x.coste_total || 0), 0),
+      };
+    };
+    const A = agg(yearA, 'year');
+    const B = agg(yearB, 'year');
+    chartInstances['compareYears'] = new Chart(document.getElementById('chart-compare-years'), {
+      type: 'bar',
+      data: {
+        labels: ['Bruto', 'Neto', 'Coste empresa'],
+        datasets: [
+          { label: yearA, data: [A.bruto, A.neto, A.coste], backgroundColor: 'rgba(108,99,255,.7)' },
+          { label: yearB, data: [B.bruto, B.neto, B.coste], backgroundColor: 'rgba(34,197,94,.7)' }
+        ]
+      },
+      options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } }, scales: {
+        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#2e3248' } },
+        y: { ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => '€'+Math.round(v) }, grid: { color: '#2e3248' } }
+      }}
+    });
+  } else if (compareScope === 'month' && monthA && monthB) {
+    const agg = (period, scope) => {
+      const arr = scope === 'year'
+        ? nominas.filter(x => String(x.fecha).startsWith(period + '-'))
+        : nominas.filter(x => String(x.fecha) === period);
+      return {
+        bruto: arr.reduce((s, x) => s + Number(x.bruto || 0), 0),
+        neto: arr.reduce((s, x) => s + Number(x.neto || 0), 0),
+        coste: arr.reduce((s, x) => s + Number(x.coste_total || 0), 0),
+      };
+    };
+    const A = agg(monthA, 'month');
+    const B = agg(monthB, 'month');
+    chartInstances['compareYears'] = new Chart(document.getElementById('chart-compare-years'), {
+      type: 'bar',
+      data: {
+        labels: ['Bruto', 'Neto', 'Coste empresa'],
+        datasets: [
+          { label: monthLabel(monthA), data: [A.bruto, A.neto, A.coste], backgroundColor: 'rgba(108,99,255,.7)' },
+          { label: monthLabel(monthB), data: [B.bruto, B.neto, B.coste], backgroundColor: 'rgba(34,197,94,.7)' }
+        ]
+      },
+      options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } }, scales: {
+        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#2e3248' } },
+        y: { ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => '€'+Math.round(v) }, grid: { color: '#2e3248' } }
+      }}
+    });
+  } else {
+    const ctx = document.getElementById('chart-compare-years');
+    if (ctx && ctx.getContext) {
+      const c = ctx.getContext('2d');
+      c.clearRect(0, 0, ctx.width, ctx.height);
+      c.fillStyle = '#94a3b8';
+      c.font = '12px Segoe UI';
+      c.fillText(compareScope === 'month' ? 'Selecciona mes A y B para comparar.' : 'Selecciona año A y B para comparar.', 12, 24);
+    }
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -1104,11 +1374,20 @@ function renderLista() {
 
   if (!filtered.length) {
     list.innerHTML = '<div class="empty-state"><div class="ei">🔍</div><p>Sin nóminas para el filtro seleccionado.</p></div>';
+    document.getElementById('nomina-detail-panel').innerHTML = '';
+    selectedId = null;
     return;
   }
 
+  // Si la selección actual no pertenece al filtro visible, seleccionamos la primera.
+  let selectedNom = filtered.find(n => idsEqual(n.id, selectedId));
+  if (!selectedNom) {
+    selectedNom = filtered[0];
+    selectedId = String(selectedNom.id);
+  }
+
   list.innerHTML = filtered.map(n => `
-    <div class="nomina-card ${n.id === selectedId ? 'selected' : ''}" onclick="selectNomina(${n.id})">
+    <div class="nomina-card ${selectedNom && idsEqual(n.id, selectedNom.id) ? 'selected' : ''}" onclick='selectNominaById(${JSON.stringify(String(n.id))})'>
       <div class="nomina-card-left">
         <div class="nomina-card-month">${monthLabel(n.fecha)}</div>
         <div class="nomina-card-emp">${n.empresa}</div>
@@ -1119,18 +1398,39 @@ function renderLista() {
       </div>
     </div>
   `).join('');
-  if (selectedId) renderDetail(selectedId);
+  if (selectedNom) renderDetail(selectedNom.id);
 }
 
 function selectNomina(id) {
-  selectedId = id;
+  selectedId = String(id);
+  renderLista();
+}
+
+function selectNominaById(id) {
+  selectedId = String(id);
   renderLista();
 }
 
 function renderDetail(id) {
-  const n = nominas.find(x => x.id === id);
+  const n = nominas.find(x => idsEqual(x.id, id));
   const panel = document.getElementById('nomina-detail-panel');
   if (!n) { panel.innerHTML = ''; return; }
+  const notasTxt = String(n.notas || '');
+  const isExtraLike = /paga\s+extra/i.test(notasTxt);
+  const isIncentivoAjuste = /incentivos?/i.test(notasTxt);
+  const guardiasPres = Number(n.guardias_presenciales || 0);
+  const guardiasUnid = Number(n.guardias_unidades || 0);
+  const guardiasPrecio = Number(n.guardias_precio || 0);
+  const guardiaFestivo = Number(n.guardia_festivo_especial || 0);
+  const guardiaFestivoUnid = Number(n.guardia_festivo_unidades || 0);
+  const guardiaFestivoPrecio = Number(n.guardia_festivo_precio || 0);
+  const guardiasTotal = isExtraLike ? 0 : (guardiasPres + guardiaFestivo);
+  const gratVol = Number(n.gratificacion_voluntaria || 0);
+  const baseMasGrat = Number(n.salario_base || 0) + gratVol;
+  const irpfFactor = Math.max(0, 1 - (Number(n.irpf_pct || 0) / 100));
+  const baseMasGratNetoIrpf = baseMasGrat * irpfFactor;
+  const guardiasNetoIrpf = guardiasTotal * irpfFactor;
+  const otrosDevSolo = Math.max(0, Number(n.otros_devengos || 0) - guardiasTotal);
 
   const row = (label, val, cls) =>
     `<div class="nomina-row"><span>${label}</span><span class="${cls||''}">${val}</span></div>`;
@@ -1151,10 +1451,16 @@ function renderDetail(id) {
         <div class="nomina-col">
           <div class="nomina-col-title">📈 Devengos</div>
           ${row('Salario base', fmt(n.salario_base))}
-          ${n.pagas_extra   ? row('Pagas extra prorrateadas', fmt(n.pagas_extra)) : ''}
+          ${gratVol ? row('Grat Vol.', fmt(gratVol)) : ''}
+          ${gratVol ? row('Base + Grat. Vol.', fmt(baseMasGrat), 'color-purple') : ''}
+          ${gratVol ? row('↳ Neto', fmt(baseMasGratNetoIrpf), 'color-green') : ''}
+          ${n.pagas_extra   ? row('Pagas extra', fmt(n.pagas_extra)) : ''}
           ${n.complementos  ? row('Complementos salariales', fmt(n.complementos)) : ''}
-          ${n.horas_extra   ? row('Horas extra', fmt(n.horas_extra)) : ''}
-          ${n.otros_devengos ? row('Otros devengos', fmt(n.otros_devengos)) : ''}
+          ${(!isExtraLike && guardiasPres) ? row('Guardias', `${fmt(guardiasPres)} (${guardiasUnid > 0 && guardiasPrecio > 0 ? `${fmtNum(guardiasUnid)}h a ${fmtNum(guardiasPrecio)}€` : 'importe detectado'})`) : ''}
+          ${(!isExtraLike && guardiaFestivo) ? row('Festivo Esp.', `${fmt(guardiaFestivo)} (${guardiaFestivoUnid > 0 && guardiaFestivoPrecio > 0 ? `${fmtNum(guardiaFestivoUnid)}h a ${fmtNum(guardiaFestivoPrecio)}€` : 'importe detectado'})`) : ''}
+          ${(!isExtraLike && (guardiasPres || guardiaFestivo)) ? row('Total Guardias', fmt(guardiasTotal), 'color-purple') : ''}
+          ${(!isExtraLike && (guardiasPres || guardiaFestivo)) ? row('↳ Neto', fmt(guardiasNetoIrpf), 'color-green') : ''}
+          ${otrosDevSolo ? row(isIncentivoAjuste ? 'Incentivos (ajuste)' : 'Otros devengos', fmt(otrosDevSolo)) : ''}
           <div class="nomina-row total">${row('Total bruto', fmt(n.bruto), 'color-purple')}</div>
         </div>
         <div class="nomina-col">
@@ -1463,6 +1769,892 @@ function deleteGanDirect(id) {
   renderGanancias();
 }
 
+// ─── Importar texto plano (CSV / TSV) ─────────
+const IMPORT_TEXTO_KNOWN = ['fecha','empresa','salario_base','gratificacion_voluntaria','pagas_extra','complementos','horas_extra','guardias_presenciales','guardias_unidades','guardias_precio','guardia_festivo_especial','guardia_festivo_unidades','guardia_festivo_precio','otros_devengos','bruto','irpf_pct','irpf','ss_pct','ss','otras_ded','neto','sse_pct','sse','coste_total','notas'];
+const IMPORT_TEXTO_DEFAULT_COLS = ['fecha','empresa','salario_base','pagas_extra','complementos','horas_extra','otros_devengos','bruto','irpf_pct','ss_pct','otras_ded','sse_pct','notas'];
+const IMPORT_TEXTO_ALIASES = {
+  fecha: ['fecha','mes','periodo','periodo_liquidacion','periodoliquidacion','mesano','ejercicio'],
+  empresa: ['empresa','empleador','razon_social','razonsocial','compania','denominacion','nombre_empresa'],
+  salario_base: ['salario_base','salario base','base','sueldo_base','sueldobase'],
+  gratificacion_voluntaria: ['gratificacion_voluntaria','gratificacion voluntaria','gratif_voluntaria','gratif voluntaria'],
+  pagas_extra: ['pagas_extra','pagas extra','prorrata','prorrata_pagas','prorratapagas'],
+  complementos: ['complementos','pluses','plus','complemento'],
+  horas_extra: ['horas_extra','horas extra','horasextra','hext','horas'],
+  guardias_presenciales: ['guardias_presenciales','guardias presenciales','guardias','guardias_pres','guardia_presencial'],
+  guardias_unidades: ['guardias_unidades','guardias unidades','unidades_guardia','unidades guardia'],
+  guardias_precio: ['guardias_precio','guardias precio','precio_guardia','precio guardia'],
+  guardia_festivo_especial: ['guardia_festivo_especial','guardia festivo especial','festivo_especial','guardia_festivo'],
+  guardia_festivo_unidades: ['guardia_festivo_unidades','unidades_festivo','festivo_unidades'],
+  guardia_festivo_precio: ['guardia_festivo_precio','precio_festivo','festivo_precio'],
+  otros_devengos: ['otros_devengos','otros devengos','variable','guardias','otros'],
+  bruto: ['bruto','total_bruto','total devengado','devengado'],
+  irpf_pct: ['irpf_pct','irpf%','irpf_porcentaje','porcentaje_irpf'],
+  irpf: ['irpf','retencion_irpf','retencion'],
+  ss_pct: ['ss_pct','ss%','seguridad_social_pct','seguridadsocial_pct'],
+  ss: ['ss','seguridad_social','seguridadsocial','ss_trabajador'],
+  otras_ded: ['otras_ded','otras_deducciones','otras deducciones','deducciones'],
+  neto: ['neto','liquido','liquido_a_percibir','total_liquido'],
+  sse_pct: ['sse_pct','ss_empresa_pct','seguridad_social_empresa_pct'],
+  sse: ['sse','ss_empresa','seguridad_social_empresa'],
+  coste_total: ['coste_total','coste total','coste_empresa_total','costeempresa'],
+  notas: ['notas','nota','observaciones','comentarios']
+};
+
+function normImportHeader(s) {
+  let t = String(s || '').trim().replace(/^\uFEFF/, '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+  if (t === 'mes' || t === 'periodo' || t === 'month' || t === 'mesano' || t === 'mes_año' || t === 'ejercicio') return 'fecha';
+  if (t === 'empleador' || t === 'compania' || t === 'razonsocial' || t === 'razon_social' || t === 'nombreempresa' || t === 'denominacion') return 'empresa';
+  t = t.replace(/[^a-z0-9_ ]/g, '').replace(/\s+/g, '_');
+  for (const [target, aliases] of Object.entries(IMPORT_TEXTO_ALIASES)) {
+    if (aliases.includes(t) || aliases.includes(t.replace(/_/g, ' '))) return target;
+  }
+  if (t.includes('fecha') || t === 'mesano' || t.startsWith('mes') && t.length <= 12) return 'fecha';
+  if (t.includes('empresa') || t.includes('empleador') || t.includes('social') && t.includes('razon')) return 'empresa';
+  return t;
+}
+
+function parseNumEuro(cell) {
+  if (cell === undefined || cell === null) return null;
+  const s = String(cell).trim();
+  if (s === '' || s === '–' || s === '-') return null;
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+  if (/^\d{1,3}(\.\d{3})+\.\d{2}$/.test(s)) return parseFloat(s.replace(/\./g, ''));
+  if (/^\d+,\d+$/.test(s)) return parseFloat(s.replace(',', '.'));
+  const n = parseFloat(s.replace(/\s/g, '').replace(',', '.'));
+  return isNaN(n) ? null : n;
+}
+
+function normalizeImportFecha(s) {
+  const t = String(s || '').trim().replace(/^\uFEFF/, '');
+  if (/^\d{4}-\d{2}$/.test(t)) return t;
+  const m = t.match(/^(\d{1,2})[\/\-](\d{4})$/);
+  if (m) return m[2] + '-' + m[1].padStart(2, '0');
+  const m2 = t.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m2) return m2[3] + '-' + m2[2].padStart(2, '0');
+  const m3 = t.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if (m3) return m3[1] + '-' + m3[2].padStart(2, '0');
+  return t;
+}
+
+function splitImportLine(line, delim) {
+  if (delim === '\t') return line.split('\t').map(x => String(x).trim());
+  const out = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; continue; }
+    if (!inQ && c === delim) { out.push(cur.trim()); cur = ''; continue; }
+    cur += c;
+  }
+  out.push(cur.trim());
+  return out;
+}
+
+function detectImportDelim(line) {
+  const tabs = (line.match(/\t/g) || []).length;
+  const sc = (line.match(/;/g) || []).length;
+  const cm = (line.match(/,/g) || []).length;
+  // Una sola tabulación (p. ej. fecha[TAB]empresa) debe usar TAB; antes caía en ';' y toda la fila era una sola columna
+  if (tabs >= 1) return '\t';
+  if (sc >= 1) return ';';
+  if (cm >= 1) return ',';
+  return '\t';
+}
+
+function looksLikeImportHeader(cells) {
+  const h0 = normImportHeader(cells[0]);
+  if (h0 === 'fecha' || h0 === 'empresa') return true;
+  const h1 = cells[1] !== undefined ? normImportHeader(cells[1]) : '';
+  return h0 === 'salario_base' || (IMPORT_TEXTO_KNOWN.includes(h0) && IMPORT_TEXTO_KNOWN.includes(h1));
+}
+
+function mapImportHeaders(headerCells) {
+  const map = {};
+  headerCells.forEach((raw, i) => {
+    let key = normImportHeader(raw);
+    if (!IMPORT_TEXTO_KNOWN.includes(key)) {
+      const r = String(raw || '').trim().toLowerCase();
+      if (/fecha|mes(\s|\/|$)|periodo|nomina|devengo|pago|año|ano/i.test(r) && !/base|cotiz|bruto|neto/i.test(r)) key = 'fecha';
+      else if (/empresa|empleador|raz[oó]n|social|denominaci|compa[nñ][ií]a|c\.?e\.?o\.?/i.test(r) && !/seguridad|ss\b/i.test(r)) key = 'empresa';
+    }
+    if (IMPORT_TEXTO_KNOWN.includes(key) && map[key] === undefined) map[key] = i;
+  });
+  return map;
+}
+
+function finalizeImportedNomina(raw) {
+  const num = (v, def) => { const x = parseNumEuro(v); return x === null ? def : x; };
+  const sb = num(raw.salario_base, 0);
+  const pe = num(raw.pagas_extra, 0);
+  const comp = num(raw.complementos, 0);
+  const hext = num(raw.horas_extra, 0);
+  const gratVol = num(raw.gratificacion_voluntaria, 0);
+  const guardias = num(raw.guardias_presenciales, 0);
+  const guardiasU = num(raw.guardias_unidades, 0);
+  const guardiasP = num(raw.guardias_precio, 0);
+  const guardiaFestivo = num(raw.guardia_festivo_especial, 0);
+  const guardiaFestivoU = num(raw.guardia_festivo_unidades, 0);
+  const guardiaFestivoP = num(raw.guardia_festivo_precio, 0);
+  const otros = num(raw.otros_devengos, 0);
+  let bruto = parseNumEuro(raw.bruto);
+  if (bruto === null || bruto <= 0) bruto = sb + pe + comp + hext + otros;
+
+  const irpfPctIn = num(raw.irpf_pct, 0);
+  const ssPctIn = num(raw.ss_pct, 6.35);
+  const ssePctIn = num(raw.sse_pct, 29.90);
+  const otrasD = num(raw.otras_ded, 0);
+
+  let irpf = parseNumEuro(raw.irpf);
+  if (irpf === null) irpf = bruto * irpfPctIn / 100;
+  let ss = parseNumEuro(raw.ss);
+  if (ss === null) ss = bruto * ssPctIn / 100;
+  let sse = parseNumEuro(raw.sse);
+  if (sse === null) sse = bruto * ssePctIn / 100;
+  let neto = parseNumEuro(raw.neto);
+  if (neto === null) neto = bruto - irpf - ss - otrasD;
+  let coste_total = parseNumEuro(raw.coste_total);
+  if (coste_total === null) coste_total = bruto + sse;
+
+  let irpf_pct = irpfPctIn;
+  if (bruto > 0 && parseNumEuro(raw.irpf) !== null) irpf_pct = (irpf / bruto) * 100;
+  let ss_pct = ssPctIn;
+  if (bruto > 0 && parseNumEuro(raw.ss) !== null) ss_pct = (ss / bruto) * 100;
+  let sse_pct = ssePctIn;
+  if (bruto > 0 && parseNumEuro(raw.sse) !== null) sse_pct = (sse / bruto) * 100;
+
+  const R = x => Math.round(x * 100) / 100;
+  return {
+    fecha: normalizeImportFecha(raw.fecha),
+    empresa: String(raw.empresa || '').trim(),
+    salario_base: R(sb), gratificacion_voluntaria: R(gratVol), pagas_extra: R(pe), complementos: R(comp), horas_extra: R(hext), guardias_presenciales: R(guardias), guardias_unidades: R(guardiasU), guardias_precio: R(guardiasP), guardia_festivo_especial: R(guardiaFestivo), guardia_festivo_unidades: R(guardiaFestivoU), guardia_festivo_precio: R(guardiaFestivoP), otros_devengos: R(otros),
+    bruto: R(bruto), irpf_pct: R(irpf_pct), irpf: R(irpf), ss_pct: R(ss_pct), ss: R(ss), otras_ded: R(otrasD),
+    neto: R(neto), sse_pct: R(sse_pct), sse: R(sse), coste_total: R(coste_total),
+    notas: raw.notas != null ? String(raw.notas).trim() : '',
+  };
+}
+
+function rowObjectFromCells(cells, colMap) {
+  const get = (key) => {
+    const idx = colMap[key];
+    if (idx === undefined || idx >= cells.length) return undefined;
+    return cells[idx];
+  };
+  const raw = {
+    fecha: get('fecha'), empresa: get('empresa'), salario_base: get('salario_base'), pagas_extra: get('pagas_extra'),
+    complementos: get('complementos'), horas_extra: get('horas_extra'), guardias_presenciales: get('guardias_presenciales'), guardias_unidades: get('guardias_unidades'), guardias_precio: get('guardias_precio'), guardia_festivo_especial: get('guardia_festivo_especial'), guardia_festivo_unidades: get('guardia_festivo_unidades'), guardia_festivo_precio: get('guardia_festivo_precio'), gratificacion_voluntaria: get('gratificacion_voluntaria'), otros_devengos: get('otros_devengos'), bruto: get('bruto'),
+    irpf_pct: get('irpf_pct'), irpf: get('irpf'), ss_pct: get('ss_pct'), ss: get('ss'), otras_ded: get('otras_ded'),
+    neto: get('neto'), sse_pct: get('sse_pct'), sse: get('sse'), coste_total: get('coste_total'), notas: get('notas'),
+  };
+  return finalizeImportedNomina(raw);
+}
+
+// ─── Recibo de haberes (texto copiado desde PDF / nómina en papel) ───
+function mesNombreANum(name) {
+  if (!name) return null;
+  const n = String(name).trim().toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+  const MAP = { enero:'01',febrero:'02',marzo:'03',abril:'04',mayo:'05',junio:'06',
+    julio:'07',agosto:'08',septiembre:'09',setiembre:'09',octubre:'10',noviembre:'11',diciembre:'12' };
+  return MAP[n] || null;
+}
+
+function isReciboHaberesText(text) {
+  const t = String(text || '');
+  return /RECIBO\s+DE\s+HABERES/i.test(t)
+    || (/EMPRESA:/i.test(t) && /PERIODO\s+LIQUIDACI/i.test(t) && (/Salario\s+Base/i.test(t) || /TRABAJADOR:/i.test(t)));
+}
+
+function parseOneReciboHaberes(chunk) {
+  const fail = msg => ({ nomina: null, error: msg });
+  const ec = (re, s) => { const m = s.match(re); return m ? parseNumEuro(m[1]) : null; };
+  const allNums = (re, s) => {
+    const flags = re.flags.includes('g') ? re.flags : (re.flags + 'g');
+    const rg = new RegExp(re.source, flags);
+    const out = [];
+    let m;
+    while ((m = rg.exec(s)) !== null) {
+      const n = parseNumEuro(m[1]);
+      if (n !== null) out.push(n);
+    }
+    return out;
+  };
+  const isPlausibleMoney = n => Number.isFinite(n) && n >= 0 && n < 200000;
+  const normChunk = String(chunk || '')
+    .replace(/\u00A0/g, ' ')
+    .replace(/[ \t]+/g, ' ');
+
+  const em = normChunk.match(/EMPRESA:\s*(.+?)(?:\n|$)/i);
+  if (!em) return fail('No se encontró la línea EMPRESA:…');
+  const empresa = em[1].trim().replace(/\s+/g, ' ');
+
+  const pline = normChunk.match(/PERIODO\s+LIQUIDACI[ÓO]N:\s*([^\n]+)/i);
+  let fecha = '';
+  if (pline) {
+    const period = pline[1].replace(/\s+/g, ' ').trim();
+    const dm = period.match(/\bdel\s+\d{1,2}\s+al\s+\d{1,2}\s+del\s+([A-Za-záéíóúÁÉÍÓÚñÑ]+)\s+(\d{4})\s*$/i)
+      || period.match(/.*\bdel\s+([A-Za-záéíóúÁÉÍÓÚñÑ]+)\s+(\d{4})\s*$/i);
+    if (dm) {
+      const mo = mesNombreANum(dm[1]);
+      if (mo) fecha = dm[2] + '-' + mo;
+    }
+  }
+  if (!fecha || !/^\d{4}-\d{2}$/.test(fecha)) return fail('No se leyó el período (busca «PERIODO LIQUIDACIÓN … del Mes AAAA»).');
+
+  let salario_base = ec(/Salario\s+Base\s+([\d.,]+)/i, normChunk) ?? 0;
+  let complementos = 0;
+  let x = ec(/Plus\s+Transporte\s+([\d.,]+)/i, normChunk); if (x != null) complementos += x;
+  x = ec(/Plus\s+T[oó]xico\s+([\d.,]+)/i, normChunk); if (x != null) complementos += x;
+  x = ec(/Plus\s+Actividad\s+([\d.,]+)/i, normChunk); if (x != null) complementos += x;
+
+  // En este modelo de nómina, la gratificación voluntaria se muestra aparte,
+  // y guardias presenciales se muestra con su cálculo unidades x precio.
+  const gratVol = ec(/Gratificaci[oó]n\s+Voluntaria\s+([\d.,]+)/i, normChunk) ?? 0;
+  const gpLine = normChunk.match(/([\d.,]+)\s+([\d.,]+)\s+Guardias\s+Presenciales\s+([\d.,]+)/i);
+  const guardiasUnidades = gpLine ? (parseNumEuro(gpLine[1]) ?? 0) : 0;
+  const guardiasPrecio = gpLine ? (parseNumEuro(gpLine[2]) ?? 0) : 0;
+  let guardiasPresenciales = gpLine ? (parseNumEuro(gpLine[3]) ?? 0) : (ec(/Guardias\s+Presenciales\s+([\d.,]+)/i, normChunk) ?? 0);
+  const gfLine = normChunk.match(/([\d.,]+)\s+([\d.,]+)\s+Guardia(?:s)?\s+Festivo\s+Especial\s+([\d.,]+)/i);
+  const guardiaFestivoUnidades = gfLine ? (parseNumEuro(gfLine[1]) ?? 0) : 0;
+  const guardiaFestivoPrecio = gfLine ? (parseNumEuro(gfLine[2]) ?? 0) : 0;
+  let guardiaFestivoEspecial = gfLine ? (parseNumEuro(gfLine[3]) ?? 0) : (ec(/Guardia(?:s)?\s+Festivo\s+Especial[^\n]*\s+([\d.,]+)/i, normChunk) ?? 0);
+  let otros_devengos = guardiasPresenciales + guardiaFestivoEspecial;
+  x = ec(/Guardias?\s+Festivo(?!\s+Especial)[^\n]*\s+([\d.,]+)/i, normChunk); if (x != null) otros_devengos += x;
+
+  // Horas extra solo cuando aparece ese concepto literal.
+  let horas_extra = ec(/Horas\s+Extra(?:ordinarias)?[^\d]*([\d.,]+)/i, normChunk) ?? 0;
+
+  let bruto = salario_base + complementos + otros_devengos + horas_extra;
+
+  const brutoMei = normChunk.match(/\n\s*([\d][\d.,]*)\s+Cotiz\.\s*MEI\s+Empr/i);
+  if (brutoMei) {
+    const b = parseNumEuro(brutoMei[1]);
+    if (b != null && b > 500 && Math.abs(b - bruto) <= 50) bruto = b;
+  }
+  const baseIrpf = ec(/BASE\s+I\.?R\.?P\.?F\.?[^\n]*\n\s*([\d.,]+)/i, normChunk);
+  const baseIrpfRet = ec(/Retenci[oó]n\s+a\s+Cuenta\s+del\s+IRPF/i.test(normChunk)
+    ? /[\d.,]+\s+([\d.,]+)\s+Retenci[oó]n\s+a\s+Cuenta\s+del\s+IRPF/i
+    : /$^/, normChunk);
+  if (baseIrpfRet != null && baseIrpfRet > 500) bruto = baseIrpfRet;
+  else if (baseIrpf != null && baseIrpf > 500) bruto = baseIrpf;
+
+  let irpfAmt = ec(/Retenci[oó]n\s+a\s+Cuenta\s+del\s+IRPF\s+([\d.,]+)/i, normChunk);
+  if (!isPlausibleMoney(irpfAmt) || irpfAmt > bruto) irpfAmt = null;
+
+  let ssSum = 0;
+  const idxIrpf = normChunk.search(/Retenci[oó]n\s+a\s+Cuenta\s+del\s+IRPF/i);
+  const antesIrpf = idxIrpf >= 0 ? normChunk.slice(0, idxIrpf) : normChunk;
+  antesIrpf.split('\n').forEach(line => {
+    if (!/Cotiz/i.test(line)) return;
+    if (/Empr/i.test(line)) return;
+    const end = line.match(/([\d][\d.,]*)\s*$/);
+    if (end) ssSum += parseNumEuro(end[1]) || 0;
+  });
+
+  let sseAmt = ec(/Cost\s+SS\.?\s*Empr\.?\s+([\d.,]+)/i, normChunk);
+  if (!isPlausibleMoney(sseAmt) || sseAmt > bruto * 1.2) sseAmt = null;
+  const expectedNeto = Math.max(0, bruto - (irpfAmt || 0) - ssSum);
+  const netoCandidates = [];
+  netoCandidates.push(...allNums(/TOTAL\s+L[IÍ]QUIDO[^\d\n]*([\d.,]+)/i, normChunk));
+  netoCandidates.push(...allNums(/L[IÍ]QUIDO\s+A\s+PERCIBIR[^\d\n]*([\d.,]+)/i, normChunk));
+  // Evitamos patrón amplio de "DATOS BANCO TOTAL LÍQUIDO" porque en algunos
+  // recibos captura bases de cotización (p. ej. 8741.44) en lugar del neto real.
+  // En este modelo de recibo, el neto aparece al final de la línea
+  // "C.Adi Hr.Ext Empr 0 4980.32": priorizamos ese valor.
+  const netoLineaFinal = ec(/C\.?\s*Adi\s*Hr\.?Ext\s*Empr\.?\s*[0-9.,]+\s+([\d.,]+)/i, normChunk);
+  if (netoLineaFinal != null) netoCandidates.push(netoLineaFinal);
+  netoCandidates.push(...allNums(/C\.?\s*Adi\s*Hr\.?Ext\s*Empr\.?\s*[0-9.,]+\s+([\d.,]+)/i, normChunk));
+  const validNeto = netoCandidates
+    .filter(n => isPlausibleMoney(n))
+    .filter(n => n <= bruto + 1);
+  let netoExplicit = null;
+  if (validNeto.length) {
+    validNeto.sort((a, b) => Math.abs(a - expectedNeto) - Math.abs(b - expectedNeto));
+    netoExplicit = validNeto[0];
+  }
+
+  let notas = 'Importado desde recibo de haberes (texto).';
+  if (guardiasPresenciales > 0) notas += ` Guardias presenciales: ${guardiasPresenciales} €.`;
+  if (guardiaFestivoEspecial > 0) notas += ` Guardia festivo especial: ${guardiaFestivoEspecial} €.`;
+  if (gratVol > 0) notas += ` Gratificación voluntaria integrada en salario base: ${gratVol} €.`;
+  const pr = ec(/PRORRATA[^\d\n]*\n\s*([\d.,]+)/i, normChunk) || ec(/\bPRORRATA\s+([\d.,]+)/i, normChunk);
+  if (pr != null) notas += ' Prorrata pagas extra (información): ' + pr + ' €.';
+
+  if (!(bruto > 0)) return fail('Bruto = 0: falta «Salario Base» o los importes no se reconocieron.');
+
+  const raw = {
+    fecha,
+    empresa,
+    salario_base,
+    gratificacion_voluntaria: gratVol,
+    pagas_extra: 0,
+    complementos,
+    horas_extra,
+    guardias_presenciales: guardiasPresenciales,
+    guardias_unidades: guardiasUnidades,
+    guardias_precio: guardiasPrecio,
+    guardia_festivo_especial: guardiaFestivoEspecial,
+    guardia_festivo_unidades: guardiaFestivoUnidades,
+    guardia_festivo_precio: guardiaFestivoPrecio,
+    otros_devengos,
+    bruto,
+    irpf_pct: irpfAmt != null && bruto > 0 ? (irpfAmt / bruto) * 100 : 0,
+    irpf: irpfAmt != null ? irpfAmt : undefined,
+    ss_pct: bruto > 0 ? (ssSum / bruto) * 100 : 6.35,
+    ss: ssSum,
+    otras_ded: 0,
+    neto: netoExplicit != null ? netoExplicit : undefined,
+    sse_pct: sseAmt != null && bruto > 0 ? (sseAmt / bruto) * 100 : 29.90,
+    sse: sseAmt != null ? sseAmt : undefined,
+    coste_total: undefined,
+    notas,
+  };
+
+  const nomina = finalizeImportedNomina(raw);
+  if (netoExplicit != null) {
+    nomina.neto = Math.round(netoExplicit * 100) / 100;
+  }
+  return { nomina, error: null };
+}
+
+function parseReciboHaberesPlain(text) {
+  const parts = text.split(/(?=^\s*RECIBO\s+DE\s+HABERES\s*$)/im).map(s => s.trim()).filter(s => s.length > 30);
+  const chunks = parts.length ? parts : [text.trim()];
+  const rows = [];
+  const errors = [];
+  chunks.forEach((chunk, i) => {
+    const r = parseOneReciboHaberes(chunk);
+    if (r.error) errors.push(chunks.length > 1 ? `Recibo ${i + 1}: ${r.error}` : r.error);
+    else if (r.nomina) rows.push(r.nomina);
+  });
+  if (!rows.length && !errors.length) errors.push('No se reconoció un recibo de haberes (¿falta EMPRESA o PERIODO LIQUIDACIÓN?).');
+  return { rows, errors };
+}
+
+function parsePlainTextNominas(text) {
+  const t = text.replace(/^\uFEFF/, '');
+  const kvCandidate = t.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const kvLines = kvCandidate.split('\n').map(x => x.trim()).filter(Boolean);
+  const kvHits = kvLines.filter(x => /:/.test(x) && /(fecha|mes|periodo|empresa|bruto|neto|irpf|seguridad|salario|base|deduccion|liquido)/i.test(x)).length;
+  if (kvHits >= 4) {
+    const raw = {};
+    kvLines.forEach(line => {
+      const m = line.match(/^([^:]{2,80}):\s*(.+)$/);
+      if (!m) return;
+      const key = normImportHeader(m[1]);
+      if (!IMPORT_TEXTO_KNOWN.includes(key)) return;
+      raw[key] = m[2];
+    });
+    if ((raw.fecha || raw.mes) && (raw.empresa || raw.razon_social || raw.compania)) {
+      const one = finalizeImportedNomina(raw);
+      if (one && one.fecha && one.empresa) return { rows: [one], errors: [] };
+    }
+  }
+  if (isReciboHaberesText(t)) return parseReciboHaberesPlain(t);
+
+  const lines = t.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(l => l.trimEnd());
+  const nonEmpty = [];
+  lines.forEach((ln, i) => {
+    const t = ln.trim();
+    if (!t || t.startsWith('#')) return;
+    nonEmpty.push({ lineNum: i + 1, text: t });
+  });
+  if (!nonEmpty.length) return { rows: [], errors: ['No hay filas de datos.'] };
+
+  const delim = detectImportDelim(nonEmpty[0].text);
+  const firstCells = splitImportLine(nonEmpty[0].text, delim);
+  let hasHeader = looksLikeImportHeader(firstCells);
+  let colMap;
+  let startIdx = 0;
+  if (hasHeader) {
+    colMap = mapImportHeaders(firstCells);
+    if (colMap.fecha === undefined || colMap.empresa === undefined) {
+      hasHeader = false;
+      colMap = {};
+      IMPORT_TEXTO_DEFAULT_COLS.forEach((key, i) => { colMap[key] = i; });
+      startIdx = 0;
+    } else {
+      startIdx = 1;
+    }
+  }
+  if (!hasHeader) {
+    colMap = {};
+    IMPORT_TEXTO_DEFAULT_COLS.forEach((key, i) => { colMap[key] = i; });
+    startIdx = 0;
+  }
+
+  const rows = [];
+  const errors = [];
+  for (let j = startIdx; j < nonEmpty.length; j++) {
+    const { lineNum, text } = nonEmpty[j];
+    const cells = splitImportLine(text, delim);
+    let obj;
+    try {
+      obj = rowObjectFromCells(cells, colMap);
+    } catch (e) {
+      errors.push(`Línea ${lineNum}: error al interpretar.`);
+      continue;
+    }
+    if (!obj.fecha || !obj.empresa) {
+      errors.push(`Línea ${lineNum}: falta fecha o empresa.`);
+      continue;
+    }
+    if (!/^\d{4}-\d{2}$/.test(obj.fecha)) {
+      errors.push(`Línea ${lineNum}: fecha "${obj.fecha}" (usa YYYY-MM).`);
+      continue;
+    }
+    if (!(obj.bruto > 0)) {
+      errors.push(`Línea ${lineNum}: bruto debe ser > 0 (revisa importes).`);
+      continue;
+    }
+    rows.push(obj);
+  }
+  return { rows, errors };
+}
+
+function mergeImportedNominas(list) {
+  let added = 0, updated = 0;
+  list.forEach(inc => {
+    const emp = (inc.empresa || '').trim().toLowerCase();
+    const idx = nominas.findIndex(x => x.fecha === inc.fecha && (x.empresa || '').trim().toLowerCase() === emp);
+    if (idx >= 0) {
+      inc.id = nominas[idx].id;
+      nominas[idx] = inc;
+      updated++;
+    } else {
+      inc.id = nextId();
+      nominas.push(inc);
+      added++;
+    }
+  });
+  nominas.sort((a, b) => a.fecha.localeCompare(b.fecha));
+  saveNominas();
+  return { added, updated };
+}
+
+function openImportTextoModal(msg) {
+  document.getElementById('import-texto-msg').innerHTML = '';
+  document.getElementById('import-texto-area').value = '';
+  document.getElementById('import-texto-file').value = '';
+  if (msg) {
+    document.getElementById('import-texto-msg').innerHTML =
+      `<span style="color:var(--accent)">${escapeHtml(msg)}</span>`;
+  }
+  document.getElementById('import-texto-overlay').classList.add('open');
+}
+
+function closeImportTextoModal() {
+  document.getElementById('import-texto-overlay').classList.remove('open');
+}
+
+function openImportFormatModal() {
+  document.getElementById('import-format-overlay').classList.add('open');
+}
+
+function closeImportFormatModal() {
+  document.getElementById('import-format-overlay').classList.remove('open');
+}
+
+let pendingImportRows = [];
+let pendingImportErrors = [];
+let selectedImportSource = null;
+
+function setImportProgress(active, msg) {
+  const pill = document.getElementById('import-progress-pill');
+  if (!pill) return;
+  if (active) {
+    pill.style.display = 'inline-flex';
+    pill.textContent = msg || 'Procesando importación...';
+  } else {
+    pill.style.display = 'none';
+    pill.textContent = 'Procesando importación...';
+  }
+}
+
+function showImportStatus(msg, isError) {
+  const pill = document.getElementById('import-status-pill');
+  if (!pill) return;
+  if (!msg) {
+    pill.style.display = 'none';
+    pill.textContent = '';
+    return;
+  }
+  pill.style.display = 'inline-flex';
+  pill.textContent = msg;
+  if (isError) {
+    pill.style.color = 'var(--red)';
+    pill.style.background = 'rgba(239,68,68,.12)';
+    pill.style.border = '1px solid rgba(239,68,68,.45)';
+  } else {
+    pill.style.color = 'var(--green)';
+    pill.style.background = 'rgba(34,197,94,.12)';
+    pill.style.border = '1px solid rgba(34,197,94,.45)';
+  }
+  setTimeout(() => showImportStatus('', false), 9000);
+}
+
+function handleImportFormat(format) {
+  closeImportFormatModal();
+  if (format === 'manual') {
+    openNominaModal();
+    return;
+  }
+  if (format === 'json') {
+    document.getElementById('import-json-file')?.click();
+    return;
+  }
+  if (format === 'txt') {
+    const input = document.getElementById('import-nomina-file');
+    if (input) {
+      input.setAttribute('accept', '.txt,.csv,text/plain');
+      input.click();
+    }
+    return;
+  }
+  if (format === 'pdf') {
+    const input = document.getElementById('import-nomina-file');
+    if (input) {
+      input.setAttribute('accept', '.pdf,application/pdf');
+      input.click();
+    }
+    return;
+  }
+  if (format === 'doc') {
+    const input = document.getElementById('import-nomina-file');
+    if (input) {
+      input.setAttribute('accept', '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      input.click();
+    }
+  }
+}
+
+function chooseImportFile(source) {
+  const inputNom = document.getElementById('import-nomina-file');
+  const inputJson = document.getElementById('import-json-file');
+  showImportStatus('', false);
+  if (source === 'json') {
+    closeImportFormatModal();
+    if (!inputJson) return;
+    inputJson.value = '';
+    inputJson.click();
+    return;
+  }
+  if (!inputNom) return;
+  selectedImportSource = source;
+  if (source === 'pdf') inputNom.setAttribute('accept', '.pdf,application/pdf');
+  if (source === 'doc') inputNom.setAttribute('accept', '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  if (source === 'docx') inputNom.setAttribute('accept', '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  if (source === 'txt') inputNom.setAttribute('accept', '.txt,.csv,text/plain');
+  inputNom.value = '';
+  closeImportFormatModal();
+  inputNom.click();
+}
+
+async function extractTextFromPdfFile(file) {
+  const arr = await file.arrayBuffer();
+  if (!window.pdfjsLib || !window.pdfjsLib.getDocument) {
+    throw new Error('No se pudo cargar el lector de PDF.');
+  }
+  if (window.pdfjsLib.GlobalWorkerOptions) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.5.136/build/pdf.worker.min.js';
+  }
+  const pdf = await window.pdfjsLib.getDocument({ data: arr }).promise;
+  let text = '';
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const parts = [];
+    let lastY = null;
+    content.items.forEach(it => {
+      const s = (it && it.str) ? String(it.str) : '';
+      if (!s) return;
+      const y = it && it.transform ? Number(it.transform[5]) : null;
+      if (lastY !== null && y !== null && Math.abs(y - lastY) > 2.5) {
+        parts.push('\n');
+      } else if (parts.length && parts[parts.length - 1] !== '\n') {
+        parts.push(' ');
+      }
+      parts.push(s);
+      if (it && it.hasEOL) parts.push('\n');
+      if (y !== null) lastY = y;
+    });
+    text += parts.join('').replace(/[ \t]+\n/g, '\n') + '\n';
+  }
+  return text;
+}
+
+async function extractTextFromDocFile(file) {
+  if (!window.mammoth || !window.mammoth.extractRawText) {
+    throw new Error('No se pudo cargar el lector de documentos.');
+  }
+  const arr = await file.arrayBuffer();
+  const result = await window.mammoth.extractRawText({ arrayBuffer: arr });
+  return result.value || '';
+}
+
+function validateImportedRows(rows, source) {
+  const strict = source === 'pdf' || source === 'doc' || source === 'docx';
+  const validRows = [];
+  const errors = [];
+  rows.forEach((r, i) => {
+    const idx = i + 1;
+    const empresa = String(r.empresa || '').trim();
+    if (!/^\d{4}-\d{2}$/.test(r.fecha || '')) {
+      errors.push(`Fila ${idx}: fecha inválida (${r.fecha || 'vacía'}).`);
+      return;
+    }
+    if (empresa.length < 2) {
+      errors.push(`Fila ${idx}: empresa vacía o demasiado corta.`);
+      return;
+    }
+    if (!(Number(r.bruto) > 0) || !(Number(r.neto) >= 0)) {
+      errors.push(`Fila ${idx}: bruto/neto no válidos.`);
+      return;
+    }
+    if (strict) {
+      const devengos = Number(r.salario_base || 0) + Number(r.complementos || 0) + Number(r.horas_extra || 0) + Number(r.otros_devengos || 0);
+      if (!(devengos > 0)) {
+        errors.push(`Fila ${idx}: PDF/DOC/DOCX sin devengos reconocibles.`);
+        return;
+      }
+      if (!(Number(r.irpf || 0) > 0 || Number(r.ss || 0) > 0 || Number(r.otras_ded || 0) > 0)) {
+        errors.push(`Fila ${idx}: PDF/DOC/DOCX sin deducciones reconocibles.`);
+        return;
+      }
+    }
+    validRows.push(r);
+  });
+  return { validRows, errors };
+}
+
+function openImportPreviewModal(rows, errors, source) {
+  if (!rows.length) {
+    alert(errors.join(' ') || 'No se importó ninguna fila.');
+    return;
+  }
+  const { validRows, errors: strictErrors } = validateImportedRows(rows, source);
+  const allErrors = [...errors, ...strictErrors];
+  if (!validRows.length) {
+    alert(allErrors.join(' ') || 'No hay filas válidas para importar.');
+    return;
+  }
+  pendingImportRows = validRows;
+  pendingImportErrors = allErrors;
+  const summary = document.getElementById('import-preview-summary');
+  const warn = document.getElementById('import-preview-warnings');
+  const body = document.getElementById('import-preview-tbody');
+  if (summary) {
+    summary.innerHTML = `<strong>${validRows.length}</strong> nómina(s) listas para importar desde <strong>${source.toUpperCase()}</strong>. ` +
+      'Se actualizarán coincidencias por fecha+empresa.';
+  }
+  if (warn) {
+    if (allErrors.length) {
+      warn.style.display = 'block';
+      warn.innerHTML = '<strong>Avisos/descartes:</strong><br/>' + allErrors.slice(0, 10).map(e => '• ' + escapeHtml(e)).join('<br/>') + (allErrors.length > 10 ? '<br/>…' : '');
+    } else {
+      warn.style.display = 'none';
+      warn.innerHTML = '';
+    }
+  }
+  if (body) {
+    body.innerHTML = validRows.slice(0, 30).map(r =>
+      `<tr><td>${escapeHtml(r.fecha)}</td><td>${escapeHtml(r.empresa)}</td><td style="text-align:right">${fmt(r.bruto)}</td><td style="text-align:right">${fmt(r.neto)}</td></tr>`
+    ).join('');
+    if (validRows.length > 30) {
+      body.innerHTML += `<tr><td colspan="4" style="font-size:.74rem;color:var(--muted);text-align:center">… y ${validRows.length - 30} fila(s) más</td></tr>`;
+    }
+  }
+  document.getElementById('import-preview-overlay')?.classList.add('open');
+}
+
+function closeImportPreviewModal() {
+  document.getElementById('import-preview-overlay')?.classList.remove('open');
+  pendingImportRows = [];
+  pendingImportErrors = [];
+}
+
+function confirmImportPreview() {
+  if (!pendingImportRows.length) {
+    closeImportPreviewModal();
+    return;
+  }
+  const rows = pendingImportRows;
+  const errors = pendingImportErrors;
+  const { added, updated } = mergeImportedNominas(rows);
+  closeImportPreviewModal();
+  if (activeView === 'resumen') renderResumen();
+  if (activeView === 'lista') renderLista();
+  if (activeView === 'ganancias') renderGanancias();
+  showImportStatus(`Importación completada: ${added} nueva(s), ${updated} actualizada(s).`, false);
+  alert(`✓ Importación lista: ${added} nueva(s), ${updated} actualizada(s).${errors.length ? ' Revisa avisos en la confirmación previa.' : ''}`);
+}
+
+async function handleNominaFileImport(input, forcedSource) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  const name = (file.name || '').toLowerCase();
+  showImportStatus('Archivo seleccionado: ' + (file.name || 'sin nombre'), false);
+  try {
+    let text = '';
+    setImportProgress(true, 'Procesando archivo...');
+    showImportStatus('', false);
+    if (name.endsWith('.doc') && !name.endsWith('.docx')) {
+      const msgDoc = 'El formato .doc antiguo no es compatible directamente. Guarda como .docx o exporta a PDF/TXT.';
+      showImportStatus(msgDoc, true);
+      setImportProgress(false);
+      alert(msgDoc);
+      return;
+    }
+    if (name.endsWith('.pdf')) {
+      text = await extractTextFromPdfFile(file);
+    } else if (name.endsWith('.doc') || name.endsWith('.docx')) {
+      try {
+        text = await extractTextFromDocFile(file);
+      } catch (errDoc) {
+        openImportTextoModal('No se pudo leer el DOCX automáticamente. Pega aquí el contenido del documento.');
+        showImportStatus('No se pudo extraer texto del DOCX automáticamente.', true);
+        setImportProgress(false);
+        return;
+      }
+    } else if (name.endsWith('.txt') || name.endsWith('.csv')) {
+      text = await file.text();
+    } else {
+      alert('Formato no soportado. Usa PDF, DOC, DOCX, TXT o CSV.');
+      showImportStatus('Archivo no válido: formato no soportado.', true);
+      setImportProgress(false);
+      return;
+    }
+    if (!String(text || '').trim()) {
+      const msg = name.endsWith('.pdf')
+        ? 'Archivo PDF no válido o sin texto legible.'
+        : (name.endsWith('.docx') ? 'Archivo DOCX no válido o sin texto legible.' : 'Archivo de texto vacío.');
+      showImportStatus(msg, true);
+      setImportProgress(false);
+      alert(msg);
+      return;
+    }
+    const { rows, errors } = parsePlainTextNominas(text || '');
+    const source = forcedSource || selectedImportSource || (name.endsWith('.pdf') ? 'pdf' : (name.endsWith('.doc') || name.endsWith('.docx') ? 'doc' : 'txt'));
+    selectedImportSource = null;
+    if (!rows.length) {
+      const detail = errors && errors.length ? errors.slice(0, 3).join(' ') : 'No se reconocieron datos de nómina.';
+      if (source === 'pdf' || source === 'doc' || source === 'docx') {
+        openImportTextoModal('No se detectó automáticamente una nómina. Revisa/edita el texto extraído y vuelve a importar.');
+        const area = document.getElementById('import-texto-area');
+        if (area) area.value = text || '';
+      }
+      showImportStatus('Archivo no válido para importar nóminas.', true);
+      setImportProgress(false);
+      alert('Archivo no válido para importar nóminas. ' + detail);
+      return;
+    }
+    showImportStatus(`Lectura OK: ${rows.length} nómina(s) detectadas.`, false);
+    openImportPreviewModal(rows, errors, source);
+    setImportProgress(false);
+  } catch (e) {
+    setImportProgress(false);
+    showImportStatus('Error al importar el archivo seleccionado.', true);
+    alert('No se pudo leer el archivo seleccionado. ' + (e && e.message ? e.message : ''));
+    selectedImportSource = null;
+  }
+}
+
+function updateDeleteMonthPreview() {
+  const inp = document.getElementById('delete-month-input');
+  const el = document.getElementById('delete-month-preview');
+  if (!inp || !el) return;
+  const ym = inp.value;
+  if (!ym) { el.innerHTML = ''; return; }
+  const list = nominas.filter(n => n.fecha === ym);
+  if (!list.length) {
+    el.innerHTML = '<span style="color:var(--yellow)">No hay nóminas en ' + monthLabel(ym) + '.</span>';
+    return;
+  }
+  el.innerHTML = '<strong>' + list.length + '</strong> nómina(s):<br/>' +
+    list.map(n => '• ' + escapeHtml(n.empresa) + ' — ' + fmt(n.neto)).join('<br/>');
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function openDeleteMonthModal() {
+  const inp = document.getElementById('delete-month-input');
+  if (inp && !inp.value) inp.value = new Date().toISOString().slice(0, 7);
+  updateDeleteMonthPreview();
+  document.getElementById('delete-month-overlay').classList.add('open');
+}
+
+function closeDeleteMonthModal() {
+  document.getElementById('delete-month-overlay').classList.remove('open');
+}
+
+function confirmDeleteNominasByMonth() {
+  const ym = document.getElementById('delete-month-input').value;
+  if (!ym) { alert('Elige un mes.'); return; }
+  const toRemove = nominas.filter(n => n.fecha === ym);
+  if (!toRemove.length) {
+    alert('No hay nóminas en ese mes.');
+    return;
+  }
+  const msg = '¿Eliminar ' + toRemove.length + ' nómina(s) de ' + monthLabel(ym) + '?\n\n' +
+    toRemove.map(n => '• ' + n.empresa).join('\n');
+  if (!confirm(msg)) return;
+  nominas = nominas.filter(n => n.fecha !== ym);
+  saveNominas();
+  selectedId = null;
+  closeDeleteMonthModal();
+  if (activeView === 'resumen') renderResumen();
+  if (activeView === 'lista') renderLista();
+  if (activeView === 'ganancias') renderGanancias();
+  alert('Eliminadas ' + toRemove.length + ' nómina(s) de ' + monthLabel(ym) + '.');
+}
+
+document.getElementById('delete-month-overlay')?.addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeDeleteMonthModal();
+});
+document.getElementById('delete-month-input')?.addEventListener('change', updateDeleteMonthPreview);
+document.getElementById('delete-month-input')?.addEventListener('input', updateDeleteMonthPreview);
+
+document.getElementById('import-texto-overlay')?.addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeImportTextoModal();
+});
+document.getElementById('import-format-overlay')?.addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeImportFormatModal();
+});
+document.getElementById('import-preview-overlay')?.addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeImportPreviewModal();
+});
+document.getElementById('import-nomina-file')?.addEventListener('change', function() {
+  handleNominaFileImport(this, selectedImportSource || undefined);
+});
+
+document.getElementById('import-texto-file')?.addEventListener('change', function() {
+  const f = this.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    document.getElementById('import-texto-area').value = reader.result || '';
+    document.getElementById('import-texto-msg').innerHTML = '<span style="color:var(--accent)">✓ Archivo cargado en el área de texto.</span>';
+  };
+  reader.readAsText(f, 'UTF-8');
+  this.value = '';
+});
+
+function confirmImportTexto() {
+  const text = document.getElementById('import-texto-area').value;
+  const msgEl = document.getElementById('import-texto-msg');
+  if (!text.trim()) {
+    msgEl.innerHTML = '<span style="color:var(--red)">Pega texto o elige un archivo.</span>';
+    return;
+  }
+  const { rows, errors } = parsePlainTextNominas(text);
+  if (!rows.length) {
+    msgEl.innerHTML = '<span style="color:var(--red)">' + (errors.join(' ') || 'No se importó ninguna fila.') + '</span>';
+    return;
+  }
+  closeImportTextoModal();
+  openImportPreviewModal(rows, errors, 'txt');
+}
+
 // ─── Exportar / Importar ──────────────────────
 const BACKUP_KEYS = [
   'conta_txs','conta_settings','conta_learned','conta_esperados',
@@ -1500,11 +2692,140 @@ function importarTodo(input) {
   input.value = '';
 }
 
+function _numOrNull(v) {
+  const n = parseNumEuro(v);
+  return n === null ? null : n;
+}
+
+function migrateNominasShape(list) {
+  let changed = false;
+  const out = list.map(n => {
+    const x = { ...n };
+    const notas = String(x.notas || '');
+
+    // 1) Gratificación voluntaria
+    if (x.gratificacion_voluntaria == null) {
+      let gv = _numOrNull((notas.match(/Gratif(?:icaci[oó]n)?\.?\s*Voluntaria[^0-9]*([\d.,]+)/i) || [])[1]);
+      if (gv == null) gv = _numOrNull((notas.match(/Gratificaci[oó]n\s+voluntaria[^0-9]*([\d.,]+)/i) || [])[1]);
+      if (gv != null && gv > 0) {
+        x.gratificacion_voluntaria = Math.round(gv * 100) / 100;
+        changed = true;
+      } else if (x.gratificacion_voluntaria == null) {
+        x.gratificacion_voluntaria = 0;
+        changed = true;
+      }
+    }
+
+    // 2) Guardias presenciales: unidades x precio
+    if (x.guardias_unidades == null || x.guardias_precio == null || x.guardias_presenciales == null) {
+      const mg = notas.match(/Guardias?\s+presenciales?:?\s*([\d.,]+)\s*[x×]\s*€?\s*([\d.,]+)/i);
+      if (mg) {
+        const u = _numOrNull(mg[1]) || 0;
+        const p = _numOrNull(mg[2]) || 0;
+        const imp = Math.round((u * p) * 100) / 100;
+        if (x.guardias_unidades == null) x.guardias_unidades = u;
+        if (x.guardias_precio == null) x.guardias_precio = p;
+        if (x.guardias_presenciales == null) x.guardias_presenciales = imp;
+        changed = true;
+      }
+    }
+    if (x.guardias_unidades == null) { x.guardias_unidades = 0; changed = true; }
+    if (x.guardias_precio == null) { x.guardias_precio = 0; changed = true; }
+    if (x.guardias_presenciales == null) {
+      // Heurística: si hay grat. voluntaria y otros_devengos, guardias ~ otros - grat
+      const guess = Math.max(0, Number(x.otros_devengos || 0) - Number(x.gratificacion_voluntaria || 0));
+      x.guardias_presenciales = Math.round(guess * 100) / 100;
+      changed = true;
+    }
+
+    // 3) Guardia festivo especial (si existe en notas)
+    if (x.guardia_festivo_especial == null || x.guardia_festivo_unidades == null || x.guardia_festivo_precio == null) {
+      const mf = notas.match(/Guardia(?:s)?\s+Festivo\s+Especial[^0-9]*([\d.,]+)\s*[x×]\s*€?\s*([\d.,]+)/i);
+      if (mf) {
+        const u = _numOrNull(mf[1]) || 0;
+        const p = _numOrNull(mf[2]) || 0;
+        const imp = Math.round((u * p) * 100) / 100;
+        if (x.guardia_festivo_unidades == null) x.guardia_festivo_unidades = u;
+        if (x.guardia_festivo_precio == null) x.guardia_festivo_precio = p;
+        if (x.guardia_festivo_especial == null) x.guardia_festivo_especial = imp;
+        changed = true;
+      }
+    }
+    if (x.guardia_festivo_especial == null) { x.guardia_festivo_especial = 0; changed = true; }
+    if (x.guardia_festivo_unidades == null) { x.guardia_festivo_unidades = 0; changed = true; }
+    if (x.guardia_festivo_precio == null) { x.guardia_festivo_precio = 0; changed = true; }
+
+    // 4) Normalización visual/campos para 2025 (mismo formato que 2026)
+    if (String(x.fecha || '').startsWith('2025-')) {
+      const isExtraLike = /paga\s+extra/i.test(notas);
+      const isIncentivoAjuste = /incentivos?/i.test(notas);
+      const guardiasTotal = Number(x.guardias_presenciales || 0) + Number(x.guardia_festivo_especial || 0);
+
+      // En nóminas de paga extra/incentivos, no tratar el concepto como guardias.
+      if (isExtraLike) {
+        if (Number(x.pagas_extra || 0) === 0 && Number(x.otros_devengos || 0) > 0) {
+          x.pagas_extra = Math.round(Number(x.otros_devengos) * 100) / 100;
+          x.otros_devengos = 0;
+          changed = true;
+        }
+        if (Number(x.guardias_presenciales || 0) !== 0) { x.guardias_presenciales = 0; changed = true; }
+        if (Number(x.guardias_unidades || 0) !== 0) { x.guardias_unidades = 0; changed = true; }
+        if (Number(x.guardias_precio || 0) !== 0) { x.guardias_precio = 0; changed = true; }
+        if (Number(x.guardia_festivo_especial || 0) !== 0) { x.guardia_festivo_especial = 0; changed = true; }
+        if (Number(x.guardia_festivo_unidades || 0) !== 0) { x.guardia_festivo_unidades = 0; changed = true; }
+        if (Number(x.guardia_festivo_precio || 0) !== 0) { x.guardia_festivo_precio = 0; changed = true; }
+      }
+      // En ajustes por incentivos no forzamos "pagas_extra",
+      // pero sí evitamos arrastre de guardias por heurística.
+      if (isIncentivoAjuste && !isExtraLike) {
+        if (Number(x.guardias_presenciales || 0) !== 0) { x.guardias_presenciales = 0; changed = true; }
+        if (Number(x.guardias_unidades || 0) !== 0) { x.guardias_unidades = 0; changed = true; }
+        if (Number(x.guardias_precio || 0) !== 0) { x.guardias_precio = 0; changed = true; }
+        if (Number(x.guardia_festivo_especial || 0) !== 0) { x.guardia_festivo_especial = 0; changed = true; }
+        if (Number(x.guardia_festivo_unidades || 0) !== 0) { x.guardia_festivo_unidades = 0; changed = true; }
+        if (Number(x.guardia_festivo_precio || 0) !== 0) { x.guardia_festivo_precio = 0; changed = true; }
+      }
+
+      // Si gratificación no viene explícita, la inferimos desde otros_devengos
+      // cuando encaja en el rango típico (evita meses de paga extra/incentivos).
+      if (!isExtraLike && !isIncentivoAjuste && Number(x.gratificacion_voluntaria || 0) === 0) {
+        const residual = Math.max(0, Number(x.otros_devengos || 0) - guardiasTotal);
+        if (residual >= 2000 && residual <= 2300) {
+          x.gratificacion_voluntaria = Math.round(residual * 100) / 100;
+          changed = true;
+        }
+      }
+
+      // Rebalanceamos otros_devengos para no duplicar en detalle:
+      // otros = guardias + festivo + resto_real (sin gratificación).
+      if (!isExtraLike && !isIncentivoAjuste && Number(x.gratificacion_voluntaria || 0) > 0) {
+        const currentOtros = Number(x.otros_devengos || 0);
+        const rest = Math.max(0, currentOtros - guardiasTotal - Number(x.gratificacion_voluntaria || 0));
+        const normalizedOtros = Math.round((guardiasTotal + rest) * 100) / 100;
+        if (Math.abs(normalizedOtros - currentOtros) > 0.01) {
+          x.otros_devengos = normalizedOtros;
+          changed = true;
+        }
+      }
+    }
+
+    return x;
+  });
+  return { list: out, changed };
+}
+
 // ─────────────────────────────────────────────
 //  INIT
 // ─────────────────────────────────────────────
 function _initNominas() {
   nominas = JSON.parse(localStorage.getItem(NOM_KEY) || '[]');
+  const mig = migrateNominasShape(nominas);
+  if (mig.changed) {
+    nominas = mig.list;
+    saveNominas();
+  } else {
+    nominas = mig.list;
+  }
   loadGanCfg();
   loadGan();
   renderResumen();
@@ -1601,7 +2922,15 @@ _initNominas();
 
 <script>
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+    const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
+    if (isLocalhost) {
+      navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister())).catch(() => {});
+      if (window.caches && caches.keys) {
+        caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
+      }
+    } else {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
   }
 </script>
 </body>

@@ -225,6 +225,7 @@
           <option value="0">— Suscripción: No</option>
         </select>
         <input type="text" id="f-search" placeholder="Buscar..." oninput="renderTransacciones()" style="min-width:140px" />
+        <button class="btn btn-secondary" style="padding:5px 12px;font-size:.78rem" onclick="setRangeFirstToToday()">Primer registro → hoy</button>
         <button class="btn btn-secondary" style="padding:5px 12px;font-size:.78rem" onclick="clearFilters()">Limpiar</button>
       </div>
       <div class="table-box" style="padding:0; overflow:auto; max-height:calc(100vh - 170px)">
@@ -314,6 +315,7 @@
       <select id="tx-sub-periodo">
         <option value="">— Seleccionar —</option>
         <option value="Mensual">Mensual</option>
+        <option value="Cuatrimestral">Cuatrimestral</option>
         <option value="Trimestral">Trimestral</option>
         <option value="Anual">Anual</option>
       </select>
@@ -2195,6 +2197,24 @@ function clearFilters() {
   renderTransacciones();
 }
 
+function setRangeFirstToToday() {
+  if (!txs.length) {
+    alert('No hay transacciones para calcular el rango.');
+    return;
+  }
+  const first = [...txs]
+    .map(t => t.date)
+    .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(String(d || '')))
+    .sort()[0];
+  if (!first) {
+    alert('No se encontraron fechas válidas en las transacciones.');
+    return;
+  }
+  document.getElementById('f-desde').value = first;
+  document.getElementById('f-hasta').value = new Date().toISOString().slice(0,10);
+  renderTransacciones();
+}
+
 // ─────────────────────────────────────────────
 //  CATEGORÍAS
 // ─────────────────────────────────────────────
@@ -3046,6 +3066,7 @@ function renderEsperados() {
       <select id="ge-periodo">
         <option value="">— Seleccionar —</option>
         <option value="Mensual">Mensual</option>
+        <option value="Cuatrimestral">Cuatrimestral</option>
         <option value="Trimestral">Trimestral</option>
         <option value="Anual">Anual</option>
       </select>
@@ -3060,7 +3081,15 @@ function renderEsperados() {
 
 <script>
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+    const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
+    if (isLocalhost) {
+      navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister())).catch(() => {});
+      if (window.caches && caches.keys) {
+        caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
+      }
+    } else {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
   }
 </script>
 </body>
