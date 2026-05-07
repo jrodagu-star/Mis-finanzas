@@ -100,7 +100,12 @@
       padding: 16px;
     }
     .chart-box h3 { font-size: .85rem; font-weight: 600; margin-bottom: 14px; color: var(--text); }
-    .chart-box canvas { max-height: 280px; }
+    .chart-box canvas {
+      display: block;
+      width: 100% !important;
+      height: clamp(220px, 30vh, 320px) !important;
+      max-height: 320px;
+    }
 
     /* ── TABLE ── */
     .table-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
@@ -234,6 +239,9 @@
   </div>
   <div class="nav-item" data-view="cripto">
     <span class="icon">₿</span><span>Criptomonedas</span>
+  </div>
+  <div class="nav-item" data-view="transacciones">
+    <span class="icon">🧾</span><span>Transacciones</span>
   </div>
 
   <div class="sidebar-section">Herramientas</div>
@@ -489,6 +497,145 @@
         <textarea class="note-area" id="nota-general" placeholder="Notas generales sobre la cartera..." rows="5"></textarea>
         <br/><br/>
         <div id="notas-por-posicion"></div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: TRANSACCIONES ── -->
+    <div class="view" id="view-transacciones">
+      <div class="table-box">
+        <h3>Registrar movimiento de inversión</h3>
+        <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">Añade compras de acciones/participaciones para actualizar automáticamente tu cartera.</p>
+        <div class="form-row">
+          <label>Producto en cartera</label>
+          <select id="tx-product-select" onchange="onTxProductChange()"></select>
+        </div>
+        <div class="chart-grid cols2">
+          <div class="form-row">
+            <label>Sector</label>
+            <select id="tx-sector-select" onchange="onTxSectorChange()">
+              <option value="">Seleccionar sector...</option>
+              <option value="Tecnología">Tecnología</option>
+              <option value="Salud">Salud</option>
+              <option value="Financiero">Financiero</option>
+              <option value="Consumo">Consumo</option>
+              <option value="Energía">Energía</option>
+              <option value="Industria">Industria</option>
+              <option value="Utilities">Utilities</option>
+              <option value="Inmobiliario">Inmobiliario</option>
+              <option value="Materias primas">Materias primas</option>
+              <option value="Telecomunicaciones">Telecomunicaciones</option>
+              <option value="Servicios públicos">Servicios públicos</option>
+              <option value="Criptomonedas">Criptomonedas</option>
+              <option value="Otro">Otro (especificar)</option>
+            </select>
+          </div>
+          <div class="form-row" id="tx-sector-custom-row" style="display:none">
+            <label>Sector personalizado</label>
+            <input type="text" id="tx-sector-custom" placeholder="Escribe el sector" />
+          </div>
+        </div>
+        <div id="tx-new-product-fields" style="display:none;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px;background:var(--surface2)">
+          <p style="font-size:.78rem;color:var(--accent);margin-bottom:8px;font-weight:600">Nuevo producto</p>
+          <div class="form-row">
+            <label>Nombre</label>
+            <input type="text" id="tx-new-name" placeholder="Ej: iShares MSCI World" />
+          </div>
+          <div class="chart-grid cols2" style="margin-bottom:0">
+            <div class="form-row" style="margin-bottom:10px">
+              <label>ISIN / Ticker</label>
+              <input type="text" id="tx-new-isin" placeholder="IE00..." />
+            </div>
+            <div class="form-row" style="margin-bottom:10px">
+              <label>Tipo de activo</label>
+              <select id="tx-new-tipo">
+                <option value="RV">Renta Variable</option>
+                <option value="RF">Renta Fija</option>
+                <option value="MIX">Mixto</option>
+                <option value="ALT">Alternativo</option>
+                <option value="PP">Plan de Pensiones</option>
+                <option value="CASH">Liquidez</option>
+              </select>
+            </div>
+            <div class="form-row" style="margin-bottom:10px">
+              <label>Región / Mercado</label>
+              <input type="text" id="tx-new-region" placeholder="Global, Europa..." />
+            </div>
+            <div class="form-row" style="margin-bottom:0">
+              <label>Broker / Plataforma</label>
+              <input type="text" id="tx-new-broker" placeholder="MyInvestor, XTB..." />
+            </div>
+          </div>
+        </div>
+        <div class="chart-grid cols3">
+          <div class="form-row">
+            <label>Cantidad comprada</label>
+            <input type="number" id="tx-qty" min="0" step="0.000001" placeholder="0" />
+          </div>
+          <div class="form-row">
+            <label>Valor de mercado por unidad (€)</label>
+            <input type="number" id="tx-price" min="0" step="0.0001" placeholder="0.00" />
+          </div>
+          <div class="form-row">
+            <label>Comisión (€)</label>
+            <input type="number" id="tx-fee" min="0" step="0.01" value="0" />
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Fecha y hora de compra</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="datetime-local" id="tx-datetime" oninput="onTxDateTimeChange()" />
+            <button class="btn btn-secondary" type="button" onclick="fetchBtcPriceForTransaction()" style="white-space:nowrap">Buscar BTC/EUR</button>
+          </div>
+          <div id="tx-btc-price-status" style="margin-top:6px;font-size:.75rem;color:var(--muted)"></div>
+        </div>
+        <div class="form-row" style="margin-bottom:0">
+          <label>Notas (opcional)</label>
+          <textarea id="tx-note" placeholder="Detalles del movimiento..."></textarea>
+        </div>
+        <div class="modal-actions" style="margin-top:14px;justify-content:space-between">
+          <button class="btn btn-danger" onclick="deleteTransactionProduct()">Eliminar producto seleccionado</button>
+          <button class="btn btn-primary" id="tx-save-btn" onclick="saveInvestmentTransaction()">Guardar</button>
+        </div>
+      </div>
+      <div class="chart-grid cols3" style="margin-bottom:16px">
+        <div class="table-box" style="grid-column:1 / -1;margin-bottom:0">
+          <h3>Filtros de gráficos</h3>
+          <div class="chart-grid cols3">
+            <div class="form-row" style="margin-bottom:0">
+              <label>Sector</label>
+              <select id="tx-chart-sector" onchange="renderTransacciones()"></select>
+            </div>
+            <div class="form-row" style="margin-bottom:0">
+              <label>Año</label>
+              <select id="tx-chart-year" onchange="renderTransacciones()"></select>
+            </div>
+            <div class="form-row" style="margin-bottom:0">
+              <label>Mes</label>
+              <select id="tx-chart-month" onchange="renderTransacciones()"></select>
+            </div>
+          </div>
+          <div style="margin-top:10px">
+            <button class="btn btn-secondary" onclick="resetTransactionChartFilters()">Limpiar filtros</button>
+          </div>
+        </div>
+        <div class="chart-box">
+          <h3>Productos donde inviertes (€)</h3>
+          <canvas id="chart-tx-product"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Cantidad comprada por producto</h3>
+          <canvas id="chart-tx-quantity"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Distribución por sectores</h3>
+          <canvas id="chart-tx-sector"></canvas>
+        </div>
+      </div>
+      <div class="table-box">
+        <h3>Historial de movimientos</h3>
+        <div style="overflow-x:auto">
+          <table id="table-transacciones" style="min-width:900px"></table>
+        </div>
       </div>
     </div>
 
@@ -875,9 +1022,21 @@ function savePositions(positions) {
 }
 
 let positions = loadPositions();
+let investmentTransactions = loadInvestmentTransactions();
 let editId = null;
+let editingTransactionId = null;
+let txTableSort = { key: 'datetime', dir: 'desc' };
 let chartInstances = {};
 let activeFilters = { type: 'all', broker: 'all' };
+
+function loadInvestmentTransactions() {
+  const saved = localStorage.getItem('inv_transactions');
+  if (!saved) return [];
+  try { return JSON.parse(saved); } catch { return []; }
+}
+function saveInvestmentTransactions() {
+  localStorage.setItem('inv_transactions', JSON.stringify(investmentTransactions));
+}
 
 // ─────────────────────────────────────────────
 //  PALETTE
@@ -943,7 +1102,21 @@ function mkChart(id, config) {
   destroyChart(id);
   const ctx = document.getElementById(id);
   if (!ctx) return;
-  chartInstances[id] = new Chart(ctx, config);
+  const mergedConfig = {
+    ...config,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      ...(config.options || {})
+    }
+  };
+  chartInstances[id] = new Chart(ctx, mergedConfig);
+}
+
+function resizeAllCharts() {
+  Object.values(chartInstances).forEach(ch => {
+    try { ch.resize(); } catch {}
+  });
 }
 
 const CHART_DEFAULTS = {
@@ -963,6 +1136,7 @@ const VIEW_TITLES = {
   detalle: 'Detalle de Posiciones', evolucion: 'Evolución y Rendimiento',
   roboadvisor: 'Análisis Roboadvisor (Cartera Indie + Plan Pensiones)',
   cripto: 'Criptomonedas — Bitcoin (BTC)',
+  transacciones: 'Transacciones de Inversión',
   notas: 'Notas de Análisis'
 };
 
@@ -975,6 +1149,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     document.getElementById('view-' + view).classList.add('active');
     document.getElementById('page-title').textContent = VIEW_TITLES[view] || view;
     renderView(view);
+    requestAnimationFrame(resizeAllCharts);
   });
 });
 
@@ -1007,6 +1182,7 @@ function renderView(view) {
   else if (view === 'evolucion') renderEvolucion();
   else if (view === 'roboadvisor') renderRoboadvisor();
   else if (view === 'cripto') renderCripto();
+  else if (view === 'transacciones') renderTransacciones();
   else if (view === 'notas') renderNotas();
 }
 
@@ -2494,6 +2670,615 @@ function renderDetalle() {
   el.innerHTML = html;
 }
 
+function populateTransactionProductSelect() {
+  const sel = document.getElementById('tx-product-select');
+  if (!sel) return;
+  const current = sel.value || '';
+  sel.innerHTML = '<option value="">Selecciona un producto...</option>';
+  positions
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+    .forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = String(p.id);
+      opt.textContent = p.name;
+      sel.appendChild(opt);
+    });
+  const newOpt = document.createElement('option');
+  newOpt.value = '__new__';
+  newOpt.textContent = '➕ Añadir producto nuevo';
+  sel.appendChild(newOpt);
+  if (current && [...sel.options].some(o => o.value === current)) sel.value = current;
+}
+
+function inferSectorFromPosition(pos) {
+  if (!pos) return 'Sin sector';
+  if (pos.sector && pos.sector.trim()) return pos.sector.trim();
+  if (pos.tipo === 'RF') return 'Renta fija';
+  if (pos.tipo === 'CASH') return 'Liquidez';
+  if (pos.tipo === 'PP') return 'Pensiones';
+  if (pos.tipo === 'ALT') return 'Alternativos';
+  return 'Sin sector';
+}
+
+function setSectorValue(sector) {
+  const sel = document.getElementById('tx-sector-select');
+  const customRow = document.getElementById('tx-sector-custom-row');
+  const customInput = document.getElementById('tx-sector-custom');
+  if (!sel || !customRow || !customInput) return;
+  const normalized = (sector || '').trim();
+  if (!normalized) {
+    sel.value = '';
+    customInput.value = '';
+    customRow.style.display = 'none';
+    return;
+  }
+  const known = [...sel.options].some(o => o.value === normalized);
+  if (known && normalized !== 'Otro') {
+    sel.value = normalized;
+    customInput.value = '';
+    customRow.style.display = 'none';
+  } else {
+    sel.value = 'Otro';
+    customInput.value = normalized === 'Otro' ? '' : normalized;
+    customRow.style.display = 'block';
+  }
+}
+
+function onTxSectorChange() {
+  const sel = document.getElementById('tx-sector-select');
+  const customRow = document.getElementById('tx-sector-custom-row');
+  const customInput = document.getElementById('tx-sector-custom');
+  if (!sel || !customRow || !customInput) return;
+  customRow.style.display = sel.value === 'Otro' ? 'block' : 'none';
+  if (sel.value !== 'Otro') customInput.value = '';
+}
+
+function getSelectedSector() {
+  const sel = document.getElementById('tx-sector-select');
+  const custom = document.getElementById('tx-sector-custom');
+  if (!sel) return 'Sin sector';
+  if (sel.value === 'Otro') {
+    const v = (custom?.value || '').trim();
+    return v || 'Sin sector';
+  }
+  return sel.value || 'Sin sector';
+}
+
+function selectedPositionForTx() {
+  const sel = document.getElementById('tx-product-select');
+  if (!sel || !sel.value || sel.value === '__new__') return null;
+  return positions.find(p => p.id === Number(sel.value)) || null;
+}
+
+function isBitcoinPosition(pos) {
+  if (!pos) return false;
+  const isin = String(pos.isin || '').toUpperCase();
+  const name = String(pos.name || '').toLowerCase();
+  return isin === 'BTC' || name.includes('bitcoin');
+}
+
+function setTxBtcStatus(msg, isError = false) {
+  const el = document.getElementById('tx-btc-price-status');
+  if (!el) return;
+  el.style.color = isError ? 'var(--red)' : 'var(--muted)';
+  el.textContent = msg || '';
+}
+
+function nearestBtcEurPrice(prices, targetMs) {
+  if (!Array.isArray(prices) || !prices.length) return null;
+  let best = prices[0];
+  let bestDelta = Math.abs(prices[0][0] - targetMs);
+  for (let i = 1; i < prices.length; i++) {
+    const d = Math.abs(prices[i][0] - targetMs);
+    if (d < bestDelta) { best = prices[i]; bestDelta = d; }
+  }
+  return { ts: best[0], price: best[1], deltaMs: bestDelta };
+}
+
+async function fetchBtcPriceForTransaction(auto = false) {
+  const pos = selectedPositionForTx();
+  if (!isBitcoinPosition(pos)) {
+    if (!auto) setTxBtcStatus('Selecciona el activo Bitcoin para buscar su cotización histórica.');
+    return;
+  }
+  const dt = document.getElementById('tx-datetime')?.value;
+  if (!dt) {
+    if (!auto) setTxBtcStatus('Introduce fecha y hora para consultar BTC/EUR.');
+    return;
+  }
+  const targetMs = new Date(dt).getTime();
+  if (!Number.isFinite(targetMs)) {
+    if (!auto) setTxBtcStatus('Fecha/hora no válida.', true);
+    return;
+  }
+
+  try {
+    setTxBtcStatus('Consultando cotización histórica BTC/EUR...');
+    const from = Math.floor((targetMs - 4 * 3600 * 1000) / 1000);
+    const to = Math.floor((targetMs + 4 * 3600 * 1000) / 1000);
+    const url = `https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=eur&from=${from}&to=${to}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('No se pudo consultar CoinGecko');
+    const data = await res.json();
+    const nearest = nearestBtcEurPrice(data?.prices, targetMs);
+    if (!nearest) throw new Error('Sin datos de cotización para ese momento');
+
+    const priceEl = document.getElementById('tx-price');
+    if (priceEl) priceEl.value = Number(nearest.price).toFixed(2);
+    const sampleTime = new Date(nearest.ts).toLocaleString('es-ES');
+    setTxBtcStatus(`BTC/EUR aplicado: ${fmt(nearest.price)} (muestra más cercana: ${sampleTime})`);
+  } catch (e) {
+    setTxBtcStatus(`No se pudo obtener BTC/EUR: ${e.message || 'error desconocido'}`, true);
+  }
+}
+
+function onTxDateTimeChange() {
+  const pos = selectedPositionForTx();
+  if (isBitcoinPosition(pos)) fetchBtcPriceForTransaction(true);
+}
+
+function onTxProductChange() {
+  const sel = document.getElementById('tx-product-select');
+  const fields = document.getElementById('tx-new-product-fields');
+  if (!sel || !fields) return;
+  fields.style.display = sel.value === '__new__' ? 'block' : 'none';
+  if (sel.value && sel.value !== '__new__') {
+    const pos = positions.find(p => p.id === Number(sel.value));
+    setSectorValue(inferSectorFromPosition(pos));
+    if (isBitcoinPosition(pos)) {
+      setTxBtcStatus('Puedes autocompletar el valor con la cotización BTC/EUR de la fecha/hora.');
+      onTxDateTimeChange();
+    } else {
+      setTxBtcStatus('');
+    }
+  } else if (sel.value === '__new__') {
+    setSectorValue('');
+    setTxBtcStatus('');
+  }
+}
+
+function defaultTxDateTime() {
+  const now = new Date();
+  const tzOffset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
+}
+
+function getOrCreateTxPosition() {
+  const sel = document.getElementById('tx-product-select');
+  if (!sel || !sel.value) return { error: 'Selecciona un producto.' };
+
+  if (sel.value !== '__new__') {
+    const pos = positions.find(p => p.id === Number(sel.value));
+    if (!pos) return { error: 'No se encontró el producto seleccionado.' };
+    return { position: pos, created: false };
+  }
+
+  const name = document.getElementById('tx-new-name').value.trim();
+  const isin = document.getElementById('tx-new-isin').value.trim() || '–';
+  const tipo = document.getElementById('tx-new-tipo').value;
+  const sector = getSelectedSector();
+  const region = document.getElementById('tx-new-region').value.trim() || 'Global';
+  const broker = document.getElementById('tx-new-broker').value.trim() || 'Otro';
+  if (!name) return { error: 'Indica el nombre del nuevo producto.' };
+
+  const maxId = positions.length ? Math.max(...positions.map(p => p.id)) : 0;
+  const pos = {
+    id: maxId + 1,
+    name,
+    isin,
+    tipo,
+    sector,
+    region,
+    broker,
+    value: 0,
+    cost: 0,
+    units: 0,
+    comment: ''
+  };
+  positions.push(pos);
+  return { position: pos, created: true };
+}
+
+function applyTransactionToPosition(tx, sign = 1) {
+  const pos = positions.find(p => p.id === tx.positionId);
+  if (!pos) return;
+  pos.cost = Math.max(0, (pos.cost || 0) + sign * tx.totalCost);
+  pos.value = Math.max(0, (pos.value || 0) + sign * tx.gross);
+  pos.units = Math.max(0, (pos.units || 0) + sign * tx.qty);
+  if (tx.sector) pos.sector = tx.sector;
+}
+
+function resetTransactionForm() {
+  editingTransactionId = null;
+  document.getElementById('tx-save-btn').textContent = 'Guardar';
+  document.getElementById('tx-product-select').value = '';
+  document.getElementById('tx-qty').value = '';
+  document.getElementById('tx-price').value = '';
+  document.getElementById('tx-fee').value = '0';
+  document.getElementById('tx-note').value = '';
+  document.getElementById('tx-datetime').value = defaultTxDateTime();
+  setSectorValue('');
+  setTxBtcStatus('');
+  ['tx-new-name', 'tx-new-isin', 'tx-new-region', 'tx-new-broker'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('tx-new-tipo').value = 'RV';
+  onTxProductChange();
+}
+
+function saveInvestmentTransaction() {
+  const qty = parseFloat(document.getElementById('tx-qty').value) || 0;
+  const price = parseFloat(document.getElementById('tx-price').value) || 0;
+  const fee = parseFloat(document.getElementById('tx-fee').value) || 0;
+  const dateTime = document.getElementById('tx-datetime').value;
+  const note = document.getElementById('tx-note').value.trim();
+  if (qty <= 0 || price <= 0) {
+    alert('La cantidad y el valor de mercado deben ser mayores que 0.');
+    return;
+  }
+  if (!dateTime) {
+    alert('Indica la fecha y hora de compra.');
+    return;
+  }
+
+  const productResult = getOrCreateTxPosition();
+  if (productResult.error) {
+    alert(productResult.error);
+    return;
+  }
+  const p = productResult.position;
+
+  const gross = qty * price;
+  const totalCost = gross + fee;
+  const sector = getSelectedSector() || inferSectorFromPosition(p);
+  const actionLabel = editingTransactionId ? 'actualizará' : 'actualizarán';
+  const warn = `Se ${actionLabel} las inversiones con los datos aportados.\n\nProducto: ${p.name}\nCantidad: ${qty}\nCoste total: ${fmt(totalCost)}\n\n¿Deseas continuar?`;
+  if (!confirm(warn)) return;
+
+  const txData = {
+    id: editingTransactionId || Date.now(),
+    positionId: p.id,
+    product: p.name,
+    sector,
+    qty,
+    price,
+    fee,
+    gross,
+    totalCost,
+    datetime: dateTime,
+    note
+  };
+
+  if (editingTransactionId) {
+    const idx = investmentTransactions.findIndex(tx => tx.id === editingTransactionId);
+    if (idx >= 0) {
+      applyTransactionToPosition(investmentTransactions[idx], -1);
+      investmentTransactions[idx] = txData;
+    } else {
+      investmentTransactions.push(txData);
+    }
+  } else {
+    investmentTransactions.push(txData);
+  }
+  applyTransactionToPosition(txData, +1);
+
+  savePositions(positions);
+  saveInvestmentTransactions();
+  populateBrokerFilter();
+
+  if (productResult.created) {
+    populateTransactionProductSelect();
+    document.getElementById('tx-product-select').value = String(p.id);
+    onTxProductChange();
+  }
+  resetTransactionForm();
+
+  renderTransacciones();
+  const activeView = document.querySelector('.nav-item.active')?.dataset?.view || 'resumen';
+  if (activeView !== 'transacciones') renderView(activeView);
+}
+
+function deleteTransactionProduct() {
+  const sel = document.getElementById('tx-product-select');
+  if (!sel || !sel.value || sel.value === '__new__') {
+    alert('Selecciona un producto existente para eliminarlo.');
+    return;
+  }
+  const id = Number(sel.value);
+  const p = positions.find(x => x.id === id);
+  if (!p) return;
+  if (!confirm(`Se eliminará "${p.name}" de inversiones y también sus transacciones registradas.\n\n¿Continuar?`)) return;
+
+  positions = positions.filter(x => x.id !== id);
+  investmentTransactions = investmentTransactions.filter(tx => tx.positionId !== id);
+  savePositions(positions);
+  saveInvestmentTransactions();
+  populateBrokerFilter();
+  populateTransactionProductSelect();
+  onTxProductChange();
+  resetTransactionForm();
+  renderTransacciones();
+}
+
+function editInvestmentTransaction(id) {
+  const tx = investmentTransactions.find(t => t.id === id);
+  if (!tx) return;
+  editingTransactionId = id;
+  document.getElementById('tx-save-btn').textContent = 'Guardar cambios';
+  populateTransactionProductSelect();
+  document.getElementById('tx-product-select').value = String(tx.positionId);
+  onTxProductChange();
+  setSectorValue(tx.sector || 'Sin sector');
+  document.getElementById('tx-qty').value = tx.qty;
+  document.getElementById('tx-price').value = tx.price;
+  document.getElementById('tx-fee').value = tx.fee || 0;
+  document.getElementById('tx-datetime').value = tx.datetime;
+  document.getElementById('tx-note').value = tx.note || '';
+  document.getElementById('view-transacciones').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function deleteInvestmentTransaction(id) {
+  const tx = investmentTransactions.find(t => t.id === id);
+  if (!tx) return;
+  if (!confirm(`Se eliminará el movimiento de "${tx.product}" del ${new Date(tx.datetime).toLocaleString('es-ES')}.\n\n¿Continuar?`)) return;
+  applyTransactionToPosition(tx, -1);
+  investmentTransactions = investmentTransactions.filter(t => t.id !== id);
+  if (editingTransactionId === id) resetTransactionForm();
+  savePositions(positions);
+  saveInvestmentTransactions();
+  renderTransacciones();
+  const activeView = document.querySelector('.nav-item.active')?.dataset?.view || 'resumen';
+  if (activeView !== 'transacciones') renderView(activeView);
+}
+
+function txYearMonth(tx) {
+  const d = new Date(tx.datetime);
+  if (Number.isNaN(d.getTime())) return { year: 'Sin año', month: 'Sin mes' };
+  return {
+    year: String(d.getFullYear()),
+    month: String(d.getMonth() + 1).padStart(2, '0')
+  };
+}
+
+function getLegacyInvestmentTransactions() {
+  const legacy = [];
+  Object.entries(INVESTMENT_HISTORY || {}).forEach(([posIdRaw, info]) => {
+    const posId = Number(posIdRaw);
+    const pos = positions.find(p => p.id === posId);
+    if (!info || !Array.isArray(info.entries)) return;
+    info.entries.forEach((entry, idx) => {
+      const amount = Number(entry.amount) || 0;
+      const shares = Number(entry.shares) || 0;
+      const price = Number(entry.price) || (shares > 0 ? amount / shares : 0);
+      legacy.push({
+        id: `legacy-${posId}-${idx}`,
+        source: 'legacy',
+        positionId: posId,
+        product: pos?.name || `Posición ${posId}`,
+        sector: inferSectorFromPosition(pos),
+        qty: shares,
+        price,
+        fee: 0,
+        gross: amount,
+        totalCost: amount,
+        datetime: `${entry.date}T12:00`,
+        note: `Movimiento histórico (${entry.label || 'sin etiqueta'})`
+      });
+    });
+  });
+  return legacy;
+}
+
+function getCryptoTransactionsForHistory() {
+  const rows = [];
+  Object.keys(CRYPTO_CONFIG).forEach(ticker => {
+    const cfg = CRYPTO_CONFIG[ticker];
+    const txs = getCriptoTx(ticker);
+    txs.forEach((tx, idx) => {
+      const qtyAbs = Math.abs(Number(tx.qty) || 0);
+      const spot = Number(tx.spot) || 0;
+      const fee = Number(tx.comision) || 0;
+      const gross = qtyAbs * spot;
+      const isBuy = tx.tipo === 'COMPRA';
+      rows.push({
+        id: `crypto-${ticker}-${idx}-${tx.date}-${tx.time || '00:00'}`,
+        source: 'crypto',
+        positionId: cfg.posId,
+        product: `${cfg.label} (${ticker})`,
+        sector: 'Criptomonedas',
+        qty: Number(tx.qty) || 0,
+        price: spot,
+        fee,
+        gross: isBuy ? gross : -gross,
+        totalCost: isBuy ? gross + fee : -(gross - fee),
+        datetime: `${tx.date}T${tx.time || '00:00'}`,
+        note: `${tx.tipo || 'MOV'} · ${tx.plataforma || 'Sin plataforma'}${tx.permuta ? ' · ' + tx.permuta : ''}`
+      });
+    });
+  });
+  return rows;
+}
+
+function allInvestmentTransactions() {
+  const manual = investmentTransactions.map(tx => ({ ...tx, source: tx.source || 'manual' }));
+  return [...getLegacyInvestmentTransactions(), ...getCryptoTransactionsForHistory(), ...manual];
+}
+
+function populateTransactionChartFilters() {
+  const sectorSel = document.getElementById('tx-chart-sector');
+  const yearSel = document.getElementById('tx-chart-year');
+  const monthSel = document.getElementById('tx-chart-month');
+  if (!sectorSel || !yearSel || !monthSel) return;
+
+  const prevSector = sectorSel.value || 'all';
+  const prevYear = yearSel.value || 'all';
+  const prevMonth = monthSel.value || 'all';
+
+  const txAll = allInvestmentTransactions();
+  const sectors = [...new Set(txAll.map(tx => tx.sector || 'Sin sector'))].sort((a, b) => a.localeCompare(b, 'es'));
+  const years = [...new Set(txAll.map(tx => txYearMonth(tx).year))].sort((a, b) => b.localeCompare(a, 'es'));
+  const months = [...new Set(txAll.map(tx => txYearMonth(tx).month))].sort((a, b) => a.localeCompare(b, 'es'));
+  const monthNames = {
+    '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril',
+    '05': 'Mayo', '06': 'Junio', '07': 'Julio', '08': 'Agosto',
+    '09': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
+  };
+
+  sectorSel.innerHTML = '<option value="all">Todos los sectores</option>';
+  sectors.forEach(s => { sectorSel.innerHTML += `<option value="${s}">${s}</option>`; });
+
+  yearSel.innerHTML = '<option value="all">Todos los años</option>';
+  years.forEach(y => { yearSel.innerHTML += `<option value="${y}">${y}</option>`; });
+
+  monthSel.innerHTML = '<option value="all">Todos los meses</option>';
+  months.forEach(m => { monthSel.innerHTML += `<option value="${m}">${monthNames[m] || m}</option>`; });
+
+  if ([...sectorSel.options].some(o => o.value === prevSector)) sectorSel.value = prevSector;
+  if ([...yearSel.options].some(o => o.value === prevYear)) yearSel.value = prevYear;
+  if ([...monthSel.options].some(o => o.value === prevMonth)) monthSel.value = prevMonth;
+}
+
+function getFilteredTransactionsForCharts() {
+  const sector = document.getElementById('tx-chart-sector')?.value || 'all';
+  const year = document.getElementById('tx-chart-year')?.value || 'all';
+  const month = document.getElementById('tx-chart-month')?.value || 'all';
+  return allInvestmentTransactions().filter(tx => {
+    const ym = txYearMonth(tx);
+    if (sector !== 'all' && (tx.sector || 'Sin sector') !== sector) return false;
+    if (year !== 'all' && ym.year !== year) return false;
+    if (month !== 'all' && ym.month !== month) return false;
+    return true;
+  });
+}
+
+function resetTransactionChartFilters() {
+  const sectorSel = document.getElementById('tx-chart-sector');
+  const yearSel = document.getElementById('tx-chart-year');
+  const monthSel = document.getElementById('tx-chart-month');
+  if (sectorSel) sectorSel.value = 'all';
+  if (yearSel) yearSel.value = 'all';
+  if (monthSel) monthSel.value = 'all';
+  renderTransacciones();
+}
+
+function setTxTableSort(key) {
+  if (txTableSort.key === key) {
+    txTableSort.dir = txTableSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    txTableSort = { key, dir: key === 'datetime' ? 'desc' : 'asc' };
+  }
+  renderTransacciones();
+}
+
+function sortTransactionsForTable(rows) {
+  const dir = txTableSort.dir === 'asc' ? 1 : -1;
+  const key = txTableSort.key;
+  return rows.slice().sort((a, b) => {
+    if (key === 'datetime') return (new Date(a.datetime) - new Date(b.datetime)) * dir;
+    if (['qty', 'price', 'fee', 'totalCost'].includes(key)) return ((Number(a[key]) || 0) - (Number(b[key]) || 0)) * dir;
+    return String(a[key] || '').localeCompare(String(b[key] || ''), 'es') * dir;
+  });
+}
+
+function txSortArrow(key) {
+  if (txTableSort.key !== key) return '';
+  return txTableSort.dir === 'asc' ? ' ▲' : ' ▼';
+}
+
+function renderTransacciones() {
+  populateTransactionProductSelect();
+  populateTransactionChartFilters();
+  const dtEl = document.getElementById('tx-datetime');
+  if (dtEl && !dtEl.value) dtEl.value = defaultTxDateTime();
+
+  const byProductAmount = {};
+  const byProductQty = {};
+  const bySector = {};
+  const chartTransactions = getFilteredTransactionsForCharts();
+  chartTransactions.forEach(tx => {
+    byProductAmount[tx.product] = (byProductAmount[tx.product] || 0) + tx.totalCost;
+    byProductQty[tx.product] = (byProductQty[tx.product] || 0) + tx.qty;
+    const s = tx.sector || 'Sin sector';
+    bySector[s] = (bySector[s] || 0) + tx.totalCost;
+  });
+
+  const productLabels = Object.keys(byProductAmount);
+  mkChart('chart-tx-product', {
+    type: 'doughnut',
+    data: {
+      labels: productLabels.length ? productLabels : ['Sin datos'],
+      datasets: [{ data: productLabels.length ? productLabels.map(k => byProductAmount[k]) : [1], backgroundColor: productLabels.length ? productLabels.map((_, i) => color(i)) : ['#334155'], borderWidth: 2, borderColor: '#1a1d27' }]
+    },
+    options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } } }
+  });
+
+  const qtyLabels = Object.keys(byProductQty);
+  mkChart('chart-tx-quantity', {
+    type: 'bar',
+    data: {
+      labels: qtyLabels.length ? qtyLabels : ['Sin datos'],
+      datasets: [{ label: 'Cantidad', data: qtyLabels.length ? qtyLabels.map(k => +byProductQty[k].toFixed(6)) : [0], backgroundColor: qtyLabels.length ? qtyLabels.map((_, i) => color(i + 3)) : ['#334155'], borderRadius: 6 }]
+    },
+    options: { responsive: true, ...CHART_DEFAULTS }
+  });
+
+  const sectorLabels = Object.keys(bySector);
+  mkChart('chart-tx-sector', {
+    type: 'pie',
+    data: {
+      labels: sectorLabels.length ? sectorLabels : ['Sin datos'],
+      datasets: [{ data: sectorLabels.length ? sectorLabels.map(k => bySector[k]) : [1], backgroundColor: sectorLabels.length ? sectorLabels.map((_, i) => color(i + 6)) : ['#334155'], borderWidth: 2, borderColor: '#1a1d27' }]
+    },
+    options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } } }
+  });
+
+  const table = document.getElementById('table-transacciones');
+  if (!table) return;
+  const filtered = getFilteredTransactionsForCharts();
+  const sorted = sortTransactionsForTable(filtered);
+  if (!filtered.length) {
+    table.innerHTML = '<thead><tr><th>Estado</th></tr></thead><tbody><tr><td style="color:var(--muted)">No hay movimientos para los filtros seleccionados.</td></tr></tbody>';
+    return;
+  }
+
+  table.innerHTML = `<thead><tr>
+    <th style="cursor:pointer" onclick="setTxTableSort('datetime')">Fecha y hora${txSortArrow('datetime')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('source')">Origen${txSortArrow('source')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('product')">Producto${txSortArrow('product')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('sector')">Sector${txSortArrow('sector')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('qty')">Cantidad${txSortArrow('qty')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('price')">Precio${txSortArrow('price')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('fee')">Comisión${txSortArrow('fee')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('totalCost')">Coste total${txSortArrow('totalCost')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('note')">Nota${txSortArrow('note')}</th>
+    <th>Acciones</th>
+  </tr></thead><tbody>${
+    sorted.map(tx => `<tr>
+      <td>${new Date(tx.datetime).toLocaleString('es-ES')}</td>
+      <td>${
+        tx.source === 'legacy'
+          ? '<span style="color:var(--accent2);font-weight:600">Histórico</span>'
+          : tx.source === 'crypto'
+            ? '<span style="color:#f59e0b;font-weight:600">Cripto</span>'
+            : '<span style="color:var(--green);font-weight:600">Manual</span>'
+      }</td>
+      <td><strong>${tx.product}</strong></td>
+      <td>${tx.sector || 'Sin sector'}</td>
+      <td>${tx.qty.toFixed(6)}</td>
+      <td>${fmt(tx.price)}</td>
+      <td>${fmt(tx.fee || 0)}</td>
+      <td><strong>${fmt(tx.totalCost)}</strong></td>
+      <td style="color:var(--muted)">${tx.note || '—'}</td>
+      <td style="white-space:nowrap">
+        ${tx.source !== 'manual'
+          ? '<span style="color:var(--muted);font-size:.75rem">No editable</span>'
+          : `<button class="btn btn-secondary" style="padding:3px 8px;font-size:.72rem;margin-right:4px" onclick="editInvestmentTransaction(${tx.id})">✏️ Editar</button>
+             <button class="btn btn-danger" style="padding:3px 8px;font-size:.72rem" onclick="deleteInvestmentTransaction(${tx.id})">🗑 Eliminar</button>`
+        }
+      </td>
+    </tr>`).join('')
+  }</tbody>`;
+}
+
 // ─────────────────────────────────────────────
 //  EVOLUCIÓN
 // ─────────────────────────────────────────────
@@ -2672,24 +3457,28 @@ document.getElementById('topbar-date').textContent = new Date().toLocaleDateStri
 
 function _initDashboard() {
   positions = loadPositions();
+  investmentTransactions = loadInvestmentTransactions();
   loadUserCripto();
   populateBrokerFilter();
+  populateTransactionProductSelect();
   const activeView = document.querySelector('.nav-item.active')?.dataset?.view || 'resumen';
   renderView(activeView);
 }
 window.fbRefresh = _initDashboard;
 _initDashboard();
+window.addEventListener('resize', () => requestAnimationFrame(resizeAllCharts));
 updateCryptoPrices().then(r => {
   if (r.ok && r.updated > 0) {
     const activeView = document.querySelector('.nav-item.active')?.dataset?.view || 'resumen';
     renderView(activeView);
+    requestAnimationFrame(resizeAllCharts);
   }
 });
 
 // ─── Exportar / Importar ──────────────────────
 const BACKUP_KEYS = [
   'conta_txs','conta_settings','conta_learned','conta_esperados',
-  'inv_positions','inv_notes','user_cripto',
+  'inv_positions','inv_notes','user_cripto','inv_transactions',
   'nom_nominas','nom_ganancias','nom_ganancia_cfg'
 ];
 function exportarTodo() {
