@@ -69,6 +69,7 @@ function _fbBanner(html, autoHide) {
 // ── Listener en tiempo real ───────────────────────────────────────────────────
 window.fbReady = new Promise(resolve => {
   let firstLoad = true;
+  let backfillDone = false;
 
   // Mostrar "Sincronizando..." en cuanto el DOM esté listo
   const showSpinner = () => _fbBanner(_SPIN + ' Sincronizando…');
@@ -85,6 +86,27 @@ window.fbReady = new Promise(resolve => {
 
     const data = snap.data();
     let changed = false;
+
+    // Backfill seguro: sube claves faltantes en Firestore usando localStorage.
+    // Solo se ejecuta una vez y solo para campos ausentes en remoto.
+    if (!backfillDone) {
+      const missing = {};
+      _SYNC_KEYS.forEach(key => {
+        if (data[key] === undefined) {
+          const local = localStorage.getItem(key);
+          if (local !== null) {
+            try { missing[key] = JSON.parse(local); } catch(e) {}
+          }
+        }
+      });
+      const hasMissing = Object.keys(missing).length > 0;
+      if (hasMissing) {
+        _fbDoc.set(missing, { merge: true })
+          .then(() => _fbBanner('☁️ Sincronizando datos locales pendientes…', 2200))
+          .catch(() => {});
+      }
+      backfillDone = true;
+    }
 
     _SYNC_KEYS.forEach(key => {
       if (data[key] !== undefined) {
