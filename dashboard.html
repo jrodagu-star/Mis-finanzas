@@ -10,10 +10,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Finanzas">
   <link rel="apple-touch-icon" href="icons/icon.svg">
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-sync.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script defer src="firebase-sync.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     :root {
       --bg: #0f1117;
@@ -284,7 +284,7 @@
     <div style="display:flex;align-items:center;gap:8px">
       <div class="date" id="topbar-date"></div>
       <button onclick="exportarTodo()" title="Exportar todos los datos a JSON" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer">⬇ Exportar</button>
-      <label style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer" title="Importar datos desde JSON">⬆ Importar<input type="file" accept=".json" style="display:none" onchange="importarTodo(this)"/></label>
+      <label style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer" title="Restaurar backup completo exportado desde Finanzas (.json)">⬆ Importar backup<input type="file" accept=".json" style="display:none" onchange="importarTodo(this)"/></label>
     </div>
   </div>
   <div id="content">
