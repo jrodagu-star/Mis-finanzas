@@ -238,9 +238,14 @@
           <option value="1">✓ Suscripción: Sí</option>
           <option value="0">— Suscripción: No</option>
         </select>
+        <select id="f-review" onchange="renderTransacciones()">
+          <option value="">Revisión: todas</option>
+          <option value="1">⚑ Solo marcadas</option>
+        </select>
         <input type="text" id="f-search" placeholder="Buscar..." oninput="renderTransacciones()" style="min-width:140px" />
         <button class="btn btn-secondary" style="padding:5px 12px;font-size:.78rem" onclick="setRangeFirstToToday()">Primer registro → hoy</button>
         <button class="btn btn-secondary" style="padding:5px 12px;font-size:.78rem" onclick="clearFilters()">Limpiar</button>
+        <span id="tx-review-count" style="font-size:.75rem;color:var(--muted)"></span>
       </div>
       <div class="table-box" style="padding:0; overflow:auto; max-height:calc(100vh - 170px)">
         <table id="table-txs"></table>
@@ -392,7 +397,8 @@ const CATS_GASTO = [
   'Alimentación','Restaurantes y cafés','Vivienda','Suministros',
   'Transporte','Salud','Ocio y entretenimiento','Ropa y calzado',
   'Tecnología','Educación','Seguros','Viajes','Regalos',
-  'Mascotas','Belleza y cuidado','Finanzas y bancos','Impuestos','Donaciones','Otros gastos'
+  'Mascotas','Belleza y cuidado','Finanzas y bancos','Impuestos','Donaciones',
+  'Colegios profesionales','Otros gastos'
 ];
 const CATS_INGRESO = [
   'Nómina','Inversiones y dividendos','Alquiler cobrado',
@@ -404,7 +410,8 @@ const CAT_COLOR = {
   'Ocio y entretenimiento':'#a855f7','Ropa y calzado':'#14b8a6',
   'Tecnología':'#3b82f6','Educación':'#eab308','Seguros':'#64748b',
   'Viajes':'#06b6d4','Regalos':'#f43f5e','Mascotas':'#84cc16',
-  'Belleza y cuidado':'#d946ef','Finanzas y bancos':'#94a3b8','Impuestos':'#dc2626','Donaciones':'#fb7185','Otros gastos':'#71717a',
+  'Belleza y cuidado':'#d946ef','Finanzas y bancos':'#94a3b8','Impuestos':'#dc2626','Donaciones':'#fb7185',
+  'Colegios profesionales':'#0d9488','Otros gastos':'#71717a',
   'Nómina':'#22c55e','Inversiones y dividendos':'#f7931a','Alquiler cobrado':'#6366f1',
   'Freelance / Extra':'#38bdf8','Transferencia recibida':'#a855f7',
   'Reembolso':'#84cc16','Otros ingresos':'#94a3b8',
@@ -500,6 +507,9 @@ const SUBCAT_RULES = {
   'Finanzas y bancos': [
     { kw:['prestamo','préstamo','hipoteca','financiacion','financiación'], sub:'Préstamos' },
     { kw:['aplazado','plazo','cuota','fraccionado'],                       sub:'Pagos a plazos' },
+  ],
+  'Colegios profesionales': [
+    { kw:['colegio','medico','médico','medicos','médicos','comc','cgcom'], sub:'Médicos' },
   ],
 };
 
@@ -2205,6 +2215,52 @@ function saveTxs()     { localStorage.setItem(TX_KEY,  JSON.stringify(txs)); }
 function saveSettings(){ localStorage.setItem(SET_KEY, JSON.stringify(settings)); }
 function nextId()      { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
+const TX_REVIEW_KEY = 'conta_tx_review';
+let txReviewIds = loadTxReviewIds();
+
+function loadTxReviewIds() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(TX_REVIEW_KEY) || '[]');
+    return Array.isArray(raw) ? raw.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+function saveTxReviewIds() {
+  localStorage.setItem(TX_REVIEW_KEY, JSON.stringify(txReviewIds));
+}
+function isTxMarkedForReview(id) {
+  return txReviewIds.includes(String(id));
+}
+function setTxReviewMark(id, marked) {
+  const key = String(id);
+  const idx = txReviewIds.indexOf(key);
+  if (marked && idx < 0) txReviewIds.push(key);
+  if (!marked && idx >= 0) txReviewIds.splice(idx, 1);
+  saveTxReviewIds();
+}
+function toggleTxReviewMark(id, marked) {
+  setTxReviewMark(id, marked);
+  updateTxReviewCountLabel();
+  const reviewFilter = document.getElementById('f-review')?.value;
+  if (reviewFilter === '1') {
+    renderTransacciones();
+    return;
+  }
+  const key = String(id);
+  document.querySelectorAll('#table-txs tr[data-tx-id]').forEach(row => {
+    if (row.getAttribute('data-tx-id') === key) {
+      row.style.background = marked ? 'rgba(245,158,11,.12)' : '';
+    }
+  });
+}
+function updateTxReviewCountLabel() {
+  const el = document.getElementById('tx-review-count');
+  if (!el) return;
+  const n = txReviewIds.length;
+  el.textContent = n ? `${n} marcada${n === 1 ? '' : 's'} para revisar` : '';
+}
+
 function fmt(v) {
   return v.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 }
@@ -2505,6 +2561,7 @@ function getFilteredTxs() {
   const cat    = document.getElementById('f-cat').value;
   const cuenta = document.getElementById('f-cuenta').value;
   const sub    = document.getElementById('f-sub').value;
+  const review = document.getElementById('f-review')?.value || '';
   const search = document.getElementById('f-search').value.toLowerCase();
   const usePeriod = !desde && !hasta;
 
@@ -2514,8 +2571,15 @@ function getFilteredTxs() {
     .filter(t => !cat    || t.cat === cat)
     .filter(t => !cuenta || t.account === cuenta)
     .filter(t => sub === '' || (sub === '1' ? t.sub : !t.sub))
+    .filter(t => review !== '1' || isTxMarkedForReview(t.id))
     .filter(t => !search || t.desc.toLowerCase().includes(search) || (t.notes||'').toLowerCase().includes(search) || String(t.amount).includes(search) || t.amount.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}).includes(search))
     .sort((a, b) => {
+      if (sortCol === 'review') {
+        const va = isTxMarkedForReview(a.id) ? 1 : 0;
+        const vb = isTxMarkedForReview(b.id) ? 1 : 0;
+        if (va !== vb) return (va - vb) * -sortDir;
+        return b.date.localeCompare(a.date);
+      }
       let va = a[sortCol] ?? '', vb = b[sortCol] ?? '';
       if (sortCol === 'amount') { va = +va; vb = +vb; }
       if (va < vb) return -sortDir;
@@ -2539,9 +2603,10 @@ function renderTransacciones() {
   populateFilterSelects();
   const list = getFilteredTxs();
   const tbl  = document.getElementById('table-txs');
+  updateTxReviewCountLabel();
 
   if (!list.length) {
-    tbl.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">Sin transacciones con estos filtros.</td></tr>';
+    tbl.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--muted)">Sin transacciones con estos filtros.</td></tr>';
     return;
   }
 
@@ -2552,6 +2617,7 @@ function renderTransacciones() {
   const sortArrow  = d => d === sortDir ? '▲' : '▼';
   const thStyle    = 'cursor:pointer;user-select:none';
 
+  const thReview = `<th style="${thStyle};text-align:center" onclick="setSort('review')" title="Marcar para revisar más tarde">Revisar ${sortCol==='review'?sortArrow(1):''}</th>`;
   const thDate  = `<th style="${thStyle}" onclick="setSort('date')">Fecha ${sortCol==='date'?sortArrow(1):''}</th>`;
   const thDesc  = `<th style="${thStyle}" onclick="setSort('desc')">Descripción ${sortCol==='desc'?sortArrow(1):''}</th>`;
   const thCat   = `<th style="${thStyle}" onclick="setSort('cat')">Categoría ${sortCol==='cat'?'📂':''}</th>`;
@@ -2566,16 +2632,24 @@ function renderTransacciones() {
       const grpTotal = grp.reduce((s,t)=>s+t.amount,0);
       const grpType  = grp[0].type;
       bodyHTML += `<tr style="background:var(--surface2)">
-        <td colspan="7" style="font-size:.72rem;font-weight:700;color:var(--muted);padding:5px 10px">
+        <td colspan="9" style="font-size:.72rem;font-weight:700;color:var(--muted);padding:5px 10px">
           ${catPill(cat, grpType)} ${grp.length} transacciones · ${grpType==='INGRESO'?'+':'-'}${fmt(grpTotal)}
-        </td><td></td></tr>`;
+        </td></tr>`;
       bodyHTML += grp.map(t => rowHTML(t)).join('');
     });
   } else {
     bodyHTML = list.map(t => rowHTML(t)).join('');
   }
 
-  function rowHTML(t) { return `<tr>
+  function rowHTML(t) {
+    const marked = isTxMarkedForReview(t.id);
+    const idJson = JSON.stringify(String(t.id));
+    return `<tr data-tx-id=${idJson} style="${marked ? 'background:rgba(245,158,11,.12)' : ''}">
+    <td style="text-align:center">
+      <input type="checkbox" ${marked ? 'checked' : ''} title="Marcar para revisar más tarde"
+        onclick="event.stopPropagation()"
+        onchange='toggleTxReviewMark(${idJson}, this.checked)' />
+    </td>
     <td style="color:var(--muted);white-space:nowrap">${fmtDate(t.date)}</td>
     <td>${formatDescCell(t)}</td>
     <td>${typeBadge(t.type)}</td>
@@ -2591,10 +2665,10 @@ function renderTransacciones() {
     </td>
   </tr>`; }
 
-  tbl.innerHTML = `<thead><tr>${thDate}${thDesc}<th>Tipo</th>${thCat}<th>Cuenta</th>${thAmt}<th style="text-align:center">Suscripción</th><th style="text-align:center">Acc.</th></tr></thead>
+  tbl.innerHTML = `<thead><tr>${thReview}${thDate}${thDesc}<th>Tipo</th>${thCat}<th>Cuenta</th>${thAmt}<th style="text-align:center">Suscripción</th><th style="text-align:center">Acc.</th></tr></thead>
   <tbody>${bodyHTML}</tbody>
   <tfoot><tr>
-    <td colspan="5" style="text-align:right;font-size:.78rem;color:var(--muted)">${list.length} transacciones · ${list.filter(t=>t.sub).length} suscripciones (${fmt(list.filter(t=>t.sub).reduce((s,t)=>s+t.amount,0))})</td>
+    <td colspan="6" style="text-align:right;font-size:.78rem;color:var(--muted)">${list.length} transacciones · ${list.filter(t=>t.sub).length} suscripciones (${fmt(list.filter(t=>t.sub).reduce((s,t)=>s+t.amount,0))})</td>
     <td style="text-align:right"><span class="amount-ing">+${fmt(totalIng)}</span> / <span class="amount-gas">-${fmt(totalGas)}</span></td>
     <td></td><td></td>
   </tr></tfoot>`;
@@ -2602,7 +2676,10 @@ function renderTransacciones() {
 
 function clearFilters() {
   ['f-desde','f-hasta','f-search'].forEach(id => document.getElementById(id).value = '');
-  ['f-tipo','f-cat','f-cuenta','f-sub'].forEach(id => document.getElementById(id).value = '');
+  ['f-tipo','f-cat','f-cuenta','f-sub','f-review'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
   sortCol = 'date'; sortDir = -1;
   renderTransacciones();
 }
@@ -3059,6 +3136,7 @@ function toggleSub(id) {
 function confirmDelete(id) {
   if (!confirm('¿Eliminar esta transacción?')) return;
   txs = txs.filter(t => t.id !== id);
+  setTxReviewMark(id, false);
   saveTxs();
   renderTransacciones();
 }
@@ -3340,7 +3418,7 @@ document.getElementById('similar-tx-modal-overlay').addEventListener('click', e 
 
 // ─── Exportar / Importar ──────────────────────
 const BACKUP_KEYS = [
-  'conta_txs','conta_settings','conta_learned','conta_esperados',
+  'conta_txs','conta_settings','conta_learned','conta_esperados','conta_tx_review',
   'inv_positions','inv_notes','user_cripto',
   'nom_nominas','nom_ganancias','nom_ganancia_cfg'
 ];
@@ -3387,6 +3465,7 @@ function importarTodo(input) {
 
 function _initContabilidad() {
   loadData();
+  txReviewIds = loadTxReviewIds();
   seedFromCSV();
   ensureSolTransfers2026();
   loadGE();

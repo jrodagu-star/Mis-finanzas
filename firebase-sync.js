@@ -13,8 +13,8 @@ const _FB_CFG = {
 };
 
 const _SYNC_KEYS = [
-  'conta_txs', 'conta_settings', 'conta_learned', 'conta_esperados',
-  'inv_positions', 'inv_notes', 'user_cripto', 'inv_transactions',
+  'conta_txs', 'conta_settings', 'conta_learned', 'conta_esperados', 'conta_tx_review',
+  'inv_positions', 'inv_notes', 'user_cripto', 'inv_transactions', 'inv_tx_hidden',
   'nom_nominas', 'nom_ganancias', 'nom_ganancia_cfg'
 ];
 

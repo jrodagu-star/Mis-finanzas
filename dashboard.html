@@ -259,6 +259,9 @@
   <div class="nav-item" data-view="transacciones">
     <span class="icon">🧾</span><span>Transacciones</span>
   </div>
+  <div class="nav-item" data-view="tx-graficos">
+    <span class="icon">📊</span><span>Gráficos Tx</span>
+  </div>
 
   <div class="sidebar-section">Herramientas</div>
   <div class="nav-item" data-view="notas">
@@ -393,9 +396,16 @@
           <canvas id="chart-broker-pie"></canvas>
         </div>
       </div>
-      <div class="table-box">
+      <div class="table-box" style="margin-bottom:16px">
         <h3>Posiciones por Broker</h3>
+        <p style="font-size:.75rem;color:var(--muted);margin:-6px 0 10px">Haz clic en un broker para ver el detalle de sus posiciones.</p>
         <table id="table-broker"></table>
+      </div>
+      <div class="table-box" id="broker-detail-box" style="display:none">
+        <h3 id="broker-detail-title">Posiciones del broker</h3>
+        <div style="overflow-x:auto">
+          <table id="table-broker-detalle" style="min-width:700px"></table>
+        </div>
       </div>
     </div>
 
@@ -525,6 +535,10 @@
           <label>Producto en cartera</label>
           <select id="tx-product-select" onchange="onTxProductChange()"></select>
         </div>
+        <div class="form-row" id="tx-isin-row" style="display:none;margin-top:-6px">
+          <label>ISIN / Ticker</label>
+          <div id="tx-isin-display" style="padding:8px 12px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);font-size:.88rem;font-family:ui-monospace,Consolas,monospace;color:var(--text)"></div>
+        </div>
         <div class="chart-grid cols2">
           <div class="form-row">
             <label>Sector</label>
@@ -619,23 +633,36 @@
             </div>
           </div>
         </div>
+        <div class="form-row" id="tx-side-row" style="margin-bottom:12px">
+          <label>Tipo de operación</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn btn-secondary" id="tx-side-buy" onclick="setTxSide('buy')" style="flex:1">▲ Compra / Aportación</button>
+            <button type="button" class="btn btn-secondary" id="tx-side-sell" onclick="setTxSide('sell')" style="flex:1">▼ Venta / Retiro</button>
+          </div>
+          <div id="tx-sell-hint" style="display:none;font-size:.75rem;color:var(--accent2);margin-top:6px">Indica las participaciones (o euros) a vender, el precio, la comisión y la retención. La venta de fondos consume lotes por <strong>FIFO</strong> (España). Puedes vender parcial o todo.</div>
+        </div>
         <div class="chart-grid cols3" id="tx-standard-trade-fields">
           <div class="form-row" id="tx-qty-row">
             <label id="tx-qty-label">Cantidad comprada</label>
-            <input type="number" id="tx-qty" min="0" step="0.000001" placeholder="0" />
+            <input type="number" id="tx-qty" min="0" step="0.000001" placeholder="0" oninput="onTxQtyInput()" />
           </div>
           <div class="form-row" id="tx-price-row">
-            <label>Valor de mercado por unidad (€)</label>
-            <input type="number" id="tx-price" min="0" step="0.0001" placeholder="0.00" />
+            <label id="tx-price-label">Valor de mercado por unidad (€)</label>
+            <input type="number" id="tx-price" min="0" step="0.0001" placeholder="0.00" oninput="onTxQtyInput()" />
           </div>
           <div class="form-row" id="tx-fee-row">
             <label>Comisión (€)</label>
-            <input type="number" id="tx-fee" min="0" step="0.01" value="0" />
+            <input type="number" id="tx-fee" min="0" step="0.01" value="0" oninput="onTxQtyInput()" />
+          </div>
+          <div class="form-row" id="tx-retention-row" style="display:none">
+            <label>Retención (€)</label>
+            <input type="number" id="tx-retention" min="0" step="0.01" value="0" oninput="onTxQtyInput()" />
           </div>
         </div>
+        <div id="tx-fifo-panel" style="display:none;margin:0 0 14px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface2)"></div>
         <p id="tx-aportacion-hint" style="display:none;font-size:.78rem;color:var(--accent2);margin:-4px 0 12px">Cartera Indie: escribe solo el importe en euros en <strong>Cantidad comprada</strong>. No hace falta precio ni participaciones.</p>
         <div class="form-row">
-          <label>Fecha y hora de compra</label>
+          <label id="tx-datetime-label">Fecha y hora de la operación</label>
           <div class="tx-datetime-row">
             <div class="tx-date-group">
               <input type="text" id="tx-date" placeholder="dd/mm/aaaa" inputmode="numeric" oninput="onTxDateTimeChange()" />
@@ -661,25 +688,73 @@
       </div>
       <div class="chart-grid cols3" style="margin-bottom:16px">
         <div class="table-box" style="grid-column:1 / -1;margin-bottom:0">
-          <h3>Filtros de gráficos</h3>
+          <h3>Filtros del historial</h3>
           <div class="chart-grid cols3">
             <div class="form-row" style="margin-bottom:0">
+              <label>Producto</label>
+              <select id="tx-chart-product" class="tx-filter-product" onchange="onTxChartFilterChange(event)"></select>
+            </div>
+            <div class="form-row" style="margin-bottom:0">
+              <label>Broker</label>
+              <select id="tx-chart-broker" class="tx-filter-broker" onchange="onTxChartFilterChange(event)"></select>
+            </div>
+            <div class="form-row" style="margin-bottom:0">
               <label>Sector</label>
-              <select id="tx-chart-sector" onchange="renderTransacciones()"></select>
+              <select id="tx-chart-sector" class="tx-filter-sector" onchange="onTxChartFilterChange(event)"></select>
             </div>
             <div class="form-row" style="margin-bottom:0">
               <label>Año</label>
-              <select id="tx-chart-year" onchange="renderTransacciones()"></select>
+              <select id="tx-chart-year" class="tx-filter-year" onchange="onTxChartFilterChange(event)"></select>
             </div>
             <div class="form-row" style="margin-bottom:0">
               <label>Mes</label>
-              <select id="tx-chart-month" onchange="renderTransacciones()"></select>
+              <select id="tx-chart-month" class="tx-filter-month" onchange="onTxChartFilterChange(event)"></select>
             </div>
           </div>
           <div style="margin-top:10px">
-            <button class="btn btn-secondary" onclick="resetTransactionChartFilters()">Limpiar filtros</button>
+            <button class="btn btn-secondary" type="button" onclick="resetTransactionChartFilters()">Limpiar filtros</button>
           </div>
         </div>
+      </div>
+      <div class="table-box">
+        <h3>Historial de movimientos</h3>
+        <div style="overflow-x:auto">
+          <table id="table-transacciones" style="min-width:900px"></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: GRÁFICOS TRANSACCIONES ── -->
+    <div class="view" id="view-tx-graficos">
+      <div class="table-box" style="margin-bottom:16px">
+        <h3>Filtros de gráficos</h3>
+        <div class="chart-grid cols3">
+          <div class="form-row" style="margin-bottom:0">
+            <label>Producto</label>
+            <select id="txg-chart-product" class="tx-filter-product" onchange="onTxChartFilterChange(event)"></select>
+          </div>
+          <div class="form-row" style="margin-bottom:0">
+            <label>Broker</label>
+            <select id="txg-chart-broker" class="tx-filter-broker" onchange="onTxChartFilterChange(event)"></select>
+          </div>
+          <div class="form-row" style="margin-bottom:0">
+            <label>Sector</label>
+            <select id="txg-chart-sector" class="tx-filter-sector" onchange="onTxChartFilterChange(event)"></select>
+          </div>
+          <div class="form-row" style="margin-bottom:0">
+            <label>Año</label>
+            <select id="txg-chart-year" class="tx-filter-year" onchange="onTxChartFilterChange(event)"></select>
+          </div>
+          <div class="form-row" style="margin-bottom:0">
+            <label>Mes</label>
+            <select id="txg-chart-month" class="tx-filter-month" onchange="onTxChartFilterChange(event)"></select>
+          </div>
+        </div>
+        <div style="margin-top:10px">
+          <button class="btn btn-secondary" type="button" onclick="resetTransactionChartFilters()">Limpiar filtros</button>
+        </div>
+      </div>
+      <div class="chart-grid cols3">
         <div class="chart-box">
           <h3>Productos donde inviertes (€)</h3>
           <canvas id="chart-tx-product"></canvas>
@@ -691,12 +766,6 @@
         <div class="chart-box">
           <h3>Distribución por sectores</h3>
           <canvas id="chart-tx-sector"></canvas>
-        </div>
-      </div>
-      <div class="table-box">
-        <h3>Historial de movimientos</h3>
-        <div style="overflow-x:auto">
-          <table id="table-transacciones" style="min-width:900px"></table>
         </div>
       </div>
     </div>
@@ -1087,9 +1156,32 @@ let positions = loadPositions();
 let investmentTransactions = loadInvestmentTransactions();
 let editId = null;
 let editingTransactionId = null;
+let editingOriginalTx = null;
+let editingVirtualId = null;
+let txSide = 'buy'; // 'buy' | 'sell'
+let hiddenVirtualTxIds = loadHiddenVirtualTxIds();
 let txTableSort = { key: 'datetime', dir: 'desc' };
 let chartInstances = {};
 let activeFilters = { type: 'all', broker: 'all' };
+
+function loadHiddenVirtualTxIds() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('inv_tx_hidden') || '[]');
+    return Array.isArray(raw) ? raw.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+function saveHiddenVirtualTxIds() {
+  localStorage.setItem('inv_tx_hidden', JSON.stringify(hiddenVirtualTxIds));
+}
+function hideVirtualTxId(id) {
+  const key = String(id);
+  if (!hiddenVirtualTxIds.includes(key)) {
+    hiddenVirtualTxIds.push(key);
+    saveHiddenVirtualTxIds();
+  }
+}
 
 function loadInvestmentTransactions() {
   const saved = localStorage.getItem('inv_transactions');
@@ -1146,6 +1238,14 @@ function color(i) { return PALETTE[i % PALETTE.length]; }
 //  UTILS
 // ─────────────────────────────────────────────
 function fmt(n) { return new Intl.NumberFormat('es-ES', { style:'currency', currency:'EUR', maximumFractionDigits:0 }).format(n); }
+function fmtPrice(n) {
+  return new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  }).format(Number(n) || 0);
+}
 function pct(n) { return (n >= 0 ? '+' : '') + n.toFixed(1) + '%'; }
 function pnl(pos) { return pos.value - pos.cost; }
 function pnlPct(pos) { return pos.cost > 0 ? ((pos.value - pos.cost) / pos.cost) * 100 : 0; }
@@ -1212,6 +1312,7 @@ const VIEW_TITLES = {
   roboadvisor: 'Análisis Roboadvisor (Cartera Indie + Plan Pensiones)',
   cripto: 'Criptomonedas — Bitcoin (BTC)',
   transacciones: 'Transacciones de Inversión',
+  'tx-graficos': 'Gráficos de Transacciones',
   notas: 'Notas de Análisis'
 };
 
@@ -1258,6 +1359,7 @@ function renderView(view) {
   else if (view === 'roboadvisor') renderRoboadvisor();
   else if (view === 'cripto') renderCripto();
   else if (view === 'transacciones') renderTransacciones();
+  else if (view === 'tx-graficos') renderTxGraficos();
   else if (view === 'notas') renderNotas();
 }
 
@@ -2388,10 +2490,21 @@ function renderPorRegion() {
 // ─────────────────────────────────────────────
 //  POR BROKER
 // ─────────────────────────────────────────────
+let activeBrokerFilter = null;
+
+function setBrokerFilter(broker) {
+  activeBrokerFilter = activeBrokerFilter === broker ? null : broker;
+  renderPorBroker();
+  if (activeBrokerFilter) {
+    document.getElementById('broker-detail-box')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
 function renderPorBroker() {
   const fp = filteredPositions();
   const byBroker = groupBy(fp, 'broker');
   const brokerKeys = Object.keys(byBroker).sort((a,b)=>sumValue(byBroker[b])-sumValue(byBroker[a]));
+  if (activeBrokerFilter && !brokerKeys.includes(activeBrokerFilter)) activeBrokerFilter = null;
 
   mkChart('chart-broker-bar', {
     type: 'bar',
@@ -2399,7 +2512,15 @@ function renderPorBroker() {
       labels: brokerKeys,
       datasets: [{ label:'Valor (€)', data: brokerKeys.map(b=>sumValue(byBroker[b])), backgroundColor: brokerKeys.map((_,i)=>color(i+3)), borderRadius:6 }]
     },
-    options: { responsive:true, ...CHART_DEFAULTS }
+    options: {
+      responsive:true,
+      ...CHART_DEFAULTS,
+      onClick: (evt, elements) => {
+        if (!elements.length) return;
+        const idx = elements[0].index;
+        setBrokerFilter(brokerKeys[idx]);
+      }
+    }
   });
 
   mkChart('chart-broker-pie', {
@@ -2408,7 +2529,15 @@ function renderPorBroker() {
       labels: brokerKeys,
       datasets: [{ data: brokerKeys.map(b=>sumValue(byBroker[b])), backgroundColor: brokerKeys.map((_,i)=>color(i+3)), borderWidth:2, borderColor:'#1a1d27' }]
     },
-    options: { responsive:true, plugins:{ legend:{ position:'right', labels:{color:'#94a3b8', font:{size:11}} } } }
+    options: {
+      responsive:true,
+      plugins:{ legend:{ position:'right', labels:{color:'#94a3b8', font:{size:11}} } },
+      onClick: (evt, elements) => {
+        if (!elements.length) return;
+        const idx = elements[0].index;
+        setBrokerFilter(brokerKeys[idx]);
+      }
+    }
   });
 
   const tEl = document.getElementById('table-broker');
@@ -2420,8 +2549,10 @@ function renderPorBroker() {
     const cost = ps.reduce((s,p)=>s+p.cost,0);
     const g = val - cost;
     const gp = cost > 0 ? (g/cost)*100 : 0;
-    tbody += `<tr>
-      <td style="color:${color(i+3)};font-weight:700">${b}</td>
+    const selected = activeBrokerFilter === b;
+    const safeBroker = String(b).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    tbody += `<tr onclick="setBrokerFilter('${safeBroker}')" style="cursor:pointer;background:${selected?'rgba(108,99,255,.15)':'transparent'}">
+      <td style="color:${color(i+3)};font-weight:700">${b}${selected ? ' ▸' : ''}</td>
       <td>${ps.length}</td>
       <td>${fmt(val)}</td>
       <td>${fmt(cost)}</td>
@@ -2430,6 +2561,17 @@ function renderPorBroker() {
     </tr>`;
   });
   tEl.innerHTML += tbody + '</tbody>';
+
+  const detailBox = document.getElementById('broker-detail-box');
+  const detailTitle = document.getElementById('broker-detail-title');
+  if (!activeBrokerFilter) {
+    if (detailBox) detailBox.style.display = 'none';
+    return;
+  }
+  const positions = (byBroker[activeBrokerFilter] || []).slice().sort((a, b) => (b.value || 0) - (a.value || 0));
+  if (detailBox) detailBox.style.display = '';
+  if (detailTitle) detailTitle.textContent = `Posiciones en ${activeBrokerFilter} (${positions.length})`;
+  renderTable('table-broker-detalle', positions, ['name', 'tipo', 'isin', 'region', 'value', 'cost', 'pnl', 'pnlpct']);
 }
 
 // ─────────────────────────────────────────────
@@ -3131,28 +3273,274 @@ function isAportacionProduct(pos) {
   if (!pos) return false;
   if (APORTACION_PRODUCT_IDS.has(pos.id)) return true;
   const name = String(pos.name || '').toLowerCase();
-  // Plan de pensiones NO: requiere participaciones + valor + comisión
   return name.includes('cartera indie');
+}
+
+function isSellTx(tx) {
+  if (!tx) return false;
+  if (tx.side === 'sell' || tx.isSell) return true;
+  if (tx.tipo === 'VENTA') return true;
+  if (Number(tx.qty) < 0) return true;
+  if (Number(tx.gross) < 0 || Number(tx.totalCost) < 0) return true;
+  return false;
+}
+
+function txDateTimeSortKey(value) {
+  const p = parseTxDateTimeParts(value);
+  if (!p) return '0000-00-00T00:00';
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+}
+
+function formatUnitsForInput(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x) || x <= 0) return '';
+  return parseFloat(x.toFixed(8)).toString();
+}
+
+function formatUnitsDisplay(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return '0';
+  return parseFloat(x.toFixed(8)).toString();
+}
+
+function getEditingTxExcludeId() {
+  if (editingVirtualId) return editingVirtualId;
+  if (editingTransactionId != null) return editingTransactionId;
+  return null;
+}
+
+/** Lotes abiertos de un fondo (participaciones) hasta asOf, método FIFO. */
+function getUnitTradesForPosition(positionId, { excludeId = null, asOf = null } = {}) {
+  const asOfKey = asOf ? txDateTimeSortKey(asOf) : null;
+  const excludeKey = excludeId != null ? String(excludeId) : null;
+  return allInvestmentTransactionsRaw()
+    .filter(tx => Number(tx.positionId) === Number(positionId))
+    .filter(tx => !tx.isAportacion)
+    .filter(tx => Math.abs(Number(tx.qty) || 0) > 1e-12)
+    .filter(tx => excludeKey == null || String(tx.id) !== excludeKey)
+    .filter(tx => !asOfKey || txDateTimeSortKey(tx.datetime) <= asOfKey)
+    .sort((a, b) => {
+      const cmp = txDateTimeSortKey(a.datetime).localeCompare(txDateTimeSortKey(b.datetime));
+      if (cmp) return cmp;
+      return String(a.id).localeCompare(String(b.id));
+    });
+}
+
+function buildFifoOpenLots(positionId, opts = {}) {
+  const trades = getUnitTradesForPosition(positionId, opts);
+  const lots = [];
+  for (const tx of trades) {
+    if (isSellTx(tx)) {
+      let remaining = Math.abs(Number(tx.qty) || 0);
+      while (remaining > 1e-12 && lots.length) {
+        const lot = lots[0];
+        const take = Math.min(remaining, lot.qty);
+        lot.qty -= take;
+        remaining -= take;
+        if (lot.qty < 1e-12) lots.shift();
+      }
+      continue;
+    }
+    const qty = Math.abs(Number(tx.qty) || 0);
+    if (qty < 1e-12) continue;
+    const fee = Math.abs(Number(tx.fee) || 0);
+    const gross = Math.abs(Number(tx.gross) || qty * (Number(tx.price) || 0));
+    const totalCost = Math.abs(Number(tx.totalCost) || gross + fee);
+    lots.push({
+      qty,
+      costPerUnit: totalCost / qty,
+      datetime: tx.datetime,
+      buyId: tx.id
+    });
+  }
+  const availableQty = lots.reduce((s, l) => s + l.qty, 0);
+  return {
+    lots: lots.map(l => ({ ...l })),
+    availableQty
+  };
+}
+
+function consumeFifoLots(lots, qty) {
+  let remaining = Math.abs(Number(qty) || 0);
+  let costBasis = 0;
+  const lotsUsed = [];
+  const queue = (lots || []).map(l => ({ ...l }));
+  while (remaining > 1e-12 && queue.length) {
+    const lot = queue[0];
+    const take = Math.min(remaining, lot.qty);
+    const cost = take * lot.costPerUnit;
+    costBasis += cost;
+    lotsUsed.push({
+      datetime: lot.datetime,
+      qty: take,
+      costPerUnit: lot.costPerUnit,
+      cost,
+      buyId: lot.buyId
+    });
+    lot.qty -= take;
+    remaining -= take;
+    if (lot.qty < 1e-12) queue.shift();
+  }
+  const requested = Math.abs(Number(qty) || 0);
+  return {
+    costBasis,
+    lotsUsed,
+    unfilledQty: remaining,
+    filledQty: Math.max(0, requested - remaining)
+  };
+}
+
+function computeSellFifoPreview(positionId, sellQty, { excludeId = null, asOf = null } = {}) {
+  const open = buildFifoOpenLots(positionId, { excludeId, asOf });
+  const consumed = consumeFifoLots(open.lots, sellQty);
+  return { ...open, ...consumed };
+}
+
+function updateTxFifoPanel() {
+  const panel = document.getElementById('tx-fifo-panel');
+  if (!panel) return;
+  const pos = selectedPositionForTx();
+  const isAport = isAportacionProduct(pos);
+  const isSell = txSide === 'sell';
+  if (!isSell || !pos || isAport) {
+    panel.style.display = 'none';
+    panel.innerHTML = '';
+    return;
+  }
+
+  const asOf = getTxDateTimeFromInputs();
+  const excludeId = getEditingTxExcludeId();
+  const { lots, availableQty } = buildFifoOpenLots(pos.id, { excludeId, asOf: asOf || null });
+  const qty = parseFloat(document.getElementById('tx-qty')?.value) || 0;
+  const price = parseFloat(document.getElementById('tx-price')?.value) || 0;
+  const fee = parseFloat(document.getElementById('tx-fee')?.value) || 0;
+  const retention = parseFloat(document.getElementById('tx-retention')?.value) || 0;
+  const preview = qty > 0 ? consumeFifoLots(lots, qty) : null;
+  const asOfLabel = asOf ? formatTxDateTime(asOf) : 'hoy (indica fecha)';
+  const lotRows = lots.length
+    ? lots.map((l, i) => `<tr>
+        <td>${i + 1}</td>
+        <td>${formatTxDateTime(l.datetime)}</td>
+        <td style="text-align:right;font-family:monospace">${formatUnitsDisplay(l.qty)}</td>
+        <td style="text-align:right">${fmtPrice(l.costPerUnit)}</td>
+        <td style="text-align:right">${fmt(l.qty * l.costPerUnit)}</td>
+      </tr>`).join('')
+    : `<tr><td colspan="5" style="color:var(--muted)">No hay participaciones abiertas hasta esta fecha.</td></tr>`;
+
+  let consumeHtml = '';
+  if (preview && preview.filledQty > 0) {
+    const fiscalProceeds = Math.max(0, qty * price - fee);
+    const netCash = Math.max(0, fiscalProceeds - retention);
+    const gain = fiscalProceeds - preview.costBasis;
+    const gc = gain >= 0 ? 'var(--green)' : 'var(--red)';
+    const gs = gain >= 0 ? '+' : '';
+    const lotDates = [...new Set(preview.lotsUsed.map(l => formatTxDateTime(l.datetime)))].join(' · ');
+    consumeHtml = `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:.78rem">
+      <div><strong>Consumo FIFO de esta venta:</strong> ${formatUnitsDisplay(preview.filledQty)} part. · coste ${fmt(preview.costBasis)}${preview.unfilledQty > 1e-9 ? ` <span style="color:var(--red)">(faltan ${formatUnitsDisplay(preview.unfilledQty)})</span>` : ''}</div>
+      <div style="color:var(--muted);margin-top:4px">Lotes: ${lotDates || '—'}</div>
+      ${price > 0 ? `<div style="margin-top:4px">Plusvalía / minusvalía est.: <strong style="color:${gc}">${gs}${fmt(gain)}</strong> <span style="color:var(--muted)">(bruto − comisión − coste FIFO)</span></div>
+      <div style="margin-top:2px;color:var(--muted)">Neto cobrado est.: <strong style="color:var(--text)">${fmt(netCash)}</strong> <span style="color:var(--muted)">(tras comisión y retención)</span></div>` : ''}
+    </div>`;
+  }
+
+  panel.style.display = 'block';
+  panel.innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div>
+        <div style="font-weight:700;color:var(--text)">Participaciones disponibles (FIFO)</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-top:2px">Hasta ${asOfLabel} · se venden primero las compras más antiguas</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div style="font-size:1.15rem;font-weight:800;font-family:monospace;color:var(--accent)">${formatUnitsDisplay(availableQty)}</div>
+        <button type="button" class="btn btn-secondary" style="padding:6px 10px;font-size:.78rem" onclick="sellAllAvailableUnits()" ${availableQty <= 1e-12 ? 'disabled' : ''}>Vender todas</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;min-width:420px;font-size:.78rem">
+        <thead><tr>
+          <th>#</th><th>Compra</th>
+          <th style="text-align:right">Participaciones</th>
+          <th style="text-align:right">Coste/ud</th>
+          <th style="text-align:right">Coste lote</th>
+        </tr></thead>
+        <tbody>${lotRows}</tbody>
+      </table>
+    </div>
+    ${consumeHtml}`;
+}
+
+function sellAllAvailableUnits() {
+  const pos = selectedPositionForTx();
+  if (!pos || isAportacionProduct(pos) || txSide !== 'sell') return;
+  const asOf = getTxDateTimeFromInputs();
+  const { availableQty } = buildFifoOpenLots(pos.id, {
+    excludeId: getEditingTxExcludeId(),
+    asOf: asOf || null
+  });
+  if (availableQty <= 1e-12) {
+    alert('No hay participaciones disponibles hasta la fecha indicada.');
+    return;
+  }
+  const qtyEl = document.getElementById('tx-qty');
+  if (qtyEl) qtyEl.value = formatUnitsForInput(availableQty);
+  updateTxFifoPanel();
+}
+
+function onTxQtyInput() {
+  if (txSide === 'sell') updateTxFifoPanel();
+}
+
+function setTxSide(side) {
+  txSide = side === 'sell' ? 'sell' : 'buy';
+  const buyBtn = document.getElementById('tx-side-buy');
+  const sellBtn = document.getElementById('tx-side-sell');
+  if (buyBtn) {
+    buyBtn.style.background = txSide === 'buy' ? 'var(--accent)' : 'var(--surface2)';
+    buyBtn.style.color = txSide === 'buy' ? '#fff' : 'var(--text)';
+  }
+  if (sellBtn) {
+    sellBtn.style.background = txSide === 'sell' ? 'var(--red)' : 'var(--surface2)';
+    sellBtn.style.color = txSide === 'sell' ? '#fff' : 'var(--text)';
+  }
+  const sellHint = document.getElementById('tx-sell-hint');
+  if (sellHint) sellHint.style.display = txSide === 'sell' ? 'block' : 'none';
+  updateTxFormFields();
 }
 
 function updateTxFormFields() {
   const pos = selectedPositionForTx();
   const isAport = isAportacionProduct(pos);
+  const isSell = txSide === 'sell';
   const qtyLabel = document.getElementById('tx-qty-label');
+  const priceLabel = document.getElementById('tx-price-label');
   const qtyInput = document.getElementById('tx-qty');
   const priceRow = document.getElementById('tx-price-row');
   const feeRow = document.getElementById('tx-fee-row');
+  const retentionRow = document.getElementById('tx-retention-row');
   const hint = document.getElementById('tx-aportacion-hint');
-  if (qtyLabel) qtyLabel.textContent = isAport ? 'Cantidad comprada (€ aportados)' : 'Cantidad comprada';
+  if (qtyLabel) {
+    if (isAport) qtyLabel.textContent = isSell ? 'Importe retirado (€)' : 'Cantidad comprada (€ aportados)';
+    else qtyLabel.textContent = isSell ? 'Cantidad vendida' : 'Cantidad comprada';
+  }
+  if (priceLabel) priceLabel.textContent = isSell ? 'Precio de venta por unidad (€)' : 'Valor de mercado por unidad (€)';
   if (qtyInput) {
     qtyInput.step = isAport ? '0.01' : '0.000001';
     qtyInput.placeholder = isAport ? 'Ej: 200' : '0';
   }
   if (priceRow) priceRow.style.display = isAport ? 'none' : '';
-  if (feeRow) feeRow.style.display = isAport ? 'none' : '';
-  if (hint) hint.style.display = isAport ? 'block' : 'none';
+  if (feeRow) feeRow.style.display = '';
+  if (retentionRow) retentionRow.style.display = isSell ? '' : 'none';
+  if (hint) {
+    hint.style.display = isAport ? 'block' : 'none';
+    hint.innerHTML = isAport
+      ? (isSell
+        ? 'Cartera Indie: indica el <strong>importe en euros</strong> a retirar, la comisión y la retención si las hay.'
+        : 'Cartera Indie: escribe solo el importe en euros en <strong>Cantidad comprada</strong>. No hace falta precio ni participaciones.')
+      : hint.innerHTML;
+  }
   updateTxRegionFieldsVisibility();
   updateTxProductMetaFieldsVisibility();
+  updateTxFifoPanel();
 }
 
 function isBitcoinPosition(pos) {
@@ -3220,6 +3608,30 @@ async function fetchBtcPriceForTransaction(auto = false) {
 function onTxDateTimeChange() {
   const pos = selectedPositionForTx();
   if (isBitcoinPosition(pos)) fetchBtcPriceForTransaction(true);
+  updateTxFifoPanel();
+}
+
+function updateTxIsinDisplay() {
+  const row = document.getElementById('tx-isin-row');
+  const display = document.getElementById('tx-isin-display');
+  const sel = document.getElementById('tx-product-select');
+  if (!row || !display || !sel) return;
+  if (!sel.value || sel.value === '__new__') {
+    row.style.display = 'none';
+    display.textContent = '';
+    return;
+  }
+  const pos = positions.find(p => p.id === Number(sel.value));
+  const isin = String(pos?.isin || '').trim();
+  if (!isin || isin === '–' || isin === '-') {
+    row.style.display = '';
+    display.textContent = 'Sin ISIN / ticker';
+    display.style.color = 'var(--muted)';
+    return;
+  }
+  row.style.display = '';
+  display.textContent = isin;
+  display.style.color = 'var(--text)';
 }
 
 function onTxProductChange() {
@@ -3228,6 +3640,7 @@ function onTxProductChange() {
   if (!sel || !fields) return;
   fields.style.display = sel.value === '__new__' ? 'block' : 'none';
   updateTxFormFields();
+  updateTxIsinDisplay();
 
   if (sel.value && sel.value !== '__new__') {
     const pos = positions.find(p => p.id === Number(sel.value));
@@ -3437,10 +3850,13 @@ function formatCryptoQty(qty) {
 
 function formatTxQtyDisplay(tx) {
   if (tx.isAportacion) {
-    return `<span style="color:var(--accent2);font-weight:600">${fmt(tx.aportacion ?? tx.gross ?? tx.totalCost)}</span> <span style="font-size:.72rem;color:var(--muted)">aport.</span>`;
+    const amt = fmt(Math.abs(tx.aportacion ?? tx.gross ?? tx.totalCost));
+    const tag = isSellTx(tx) ? 'retiro' : 'aport.';
+    return `<span style="color:var(--accent2);font-weight:600">${isSellTx(tx) ? '−' : ''}${amt}</span> <span style="font-size:.72rem;color:var(--muted)">${tag}</span>`;
   }
-  const qty = Number(tx.qty) || 0;
-  return isCryptoTransaction(tx) ? formatCryptoQty(qty) : qty.toFixed(3);
+  const qty = Math.abs(Number(tx.qty) || 0);
+  const formatted = isCryptoTransaction(tx) ? formatCryptoQty(qty) : qty.toFixed(3);
+  return isSellTx(tx) ? `<span style="color:var(--red)">−${formatted}</span>` : formatted;
 }
 
 function compareTxDateTime(a, b) {
@@ -3497,9 +3913,31 @@ function getOrCreateTxPosition() {
 function applyTransactionToPosition(tx, sign = 1) {
   const pos = positions.find(p => p.id === tx.positionId);
   if (!pos) return;
-  pos.cost = Math.max(0, (pos.cost || 0) + sign * tx.totalCost);
-  pos.value = Math.max(0, (pos.value || 0) + sign * tx.gross);
-  pos.units = Math.max(0, (pos.units || 0) + sign * tx.qty);
+
+  if (isSellTx(tx)) {
+    const fee = Math.abs(Number(tx.fee) || 0);
+    if (tx.isAportacion || (!tx.qty && (tx.aportacion || tx.gross))) {
+      const amount = Math.abs(Number(tx.aportacion ?? tx.gross ?? tx.totalCost) || 0);
+      pos.cost = Math.max(0, (pos.cost || 0) - sign * amount);
+      pos.value = Math.max(0, (pos.value || 0) - sign * (amount + fee));
+    } else {
+      const soldQty = Math.abs(Number(tx.qty) || 0);
+      const gross = Math.abs(Number(tx.gross) || soldQty * (Number(tx.price) || 0));
+      const unitsBefore = Number(pos.units) || 0;
+      let costRemoved = Number(tx.costBasis);
+      if (!Number.isFinite(costRemoved) || costRemoved < 0) {
+        const avgCost = unitsBefore > 0 ? (Number(pos.cost) || 0) / unitsBefore : 0;
+        costRemoved = avgCost * soldQty;
+      }
+      pos.units = Math.max(0, unitsBefore - sign * soldQty);
+      pos.cost = Math.max(0, (Number(pos.cost) || 0) - sign * costRemoved);
+      pos.value = Math.max(0, (Number(pos.value) || 0) - sign * gross);
+    }
+  } else {
+    pos.cost = Math.max(0, (pos.cost || 0) + sign * (Number(tx.totalCost) || 0));
+    pos.value = Math.max(0, (pos.value || 0) + sign * (Number(tx.gross) || 0));
+    pos.units = Math.max(0, (pos.units || 0) + sign * (Number(tx.qty) || 0));
+  }
   if (tx.sector) pos.sector = tx.sector;
   if (tx.productKind) pos.productKind = tx.productKind;
   if (tx.managementType) pos.managementType = tx.managementType;
@@ -3507,11 +3945,15 @@ function applyTransactionToPosition(tx, sign = 1) {
 
 function resetTransactionForm() {
   editingTransactionId = null;
+  editingOriginalTx = null;
+  editingVirtualId = null;
   document.getElementById('tx-save-btn').textContent = 'Guardar';
   document.getElementById('tx-product-select').value = '';
   document.getElementById('tx-qty').value = '';
   document.getElementById('tx-price').value = '';
   document.getElementById('tx-fee').value = '0';
+  const retentionEl = document.getElementById('tx-retention');
+  if (retentionEl) retentionEl.value = '0';
   document.getElementById('tx-note').value = '';
   const def = defaultTxDateParts();
   document.getElementById('tx-date').value = def.dateDisplay;
@@ -3525,6 +3967,7 @@ function resetTransactionForm() {
   setTxManagementTypeValue('');
   ['tx-new-name', 'tx-new-isin', 'tx-new-broker'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('tx-new-tipo').value = 'RV';
+  setTxSide('buy');
   onTxProductChange();
 }
 
@@ -3549,44 +3992,74 @@ async function saveInvestmentTransaction() {
   applyRegionToSelectedPosition(p);
   applyProductMetaToSelectedPosition(p);
   const isAport = isAportacionProduct(p);
+  const isSell = txSide === 'sell';
 
-  let qty, price, fee, gross, totalCost, aportacion;
+  let qty, price, fee, retention, gross, totalCost, aportacion;
+  fee = parseFloat(document.getElementById('tx-fee').value) || 0;
+  retention = isSell ? (parseFloat(document.getElementById('tx-retention')?.value) || 0) : 0;
+  if (fee < 0 || retention < 0) {
+    alert('La comisión y la retención no pueden ser negativas.');
+    return;
+  }
   if (isAport) {
-    // Solo importe en euros (campo Cantidad comprada)
     aportacion = parseFloat(document.getElementById('tx-qty').value) || 0;
-    fee = 0;
     if (aportacion <= 0) {
-      alert('Indica la cantidad aportada en euros (mayor que 0).');
+      alert(isSell ? 'Indica el importe retirado en euros (mayor que 0).' : 'Indica la cantidad aportada en euros (mayor que 0).');
       document.getElementById('tx-qty')?.focus();
       return;
     }
     qty = 0;
     price = 0;
     gross = aportacion;
-    totalCost = aportacion;
+    totalCost = isSell ? Math.max(0, aportacion - fee - retention) : aportacion + fee;
   } else {
     qty = parseFloat(document.getElementById('tx-qty').value) || 0;
     price = parseFloat(document.getElementById('tx-price').value) || 0;
-    fee = parseFloat(document.getElementById('tx-fee').value) || 0;
     if (qty <= 0 || price <= 0) {
-      alert('La cantidad y el valor de mercado deben ser mayores que 0.');
+      alert(isSell
+        ? 'La cantidad vendida y el precio de venta deben ser mayores que 0.'
+        : 'La cantidad y el valor de mercado deben ser mayores que 0.');
       return;
     }
     gross = qty * price;
-    totalCost = gross + fee;
+    totalCost = isSell ? Math.max(0, gross - fee - retention) : gross + fee;
+  }
+
+  let availableUnits = Number(p.units) || 0;
+  let fifoPreview = null;
+  if (!isAport && isSell) {
+    fifoPreview = computeSellFifoPreview(p.id, qty, {
+      excludeId: getEditingTxExcludeId(),
+      asOf: dateTime
+    });
+    availableUnits = fifoPreview.availableQty;
+    if (editingOriginalTx && isSellTx(editingOriginalTx) && Number(editingOriginalTx.positionId) === Number(p.id)) {
+      // ya incluido vía excludeId
+    }
+  } else if (editingOriginalTx && isSellTx(editingOriginalTx) && Number(editingOriginalTx.positionId) === Number(p.id) && !editingOriginalTx.isAportacion) {
+    availableUnits += Math.abs(Number(editingOriginalTx.qty) || 0);
+  }
+  if (isSell && !isAport && availableUnits >= 0 && qty > availableUnits + 1e-9) {
+    if (!confirm(`Vas a vender ${formatUnitsDisplay(qty)} participaciones pero hasta ${formatTxDateTime(dateTime)} solo hay ${formatUnitsDisplay(availableUnits)} disponibles (FIFO).\n\n¿Continuar igual?`)) return;
   }
 
   const sector = getSelectedSector() || inferSectorFromPosition(p);
   const productKind = getSelectedTxProductKind();
   const managementType = getSelectedTxManagementType();
-  const actionLabel = editingTransactionId ? 'actualizará' : 'actualizarán';
-  const warn = isAport
-    ? `Se ${actionLabel} las inversiones con los datos aportados.\n\nProducto: ${p.name}\nAportación: ${fmt(aportacion)}\nCoste total: ${fmt(totalCost)}\n\n¿Deseas continuar?`
-    : `Se ${actionLabel} las inversiones con los datos aportados.\n\nProducto: ${p.name}\nCantidad: ${qty}\nCoste total: ${fmt(totalCost)}\n\n¿Deseas continuar?`;
-  if (!confirm(warn)) return;
+  const opLabel = isSell ? (isAport ? 'Retiro' : 'Venta') : (isAport ? 'Aportación' : 'Compra');
+  const actionLabel = (editingTransactionId || editingVirtualId) ? 'actualizará' : 'registrará';
+  let detail = isAport
+    ? `${opLabel}: ${fmt(aportacion)}\nComisión: ${fmt(fee)}${isSell ? `\nRetención: ${fmt(retention)}` : ''}\nNeto: ${fmt(totalCost)}`
+    : `${opLabel}: ${qty} × ${fmtPrice(price)}\nComisión: ${fmt(fee)}${isSell ? `\nRetención: ${fmt(retention)}` : ''}\n${isSell ? 'Neto cobrado' : 'Coste total'}: ${fmt(isSell ? totalCost : totalCost)}`;
+  if (isSell && !isAport && fifoPreview) {
+    const fiscalProceeds = Math.max(0, gross - fee);
+    const gain = fiscalProceeds - (fifoPreview.costBasis || 0);
+    detail += `\nCoste FIFO: ${fmt(fifoPreview.costBasis || 0)}\nPlusvalía / minusvalía est.: ${fmt(gain)}`;
+  }
+  if (!confirm(`Se ${actionLabel} el movimiento en inversiones.\n\nProducto: ${p.name}\n${detail}\n\n¿Deseas continuar?`)) return;
 
-  const savingLabel = editingTransactionId ? 'Guardando cambios…' : 'Guardando…';
-  const defaultLabel = editingTransactionId ? 'Guardar cambios' : 'Guardar';
+  const savingLabel = (editingTransactionId || editingVirtualId) ? 'Guardando cambios…' : 'Guardando…';
+  const defaultLabel = (editingTransactionId || editingVirtualId) ? 'Guardar cambios' : 'Guardar';
   if (saveBtn) {
     saveBtn.dataset.saving = '1';
     saveBtn.disabled = true;
@@ -3594,34 +4067,49 @@ async function saveInvestmentTransaction() {
   }
 
   try {
+    if (editingOriginalTx) {
+      applyTransactionToPosition(normalizeTxForApply(editingOriginalTx), -1);
+      if (editingVirtualId) hideVirtualTxId(editingVirtualId);
+      if (editingTransactionId && !editingVirtualId) {
+        const idx = investmentTransactions.findIndex(tx => String(tx.id) === String(editingTransactionId));
+        if (idx >= 0) investmentTransactions.splice(idx, 1);
+      }
+    }
+
+    let costBasis;
+    let lotsUsed;
+    if (isSell && !isAport) {
+      const fifoAfter = computeSellFifoPreview(p.id, qty, {
+        excludeId: null,
+        asOf: dateTime
+      });
+      costBasis = fifoAfter.costBasis;
+      lotsUsed = fifoAfter.lotsUsed;
+    }
+
     const txData = {
-      id: editingTransactionId || Date.now(),
+      id: (editingTransactionId && !editingVirtualId) ? editingTransactionId : Date.now(),
       positionId: p.id,
       product: p.name,
       sector,
       qty,
       price,
       fee,
+      retention: isSell ? retention : 0,
       gross,
       totalCost,
       datetime: normalizeTxDateTimeInput(dateTime),
       note,
+      source: 'manual',
+      side: isSell ? 'sell' : 'buy',
+      ...(Number.isFinite(costBasis) ? { costBasis } : {}),
+      ...(lotsUsed && lotsUsed.length ? { lotsUsed } : {}),
       ...(productKind ? { productKind } : {}),
       ...(managementType ? { managementType } : {}),
       ...(isAport ? { isAportacion: true, aportacion } : {})
     };
 
-    if (editingTransactionId) {
-      const idx = investmentTransactions.findIndex(tx => tx.id === editingTransactionId);
-      if (idx >= 0) {
-        applyTransactionToPosition(investmentTransactions[idx], -1);
-        investmentTransactions[idx] = txData;
-      } else {
-        investmentTransactions.push(txData);
-      }
-    } else {
-      investmentTransactions.push(txData);
-    }
+    investmentTransactions.push(txData);
     applyTransactionToPosition(txData, +1);
 
     savePositions(positions);
@@ -3650,6 +4138,40 @@ async function saveInvestmentTransaction() {
   }
 }
 
+function normalizeTxForApply(tx) {
+  if (!tx) return tx;
+  const copy = { ...tx };
+  if (isSellTx(tx)) {
+    copy.side = 'sell';
+    copy.qty = Math.abs(Number(tx.qty) || 0);
+    copy.gross = Math.abs(Number(tx.gross) || 0);
+    copy.totalCost = Math.abs(Number(tx.totalCost) || 0);
+    copy.fee = Math.abs(Number(tx.fee) || 0);
+    copy.retention = Math.abs(Number(tx.retention) || 0);
+    if (Number.isFinite(Number(tx.costBasis))) copy.costBasis = Math.abs(Number(tx.costBasis));
+    if (tx.isAportacion || tx.aportacion != null) {
+      copy.isAportacion = true;
+      copy.aportacion = Math.abs(Number(tx.aportacion ?? tx.gross ?? tx.totalCost) || 0);
+    }
+  }
+  return copy;
+}
+
+function findAnyTransaction(id) {
+  const key = String(id);
+  const manual = investmentTransactions.find(t => String(t.id) === key);
+  if (manual) return { ...manual, source: manual.source || 'manual' };
+  return allInvestmentTransactionsRaw().find(t => String(t.id) === key) || null;
+}
+
+function allInvestmentTransactionsRaw() {
+  const hidden = new Set(hiddenVirtualTxIds.map(String));
+  const legacy = getLegacyInvestmentTransactions().filter(tx => !hidden.has(String(tx.id)));
+  const crypto = getCryptoTransactionsForHistory().filter(tx => !hidden.has(String(tx.id)));
+  const manual = investmentTransactions.map(tx => ({ ...tx, source: tx.source || 'manual' }));
+  return [...legacy, ...crypto, ...manual];
+}
+
 function deleteTransactionProduct() {
   const sel = document.getElementById('tx-product-select');
   if (!sel || !sel.value || sel.value === '__new__') {
@@ -3673,9 +4195,11 @@ function deleteTransactionProduct() {
 }
 
 function editInvestmentTransaction(id) {
-  const tx = investmentTransactions.find(t => t.id === id);
+  const tx = findAnyTransaction(id);
   if (!tx) return;
-  editingTransactionId = id;
+  editingOriginalTx = JSON.parse(JSON.stringify(tx));
+  editingVirtualId = tx.source && tx.source !== 'manual' ? String(tx.id) : null;
+  editingTransactionId = (!editingVirtualId) ? tx.id : null;
   document.getElementById('tx-save-btn').textContent = 'Guardar cambios';
   populateTransactionProductSelect();
   document.getElementById('tx-product-select').value = String(tx.positionId);
@@ -3684,30 +4208,43 @@ function editInvestmentTransaction(id) {
   const pos = positions.find(p => p.id === tx.positionId);
   setTxProductKindValue(tx.productKind || pos?.productKind || inferProductKindFromPosition(pos));
   setTxManagementTypeValue(tx.managementType || pos?.managementType || inferManagementTypeFromPosition(pos));
+  setTxSide(isSellTx(tx) ? 'sell' : 'buy');
   const isAport = tx.isAportacion || isAportacionProduct(pos);
   if (isAport) {
-    document.getElementById('tx-qty').value = tx.aportacion ?? tx.gross ?? Math.max(0, (tx.totalCost || 0) - (tx.fee || 0));
+    document.getElementById('tx-qty').value = Math.abs(tx.aportacion ?? tx.gross ?? Math.max(0, (tx.totalCost || 0) - (tx.fee || 0) - (tx.retention || 0)));
     document.getElementById('tx-price').value = '';
-    document.getElementById('tx-fee').value = '0';
+    document.getElementById('tx-fee').value = Math.abs(tx.fee || 0);
   } else {
-    document.getElementById('tx-qty').value = tx.qty;
-    document.getElementById('tx-price').value = tx.price;
-    document.getElementById('tx-fee').value = tx.fee || 0;
+    document.getElementById('tx-qty').value = Math.abs(tx.qty || 0);
+    document.getElementById('tx-price').value = Math.abs(tx.price || 0);
+    document.getElementById('tx-fee').value = Math.abs(tx.fee || 0);
   }
+  const retentionEl = document.getElementById('tx-retention');
+  if (retentionEl) retentionEl.value = Math.abs(tx.retention || 0);
   setTxDateTimeInputs(tx.datetime);
   document.getElementById('tx-note').value = tx.note || '';
+  updateTxFifoPanel();
   document.getElementById('view-transacciones').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function deleteInvestmentTransaction(id) {
-  const tx = investmentTransactions.find(t => t.id === id);
+  const tx = findAnyTransaction(id);
   if (!tx) return;
   if (!confirm(`Se eliminará el movimiento de "${tx.product}" del ${formatTxDateTime(tx.datetime)}.\n\n¿Continuar?`)) return;
-  applyTransactionToPosition(tx, -1);
-  investmentTransactions = investmentTransactions.filter(t => t.id !== id);
-  if (editingTransactionId === id) resetTransactionForm();
+
+  applyTransactionToPosition(normalizeTxForApply(tx), -1);
+
+  if (tx.source && tx.source !== 'manual') {
+    hideVirtualTxId(tx.id);
+  } else {
+    investmentTransactions = investmentTransactions.filter(t => String(t.id) !== String(id));
+    saveInvestmentTransactions();
+  }
+
+  if (String(editingTransactionId) === String(id) || String(editingVirtualId) === String(id)) {
+    resetTransactionForm();
+  }
   savePositions(positions);
-  saveInvestmentTransactions();
   renderTransacciones();
   const activeView = document.querySelector('.nav-item.active')?.dataset?.view || 'resumen';
   if (activeView !== 'transacciones') renderView(activeView);
@@ -3773,7 +4310,8 @@ function getCryptoTransactionsForHistory() {
         gross: isBuy ? gross : -gross,
         totalCost: isBuy ? gross + fee : -(gross - fee),
         datetime: `${tx.date}T${tx.time || '00:00'}`,
-        note: `${tx.tipo || 'MOV'} · ${tx.plataforma || 'Sin plataforma'}${tx.permuta ? ' · ' + tx.permuta : ''}`
+        note: `${tx.tipo || 'MOV'} · ${tx.plataforma || 'Sin plataforma'}${tx.permuta ? ' · ' + tx.permuta : ''}`,
+        side: isBuy ? 'buy' : 'sell'
       });
     });
   });
@@ -3781,21 +4319,33 @@ function getCryptoTransactionsForHistory() {
 }
 
 function allInvestmentTransactions() {
-  const manual = investmentTransactions.map(tx => ({ ...tx, source: tx.source || 'manual' }));
-  return [...getLegacyInvestmentTransactions(), ...getCryptoTransactionsForHistory(), ...manual];
+  return allInvestmentTransactionsRaw();
+}
+
+function txBrokerOf(tx) {
+  if (tx?.broker) return String(tx.broker).trim() || 'Sin broker';
+  const pos = positions.find(p => p.id === tx?.positionId);
+  const b = String(pos?.broker || '').trim();
+  return b || 'Sin broker';
 }
 
 function populateTransactionChartFilters() {
-  const sectorSel = document.getElementById('tx-chart-sector');
-  const yearSel = document.getElementById('tx-chart-year');
-  const monthSel = document.getElementById('tx-chart-month');
-  if (!sectorSel || !yearSel || !monthSel) return;
+  const productSels = [...document.querySelectorAll('.tx-filter-product')];
+  const brokerSels = [...document.querySelectorAll('.tx-filter-broker')];
+  const sectorSels = [...document.querySelectorAll('.tx-filter-sector')];
+  const yearSels = [...document.querySelectorAll('.tx-filter-year')];
+  const monthSels = [...document.querySelectorAll('.tx-filter-month')];
+  if (!sectorSels.length || !yearSels.length || !monthSels.length) return;
 
-  const prevSector = sectorSel.value || 'all';
-  const prevYear = yearSel.value || 'all';
-  const prevMonth = monthSel.value || 'all';
+  const prevProduct = productSels[0]?.value || 'all';
+  const prevBroker = brokerSels[0]?.value || 'all';
+  const prevSector = sectorSels[0].value || 'all';
+  const prevYear = yearSels[0].value || 'all';
+  const prevMonth = monthSels[0].value || 'all';
 
   const txAll = allInvestmentTransactions();
+  const products = [...new Set(txAll.map(tx => tx.product || 'Sin producto'))].sort((a, b) => a.localeCompare(b, 'es'));
+  const brokers = [...new Set(txAll.map(txBrokerOf))].sort((a, b) => a.localeCompare(b, 'es'));
   const sectors = [...new Set(txAll.map(tx => tx.sector || 'Sin sector'))].sort((a, b) => a.localeCompare(b, 'es'));
   const years = [...new Set(txAll.map(tx => txYearMonth(tx).year))].sort((a, b) => b.localeCompare(a, 'es'));
   const months = [...new Set(txAll.map(tx => txYearMonth(tx).month))].sort((a, b) => a.localeCompare(b, 'es'));
@@ -3805,26 +4355,63 @@ function populateTransactionChartFilters() {
     '09': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
   };
 
-  sectorSel.innerHTML = '<option value="all">Todos los sectores</option>';
-  sectors.forEach(s => { sectorSel.innerHTML += `<option value="${s}">${s}</option>`; });
+  const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  const productHtml = '<option value="all">Todos los productos</option>' +
+    products.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+  const brokerHtml = '<option value="all">Todos los brokers</option>' +
+    brokers.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('');
+  const sectorHtml = '<option value="all">Todos los sectores</option>' +
+    sectors.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  const yearHtml = '<option value="all">Todos los años</option>' +
+    years.map(y => `<option value="${y}">${y}</option>`).join('');
+  const monthHtml = '<option value="all">Todos los meses</option>' +
+    months.map(m => `<option value="${m}">${monthNames[m] || m}</option>`).join('');
 
-  yearSel.innerHTML = '<option value="all">Todos los años</option>';
-  years.forEach(y => { yearSel.innerHTML += `<option value="${y}">${y}</option>`; });
+  const fill = (sels, html, prev) => {
+    sels.forEach(sel => {
+      sel.innerHTML = html;
+      if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+    });
+  };
+  fill(productSels, productHtml, prevProduct);
+  fill(brokerSels, brokerHtml, prevBroker);
+  fill(sectorSels, sectorHtml, prevSector);
+  fill(yearSels, yearHtml, prevYear);
+  fill(monthSels, monthHtml, prevMonth);
+}
 
-  monthSel.innerHTML = '<option value="all">Todos los meses</option>';
-  months.forEach(m => { monthSel.innerHTML += `<option value="${m}">${monthNames[m] || m}</option>`; });
+function getTxFilterValues() {
+  const activeView = document.querySelector('.nav-item.active')?.dataset?.view;
+  const root = activeView === 'tx-graficos'
+    ? document.getElementById('view-tx-graficos')
+    : document.getElementById('view-transacciones');
+  const pick = (cls) => root?.querySelector('.' + cls)?.value
+    || document.querySelector('.' + cls)?.value
+    || 'all';
+  return {
+    product: pick('tx-filter-product'),
+    broker: pick('tx-filter-broker'),
+    sector: pick('tx-filter-sector'),
+    year: pick('tx-filter-year'),
+    month: pick('tx-filter-month')
+  };
+}
 
-  if ([...sectorSel.options].some(o => o.value === prevSector)) sectorSel.value = prevSector;
-  if ([...yearSel.options].some(o => o.value === prevYear)) yearSel.value = prevYear;
-  if ([...monthSel.options].some(o => o.value === prevMonth)) monthSel.value = prevMonth;
+function syncTxFilterValues(sourceEl) {
+  if (!sourceEl) return;
+  const cls = [...sourceEl.classList].find(c => c.startsWith('tx-filter-'));
+  if (!cls) return;
+  document.querySelectorAll('.' + cls).forEach(el => {
+    if (el !== sourceEl) el.value = sourceEl.value;
+  });
 }
 
 function getFilteredTransactionsForCharts() {
-  const sector = document.getElementById('tx-chart-sector')?.value || 'all';
-  const year = document.getElementById('tx-chart-year')?.value || 'all';
-  const month = document.getElementById('tx-chart-month')?.value || 'all';
+  const { product, broker, sector, year, month } = getTxFilterValues();
   return allInvestmentTransactions().filter(tx => {
     const ym = txYearMonth(tx);
+    if (product !== 'all' && (tx.product || 'Sin producto') !== product) return false;
+    if (broker !== 'all' && txBrokerOf(tx) !== broker) return false;
     if (sector !== 'all' && (tx.sector || 'Sin sector') !== sector) return false;
     if (year !== 'all' && ym.year !== year) return false;
     if (month !== 'all' && ym.month !== month) return false;
@@ -3832,14 +4419,20 @@ function getFilteredTransactionsForCharts() {
   });
 }
 
+function onTxChartFilterChange(e) {
+  syncTxFilterValues(e?.target || document.activeElement);
+  const view = document.querySelector('.nav-item.active')?.dataset?.view;
+  if (view === 'tx-graficos') renderTxGraficos();
+  else renderTransacciones();
+}
+
 function resetTransactionChartFilters() {
-  const sectorSel = document.getElementById('tx-chart-sector');
-  const yearSel = document.getElementById('tx-chart-year');
-  const monthSel = document.getElementById('tx-chart-month');
-  if (sectorSel) sectorSel.value = 'all';
-  if (yearSel) yearSel.value = 'all';
-  if (monthSel) monthSel.value = 'all';
-  renderTransacciones();
+  document.querySelectorAll('.tx-filter-product, .tx-filter-broker, .tx-filter-sector, .tx-filter-year, .tx-filter-month').forEach(sel => {
+    sel.value = 'all';
+  });
+  const view = document.querySelector('.nav-item.active')?.dataset?.view;
+  if (view === 'tx-graficos') renderTxGraficos();
+  else renderTransacciones();
 }
 
 function setTxTableSort(key) {
@@ -3856,7 +4449,7 @@ function sortTransactionsForTable(rows) {
   const key = txTableSort.key;
   return rows.slice().sort((a, b) => {
     if (key === 'datetime') return compareTxDateTime(a.datetime, b.datetime) * dir;
-    if (['qty', 'price', 'fee', 'totalCost'].includes(key)) return ((Number(a[key]) || 0) - (Number(b[key]) || 0)) * dir;
+    if (['qty', 'price', 'fee', 'retention', 'totalCost'].includes(key)) return ((Number(a[key]) || 0) - (Number(b[key]) || 0)) * dir;
     return String(a[key] || '').localeCompare(String(b[key] || ''), 'es') * dir;
   });
 }
@@ -3871,23 +4464,80 @@ function renderTransacciones() {
   populateTransactionProductSelect();
   populateTransactionChartFilters();
   updateTxFormFields();
-  if (!editingTransactionId && !document.getElementById('tx-date')?.value) {
+  if (!editingTransactionId && !editingVirtualId && !document.getElementById('tx-date')?.value) {
     const def = defaultTxDateParts();
     document.getElementById('tx-date').value = def.dateDisplay;
     document.getElementById('tx-time').value = def.time;
     syncTxDatePickerFromText();
   }
 
+  const table = document.getElementById('table-transacciones');
+  if (!table) return;
+  const filtered = getFilteredTransactionsForCharts();
+  const sorted = sortTransactionsForTable(filtered);
+  if (!filtered.length) {
+    table.innerHTML = '<thead><tr><th>Estado</th></tr></thead><tbody><tr><td style="color:var(--muted)">No hay movimientos para los filtros seleccionados.</td></tr></tbody>';
+    return;
+  }
+
+  table.innerHTML = `<thead><tr>
+    <th style="cursor:pointer" onclick="setTxTableSort('datetime')">Fecha y hora${txSortArrow('datetime')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('source')">Origen${txSortArrow('source')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('product')">Producto${txSortArrow('product')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('sector')">Sector${txSortArrow('sector')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('qty')">Cantidad${txSortArrow('qty')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('price')">Precio${txSortArrow('price')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('fee')">Comisión${txSortArrow('fee')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('retention')">Retención${txSortArrow('retention')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('totalCost')">Neto / Coste${txSortArrow('totalCost')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('note')">Nota${txSortArrow('note')}</th>
+    <th>Acciones</th>
+  </tr></thead><tbody>${
+    sorted.map(tx => {
+      const idJson = JSON.stringify(String(tx.id));
+      return `<tr>
+      <td>${formatTxDateTime(tx.datetime)}</td>
+      <td>${
+        isSellTx(tx)
+          ? '<span style="color:var(--red);font-weight:600">Venta</span>'
+          : tx.source === 'legacy'
+            ? '<span style="color:var(--accent2);font-weight:600">Histórico</span>'
+            : tx.source === 'crypto'
+              ? '<span style="color:#f59e0b;font-weight:600">Cripto</span>'
+              : '<span style="color:var(--green);font-weight:600">Compra</span>'
+      }</td>
+      <td><strong>${tx.product}</strong></td>
+      <td>${tx.sector || 'Sin sector'}</td>
+      <td>${formatTxQtyDisplay(tx)}</td>
+      <td>${tx.isAportacion ? '—' : fmtPrice(Math.abs(tx.price || 0))}</td>
+      <td>${fmt(Math.abs(tx.fee || 0))}</td>
+      <td>${isSellTx(tx) ? fmt(Math.abs(tx.retention || 0)) : '—'}</td>
+      <td><strong>${fmt(Math.abs(tx.totalCost || 0))}</strong></td>
+      <td style="color:var(--muted)">${tx.note || '—'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-secondary" style="padding:3px 8px;font-size:.72rem;margin-right:4px" onclick='editInvestmentTransaction(${idJson})'>✏️ Editar</button>
+        <button class="btn btn-danger" style="padding:3px 8px;font-size:.72rem" onclick='deleteInvestmentTransaction(${idJson})'>🗑 Eliminar</button>
+      </td>
+    </tr>`;
+    }).join('')
+  }</tbody>`;
+}
+
+function renderTxGraficos() {
+  populateTransactionChartFilters();
+
   const byProductAmount = {};
   const byProductQty = {};
   const bySector = {};
   const chartTransactions = getFilteredTransactionsForCharts();
   chartTransactions.forEach(tx => {
-    byProductAmount[tx.product] = (byProductAmount[tx.product] || 0) + tx.totalCost;
+    const signedCost = isSellTx(tx) ? -Math.abs(Number(tx.totalCost) || 0) : Math.abs(Number(tx.totalCost) || 0);
+    byProductAmount[tx.product] = (byProductAmount[tx.product] || 0) + signedCost;
     const qtyVal = tx.isAportacion ? (tx.aportacion ?? tx.gross ?? tx.totalCost) : tx.qty;
-    byProductQty[tx.product] = (byProductQty[tx.product] || 0) + qtyVal;
+    const signedQty = isSellTx(tx) ? -Math.abs(Number(qtyVal) || 0) : Math.abs(Number(qtyVal) || 0);
+    byProductQty[tx.product] = (byProductQty[tx.product] || 0) + signedQty;
     const s = tx.sector || 'Sin sector';
-    bySector[s] = (bySector[s] || 0) + tx.totalCost;
+    bySector[s] = (bySector[s] || 0) + signedCost;
   });
 
   const productLabels = Object.keys(byProductAmount);
@@ -3919,53 +4569,6 @@ function renderTransacciones() {
     },
     options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } } }
   });
-
-  const table = document.getElementById('table-transacciones');
-  if (!table) return;
-  const filtered = getFilteredTransactionsForCharts();
-  const sorted = sortTransactionsForTable(filtered);
-  if (!filtered.length) {
-    table.innerHTML = '<thead><tr><th>Estado</th></tr></thead><tbody><tr><td style="color:var(--muted)">No hay movimientos para los filtros seleccionados.</td></tr></tbody>';
-    return;
-  }
-
-  table.innerHTML = `<thead><tr>
-    <th style="cursor:pointer" onclick="setTxTableSort('datetime')">Fecha y hora${txSortArrow('datetime')}</th>
-    <th style="cursor:pointer" onclick="setTxTableSort('source')">Origen${txSortArrow('source')}</th>
-    <th style="cursor:pointer" onclick="setTxTableSort('product')">Producto${txSortArrow('product')}</th>
-    <th style="cursor:pointer" onclick="setTxTableSort('sector')">Sector${txSortArrow('sector')}</th>
-    <th style="cursor:pointer" onclick="setTxTableSort('qty')">Cantidad${txSortArrow('qty')}</th>
-    <th style="cursor:pointer" onclick="setTxTableSort('price')">Precio${txSortArrow('price')}</th>
-    <th style="cursor:pointer" onclick="setTxTableSort('fee')">Comisión${txSortArrow('fee')}</th>
-    <th style="cursor:pointer" onclick="setTxTableSort('totalCost')">Coste total${txSortArrow('totalCost')}</th>
-    <th style="cursor:pointer" onclick="setTxTableSort('note')">Nota${txSortArrow('note')}</th>
-    <th>Acciones</th>
-  </tr></thead><tbody>${
-    sorted.map(tx => `<tr>
-      <td>${formatTxDateTime(tx.datetime)}</td>
-      <td>${
-        tx.source === 'legacy'
-          ? '<span style="color:var(--accent2);font-weight:600">Histórico</span>'
-          : tx.source === 'crypto'
-            ? '<span style="color:#f59e0b;font-weight:600">Cripto</span>'
-            : '<span style="color:var(--green);font-weight:600">Manual</span>'
-      }</td>
-      <td><strong>${tx.product}</strong></td>
-      <td>${tx.sector || 'Sin sector'}</td>
-      <td>${formatTxQtyDisplay(tx)}</td>
-      <td>${tx.isAportacion ? '—' : fmt(tx.price)}</td>
-      <td>${fmt(tx.fee || 0)}</td>
-      <td><strong>${fmt(tx.totalCost)}</strong></td>
-      <td style="color:var(--muted)">${tx.note || '—'}</td>
-      <td style="white-space:nowrap">
-        ${tx.source !== 'manual'
-          ? '<span style="color:var(--muted);font-size:.75rem">No editable</span>'
-          : `<button class="btn btn-secondary" style="padding:3px 8px;font-size:.72rem;margin-right:4px" onclick="editInvestmentTransaction(${tx.id})">✏️ Editar</button>
-             <button class="btn btn-danger" style="padding:3px 8px;font-size:.72rem" onclick="deleteInvestmentTransaction(${tx.id})">🗑 Eliminar</button>`
-        }
-      </td>
-    </tr>`).join('')
-  }</tbody>`;
 }
 
 // ─────────────────────────────────────────────
@@ -4147,10 +4750,12 @@ document.getElementById('topbar-date').textContent = new Date().toLocaleDateStri
 function _initDashboard() {
   positions = loadPositions();
   investmentTransactions = loadInvestmentTransactions();
+  hiddenVirtualTxIds = loadHiddenVirtualTxIds();
   loadUserCripto();
   populateBrokerFilter();
   populateTransactionProductSelect();
   bindTxDatePicker();
+  setTxSide('buy');
   const activeView = document.querySelector('.nav-item.active')?.dataset?.view || 'resumen';
   renderView(activeView);
 }
@@ -4167,8 +4772,8 @@ updateCryptoPrices().then(r => {
 
 // ─── Exportar / Importar ──────────────────────
 const BACKUP_KEYS = [
-  'conta_txs','conta_settings','conta_learned','conta_esperados',
-  'inv_positions','inv_notes','user_cripto','inv_transactions',
+  'conta_txs','conta_settings','conta_learned','conta_esperados','conta_tx_review',
+  'inv_positions','inv_notes','user_cripto','inv_transactions','inv_tx_hidden',
   'nom_nominas','nom_ganancias','nom_ganancia_cfg'
 ];
 function exportarTodo() {
