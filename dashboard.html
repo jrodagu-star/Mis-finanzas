@@ -159,6 +159,22 @@
       color: var(--text); border-radius: 6px; padding: 7px 10px; font-size: .85rem;
     }
     .form-row textarea { resize: vertical; min-height: 60px; }
+    .tx-datetime-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .tx-date-group { display: flex; gap: 4px; align-items: center; }
+    .tx-date-group #tx-date { width: 9.5rem; flex: 0 0 auto; }
+    .tx-date-calendar-wrap {
+      position: relative; display: inline-flex; align-items: center; justify-content: center;
+      width: 2.6rem; height: 2.35rem; flex: 0 0 auto; cursor: pointer;
+    }
+    .tx-date-calendar-btn {
+      width: 100%; height: 100%; padding: 0; line-height: 1; flex: 0 0 auto;
+      display: inline-flex; align-items: center; justify-content: center; pointer-events: none;
+    }
+    .tx-date-picker-hidden {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+    }
+    .tx-datetime-row #tx-time { width: auto; min-width: 7rem; flex: 0 0 auto; }
     .btn { padding: 8px 16px; border-radius: 8px; font-size: .85rem; font-weight: 600; cursor: pointer; border: none; }
     .btn-primary { background: var(--accent); color: #fff; }
     .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
@@ -504,7 +520,7 @@
     <div class="view" id="view-transacciones">
       <div class="table-box">
         <h3>Registrar movimiento de inversión</h3>
-        <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">Añade compras de acciones/participaciones para actualizar automáticamente tu cartera.</p>
+        <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">Añade compras de acciones/participaciones o aportaciones a carteras gestionadas para actualizar tu cartera.</p>
         <div class="form-row">
           <label>Producto en cartera</label>
           <select id="tx-product-select" onchange="onTxProductChange()"></select>
@@ -534,16 +550,57 @@
             <input type="text" id="tx-sector-custom" placeholder="Escribe el sector" />
           </div>
         </div>
+        <div id="tx-region-fields" class="form-row" style="display:none;margin-bottom:12px">
+          <label>Región del mundo</label>
+          <select id="tx-region" onchange="onTxRegionChange()">
+            <option value="">Seleccionar región...</option>
+            <option value="USA">USA</option>
+            <option value="Europa">Europa</option>
+            <option value="Asia">Asia</option>
+            <option value="Latinoamérica">Latinoamérica</option>
+            <option value="Japón">Japón</option>
+            <option value="China">China</option>
+            <option value="Global">Global</option>
+            <option value="Otros">Otros</option>
+          </select>
+          <div class="form-row" id="tx-region-custom-row" style="display:none;margin-top:8px;margin-bottom:0">
+            <label>Especificar región</label>
+            <input type="text" id="tx-region-custom" placeholder="Ej: MENA, Emergentes..." />
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+            <button type="button" class="btn btn-secondary" onclick="autoFillTxRegion(true)" style="padding:5px 12px;font-size:.78rem">Detectar región</button>
+            <span id="tx-region-status" style="font-size:.75rem;color:var(--muted)"></span>
+          </div>
+        </div>
+        <div id="tx-product-meta-fields" class="chart-grid cols2" style="display:none;margin-bottom:12px">
+          <div class="form-row" style="margin-bottom:0">
+            <label>Tipo de producto</label>
+            <select id="tx-product-kind">
+              <option value="">Seleccionar tipo...</option>
+              <option value="fondo">Fondo de inversión</option>
+              <option value="etf">ETF</option>
+              <option value="acciones">Acciones</option>
+            </select>
+          </div>
+          <div class="form-row" style="margin-bottom:0">
+            <label>Tipo de gestión</label>
+            <select id="tx-management-type">
+              <option value="">Seleccionar gestión...</option>
+              <option value="activo">Activo</option>
+              <option value="indexado">Indexado</option>
+            </select>
+          </div>
+        </div>
         <div id="tx-new-product-fields" style="display:none;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px;background:var(--surface2)">
           <p style="font-size:.78rem;color:var(--accent);margin-bottom:8px;font-weight:600">Nuevo producto</p>
           <div class="form-row">
             <label>Nombre</label>
-            <input type="text" id="tx-new-name" placeholder="Ej: iShares MSCI World" />
+            <input type="text" id="tx-new-name" placeholder="Ej: iShares MSCI World" onblur="autoFillTxRegion()" />
           </div>
           <div class="chart-grid cols2" style="margin-bottom:0">
             <div class="form-row" style="margin-bottom:10px">
               <label>ISIN / Ticker</label>
-              <input type="text" id="tx-new-isin" placeholder="IE00..." />
+              <input type="text" id="tx-new-isin" placeholder="IE00..." onblur="autoFillTxRegion()" />
             </div>
             <div class="form-row" style="margin-bottom:10px">
               <label>Tipo de activo</label>
@@ -556,36 +613,41 @@
                 <option value="CASH">Liquidez</option>
               </select>
             </div>
-            <div class="form-row" style="margin-bottom:10px">
-              <label>Región / Mercado</label>
-              <input type="text" id="tx-new-region" placeholder="Global, Europa..." />
-            </div>
             <div class="form-row" style="margin-bottom:0">
               <label>Broker / Plataforma</label>
               <input type="text" id="tx-new-broker" placeholder="MyInvestor, XTB..." />
             </div>
           </div>
         </div>
-        <div class="chart-grid cols3">
-          <div class="form-row">
-            <label>Cantidad comprada</label>
+        <div class="chart-grid cols3" id="tx-standard-trade-fields">
+          <div class="form-row" id="tx-qty-row">
+            <label id="tx-qty-label">Cantidad comprada</label>
             <input type="number" id="tx-qty" min="0" step="0.000001" placeholder="0" />
           </div>
-          <div class="form-row">
+          <div class="form-row" id="tx-price-row">
             <label>Valor de mercado por unidad (€)</label>
             <input type="number" id="tx-price" min="0" step="0.0001" placeholder="0.00" />
           </div>
-          <div class="form-row">
+          <div class="form-row" id="tx-fee-row">
             <label>Comisión (€)</label>
             <input type="number" id="tx-fee" min="0" step="0.01" value="0" />
           </div>
         </div>
+        <p id="tx-aportacion-hint" style="display:none;font-size:.78rem;color:var(--accent2);margin:-4px 0 12px">Cartera gestionada: escribe solo el importe en euros en <strong>Cantidad comprada</strong>. No hace falta precio ni participaciones.</p>
         <div class="form-row">
           <label>Fecha y hora de compra</label>
-          <div style="display:flex;gap:8px;align-items:center">
-            <input type="datetime-local" id="tx-datetime" oninput="onTxDateTimeChange()" />
+          <div class="tx-datetime-row">
+            <div class="tx-date-group">
+              <input type="text" id="tx-date" placeholder="dd/mm/aaaa" inputmode="numeric" oninput="onTxDateTimeChange()" />
+              <span class="tx-date-calendar-wrap" title="Elegir fecha en calendario" role="button" tabindex="0">
+                <span class="btn btn-secondary tx-date-calendar-btn" aria-hidden="true">📅</span>
+                <input type="date" id="tx-date-picker" class="tx-date-picker-hidden" tabindex="-1" aria-hidden="true" />
+              </span>
+            </div>
+            <input type="time" id="tx-time" step="60" oninput="onTxDateTimeChange()" />
             <button class="btn btn-secondary" type="button" onclick="fetchBtcPriceForTransaction()" style="white-space:nowrap">Buscar BTC/EUR</button>
           </div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:4px">Fecha: <strong>día/mes/año</strong> (ej. 08/07/2026). Puedes escribirla o usar el calendario 📅.</div>
           <div id="tx-btc-price-status" style="margin-top:6px;font-size:.75rem;color:var(--muted)"></div>
         </div>
         <div class="form-row" style="margin-bottom:0">
@@ -594,7 +656,7 @@
         </div>
         <div class="modal-actions" style="margin-top:14px;justify-content:space-between">
           <button class="btn btn-danger" onclick="deleteTransactionProduct()">Eliminar producto seleccionado</button>
-          <button class="btn btn-primary" id="tx-save-btn" onclick="saveInvestmentTransaction()">Guardar</button>
+          <button class="btn btn-primary" type="button" id="tx-save-btn" onclick="saveInvestmentTransaction()">Guardar</button>
         </div>
       </div>
       <div class="chart-grid cols3" style="margin-bottom:16px">
@@ -1032,7 +1094,20 @@ let activeFilters = { type: 'all', broker: 'all' };
 function loadInvestmentTransactions() {
   const saved = localStorage.getItem('inv_transactions');
   if (!saved) return [];
-  try { return JSON.parse(saved); } catch { return []; }
+  try {
+    const txs = JSON.parse(saved);
+    let changed = false;
+    txs.forEach(tx => {
+      if (!tx.datetime) return;
+      const migrated = migrateTxDatetimeValue(tx.datetime);
+      if (migrated !== tx.datetime) {
+        tx.datetime = migrated;
+        changed = true;
+      }
+    });
+    if (changed) localStorage.setItem('inv_transactions', JSON.stringify(txs));
+    return txs;
+  } catch { return []; }
 }
 function saveInvestmentTransactions() {
   localStorage.setItem('inv_transactions', JSON.stringify(investmentTransactions));
@@ -1418,6 +1493,7 @@ const CRYPTO_CONFIG = {
   BNB:  { label:'BNB',      symbol:'BNB',  color:'#f3ba2f', bg:'rgba(243,186,47,.12)',  posId:17, cgId:'binancecoin',  spotFmt: v => '€'+Math.round(v),               holdFmt: v => v.toFixed(4)+' BNB'  },
   BTM:  { label:'BTM',      symbol:'BTM',  color:'#00c4a0', bg:'rgba(0,196,160,.12)',   posId:18, cgId:'bytom',        spotFmt: v => '€'+v.toFixed(4),                holdFmt: v => v.toFixed(2)+' BTM'  },
 };
+const CRYPTO_POSITION_IDS = new Set(Object.values(CRYPTO_CONFIG).map(c => c.posId));
 
 let USER_CRIPTO = { BTC: [], ETH: [], XRP: [], USDC: [], BNB: [], BTM: [] };
 
@@ -2701,6 +2777,304 @@ function inferSectorFromPosition(pos) {
   return 'Sin sector';
 }
 
+const TX_REGION_OPTIONS = ['USA', 'Europa', 'Asia', 'Latinoamérica', 'Japón', 'China', 'Global', 'Otros'];
+
+const REGION_INFER_RULES = [
+  { region: 'Japón', kw: ['japan', 'japón', 'japon', 'nikkei', 'topix', 'msci japan', 'fidelity msci japan'] },
+  { region: 'China', kw: ['china', 'csi 300', 'csi300', 'shanghai', 'shenzhen', 'hang seng', 'chinext', 'msci china'] },
+  { region: 'USA', kw: ['s&p 500', 'sp 500', 'sp500', 'nasdaq', 'dow jones', 'russell 200', ' us ', ' usa', 'united states', 'north america', 'vanguard us', 'ishares us', 'invesco s&p', 's&p500', 'america ex-us', 'treasury', 'govt bd', 'government bond us'] },
+  { region: 'Latinoamérica', kw: ['latin america', 'latinoam', 'latam', 'latinamerica', 'brasil', 'brazil', 'mexico', 'méxico', 'chile', 'argentina', 'colombia', 'peru', 'perú', 'msci latam'] },
+  { region: 'Europa', kw: ['europe', 'europa', 'eurostoxx', 'euro stoxx', 'stoxx 600', 'stoxx600', 'eurozone', 'euro zone', 'ftse', ' dax', 'cac 40', 'msci europe', 'euro gov', 'eurozone gov', 'core euro'] },
+  { region: 'Asia', kw: ['asia', 'asian', 'pacific ex japan', 'pacific ex-japan', 'pac ex jpn', 'india', 'indian', 'korea', 'taiwan', 'singapore', 'asean', 'msci em', 'emerging market', 'emerging markets', 'em mkts', 'emerg', 'frontier', 'mena', 'hong kong', 'pacific'] },
+  { region: 'Global', kw: ['world', 'global', 'all cap', 'all country', 'acwi', 'msci world', 'developed world', 'total market', 'mundial', 'all world', 'core msci'] },
+];
+
+const KNOWN_ISIN_REGION = (() => {
+  const map = {};
+  DEFAULT_POSITIONS.forEach(p => {
+    const isin = String(p.isin || '').trim().toUpperCase();
+    if (!isin || isin === '–' || isin === '-') return;
+    const normalized = normalizeInferredRegion(p.region);
+    if (normalized) map[isin] = normalized;
+  });
+  return map;
+})();
+
+function normalizeInferredRegion(region) {
+  const r = String(region || '').trim();
+  if (!r || r === '–' || r === '-') return '';
+  if (TX_REGION_OPTIONS.includes(r)) return r;
+  const low = r.toLowerCase();
+  if (/japan|japón|japon/.test(low)) return 'Japón';
+  if (/china/.test(low)) return 'China';
+  if (/usa|estados unidos|north america|gov\. usa|gob\. usa/.test(low)) return 'USA';
+  if (/latin|latam|brasil|mexico|méxico/.test(low)) return 'Latinoamérica';
+  if (/europe|europa|eurostoxx|euro zone/.test(low)) return 'Europa';
+  if (/asia|india|pacific|korea|emerg|mena|frontera|small cap/.test(low)) return 'Asia';
+  if (/global|world|mundial/.test(low)) return 'Global';
+  return 'Otros';
+}
+
+function lookupKnownIsinRegion(isin) {
+  const key = String(isin || '').trim().toUpperCase();
+  if (!key) return '';
+  if (KNOWN_ISIN_REGION[key]) return KNOWN_ISIN_REGION[key];
+  const pos = positions.find(p => String(p.isin || '').trim().toUpperCase() === key);
+  if (pos?.region) return normalizeInferredRegion(pos.region);
+  return '';
+}
+
+function inferRegionFromProduct(name, isin = '') {
+  const text = `${name} ${isin}`.toLowerCase();
+  for (const rule of REGION_INFER_RULES) {
+    if (rule.kw.some(k => text.includes(k))) return rule.region;
+  }
+  return lookupKnownIsinRegion(isin);
+}
+
+function setTxRegionStatus(msg, isError = false) {
+  const el = document.getElementById('tx-region-status');
+  if (!el) return;
+  el.style.color = isError ? 'var(--red)' : 'var(--muted)';
+  el.textContent = msg || '';
+}
+
+function onTxRegionChange() {
+  const sel = document.getElementById('tx-region');
+  const customRow = document.getElementById('tx-region-custom-row');
+  const customInput = document.getElementById('tx-region-custom');
+  if (!sel || !customRow || !customInput) return;
+  customRow.style.display = sel.value === 'Otros' ? 'block' : 'none';
+  if (sel.value !== 'Otros') customInput.value = '';
+}
+
+function setTxRegionValue(region) {
+  const sel = document.getElementById('tx-region');
+  if (!sel) return;
+  const raw = String(region || '').trim();
+  if (!raw || raw === '–' || raw === '-') {
+    sel.value = '';
+    const customInput = document.getElementById('tx-region-custom');
+    if (customInput) customInput.value = '';
+    onTxRegionChange();
+    return;
+  }
+  if (TX_REGION_OPTIONS.includes(raw)) {
+    sel.value = raw;
+    if (raw !== 'Otros') {
+      const customInput = document.getElementById('tx-region-custom');
+      if (customInput) customInput.value = '';
+    }
+    onTxRegionChange();
+    return;
+  }
+  const normalized = normalizeInferredRegion(raw);
+  if (TX_REGION_OPTIONS.includes(normalized)) {
+    sel.value = normalized;
+    if (normalized === 'Otros') {
+      const customInput = document.getElementById('tx-region-custom');
+      if (customInput) customInput.value = raw;
+    }
+  } else if (normalized) {
+    sel.value = 'Otros';
+    const customInput = document.getElementById('tx-region-custom');
+    if (customInput) customInput.value = raw;
+  } else {
+    sel.value = 'Otros';
+    const customInput = document.getElementById('tx-region-custom');
+    if (customInput) customInput.value = raw;
+  }
+  onTxRegionChange();
+}
+
+function getSelectedTxRegion() {
+  const sel = document.getElementById('tx-region');
+  const custom = document.getElementById('tx-region-custom');
+  if (!sel) return '';
+  if (sel.value === 'Otros') {
+    const v = (custom?.value || '').trim();
+    return v || '';
+  }
+  return sel.value || '';
+}
+
+function getTxProductMetaForRegion() {
+  const sel = document.getElementById('tx-product-select');
+  if (!sel || !sel.value) return { name: '', isin: '' };
+  if (sel.value === '__new__') {
+    return {
+      name: document.getElementById('tx-new-name')?.value.trim() || '',
+      isin: document.getElementById('tx-new-isin')?.value.trim() || ''
+    };
+  }
+  const pos = positions.find(p => p.id === Number(sel.value));
+  return { name: pos?.name || '', isin: (pos?.isin && pos.isin !== '–') ? pos.isin : '' };
+}
+
+function positionNeedsRegionLookup(pos) {
+  if (!pos) return false;
+  const raw = String(pos.region || '').trim();
+  return !raw || raw === '–' || raw === '-';
+}
+
+async function fetchProductNameFromWeb(name, isin) {
+  const cleanIsin = String(isin || '').trim().toUpperCase();
+  if (cleanIsin && /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(cleanIsin)) {
+    try {
+      const res = await fetch(`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(cleanIsin)}&quotesCount=3&newsCount=0`);
+      if (res.ok) {
+        const data = await res.json();
+        const quote = (data?.quotes || []).find(q => q.quoteType === 'ETF' || q.quoteType === 'MUTUALFUND' || q.quoteType === 'EQUITY') || data?.quotes?.[0];
+        if (quote?.longname || quote?.shortname) return quote.longname || quote.shortname;
+      }
+    } catch { /* sin acceso */ }
+    const figiName = await fetchOpenFigiSecurityName(cleanIsin);
+    if (figiName) return figiName;
+  }
+  if (name) {
+    try {
+      const res = await fetch(`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(name)}&quotesCount=3&newsCount=0`);
+      if (res.ok) {
+        const data = await res.json();
+        const quote = data?.quotes?.[0];
+        if (quote?.longname || quote?.shortname) return quote.longname || quote.shortname;
+      }
+    } catch { /* sin acceso */ }
+  }
+  return name || '';
+}
+
+async function autoFillTxRegion(manual = false) {
+  const sel = document.getElementById('tx-product-select');
+  if (!sel || !sel.value) return;
+  if (getSelectedTxRegion() && !manual) return;
+
+  const { name, isin } = getTxProductMetaForRegion();
+  if (!name && !isin) {
+    if (manual) setTxRegionStatus('No hay nombre ni ISIN para detectar la región.', true);
+    return;
+  }
+
+  setTxRegionStatus('Buscando región en internet...');
+  let inferred = inferRegionFromProduct(name, isin);
+
+  if (!inferred) {
+    const webName = await fetchProductNameFromWeb(name, isin);
+    if (webName) inferred = inferRegionFromProduct(webName, isin);
+  }
+
+  if (!inferred && isin) {
+    const figiName = await fetchOpenFigiSecurityName(isin);
+    if (figiName) inferred = inferRegionFromProduct(figiName, isin);
+  }
+
+  if (inferred) {
+    setTxRegionValue(inferred);
+    setTxRegionStatus(`Región detectada: ${getSelectedTxRegion()}`);
+  } else {
+    setTxRegionValue('');
+    setTxRegionStatus(manual
+      ? 'No se encontró la región. Rellénala manualmente.'
+      : 'Región no encontrada en internet. Puedes indicarla manualmente.');
+  }
+}
+
+function applyRegionToSelectedPosition(pos) {
+  const region = getSelectedTxRegion();
+  if (region && pos) pos.region = region;
+}
+
+function updateTxRegionFieldsVisibility() {
+  const sel = document.getElementById('tx-product-select');
+  const regionFields = document.getElementById('tx-region-fields');
+  if (!regionFields) return;
+  regionFields.style.display = sel?.value ? 'block' : 'none';
+}
+
+function updateTxProductMetaFieldsVisibility() {
+  const sel = document.getElementById('tx-product-select');
+  const metaFields = document.getElementById('tx-product-meta-fields');
+  if (!metaFields) return;
+  metaFields.style.display = sel?.value ? '' : 'none';
+}
+
+function getSelectedTxProductKind() {
+  return document.getElementById('tx-product-kind')?.value || '';
+}
+
+function getSelectedTxManagementType() {
+  return document.getElementById('tx-management-type')?.value || '';
+}
+
+function setTxProductKindValue(value) {
+  const sel = document.getElementById('tx-product-kind');
+  if (!sel) return;
+  const raw = String(value || '').trim().toLowerCase();
+  const aliases = {
+    fondo: 'fondo',
+    'fondo de inversión': 'fondo',
+    'fondo de inversion': 'fondo',
+    etf: 'etf',
+    acciones: 'acciones',
+    acción: 'acciones',
+    accion: 'acciones'
+  };
+  sel.value = aliases[raw] || (['fondo', 'etf', 'acciones'].includes(raw) ? raw : '');
+}
+
+function setTxManagementTypeValue(value) {
+  const sel = document.getElementById('tx-management-type');
+  if (!sel) return;
+  const raw = String(value || '').trim().toLowerCase();
+  const aliases = { activo: 'activo', indexado: 'indexado' };
+  sel.value = aliases[raw] || (['activo', 'indexado'].includes(raw) ? raw : '');
+}
+
+function inferProductKindFromPosition(pos) {
+  if (!pos) return '';
+  if (pos.productKind) return pos.productKind;
+  const name = String(pos.name || '').toLowerCase();
+  if (/\betf\b|\betc\b/.test(name)) return 'etf';
+  if (/\bfondo\b|\bfund\b|\bucits\b|\bplan de pensiones\b/.test(name)) return 'fondo';
+  if (pos.tipo === 'PP' || pos.tipo === 'RF' || pos.tipo === 'MIX') return 'fondo';
+  if (pos.tipo === 'RV' && !/\betf\b|\betc\b|\bfondo\b|\bfund\b/.test(name)) return 'acciones';
+  return '';
+}
+
+function inferManagementTypeFromPosition(pos) {
+  if (!pos) return '';
+  if (pos.managementType) return pos.managementType;
+  const name = String(pos.name || '').toLowerCase();
+  if (/\bindex\b|\bidx\b|\bmsci\b|\bs&p\b|\bstoxx\b|\btracker\b|\breplic/.test(name)) return 'indexado';
+  if (/\bcartera\b|\bindie\b|\bgestionad|\brobeco\b|\bcarmignac\b|\bmagna\b/.test(name)) return 'activo';
+  if (/\betf\b|\betc\b/.test(name)) return 'indexado';
+  return '';
+}
+
+function applyProductMetaToSelectedPosition(pos) {
+  const kind = getSelectedTxProductKind();
+  const mgmt = getSelectedTxManagementType();
+  if (kind && pos) pos.productKind = kind;
+  if (mgmt && pos) pos.managementType = mgmt;
+}
+
+async function fetchOpenFigiSecurityName(isin) {
+  const clean = String(isin || '').trim().toUpperCase();
+  if (!/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(clean)) return '';
+  try {
+    const res = await fetch('https://api.openfigi.com/v3/mapping', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify([{ idType: 'ID_ISIN', idValue: clean }])
+    });
+    if (!res.ok) return '';
+    const data = await res.json();
+    return data?.[0]?.data?.[0]?.name || '';
+  } catch {
+    return '';
+  }
+}
+
 function setSectorValue(sector) {
   const sel = document.getElementById('tx-sector-select');
   const customRow = document.getElementById('tx-sector-custom-row');
@@ -2751,6 +3125,35 @@ function selectedPositionForTx() {
   return positions.find(p => p.id === Number(sel.value)) || null;
 }
 
+const APORTACION_PRODUCT_IDS = new Set([9, 10]); // Cartera Indie, Plan Pensiones Finanbest
+
+function isAportacionProduct(pos) {
+  if (!pos) return false;
+  if (APORTACION_PRODUCT_IDS.has(pos.id)) return true;
+  const name = String(pos.name || '').toLowerCase();
+  return name.includes('cartera indie') || name.includes('plan de pensiones n5270');
+}
+
+function updateTxFormFields() {
+  const pos = selectedPositionForTx();
+  const isAport = isAportacionProduct(pos);
+  const qtyLabel = document.getElementById('tx-qty-label');
+  const qtyInput = document.getElementById('tx-qty');
+  const priceRow = document.getElementById('tx-price-row');
+  const feeRow = document.getElementById('tx-fee-row');
+  const hint = document.getElementById('tx-aportacion-hint');
+  if (qtyLabel) qtyLabel.textContent = isAport ? 'Cantidad comprada (€ aportados)' : 'Cantidad comprada';
+  if (qtyInput) {
+    qtyInput.step = isAport ? '0.01' : '0.000001';
+    qtyInput.placeholder = isAport ? 'Ej: 200' : '0';
+  }
+  if (priceRow) priceRow.style.display = isAport ? 'none' : '';
+  if (feeRow) feeRow.style.display = isAport ? 'none' : '';
+  if (hint) hint.style.display = isAport ? 'block' : 'none';
+  updateTxRegionFieldsVisibility();
+  updateTxProductMetaFieldsVisibility();
+}
+
 function isBitcoinPosition(pos) {
   if (!pos) return false;
   const isin = String(pos.isin || '').toUpperCase();
@@ -2782,7 +3185,7 @@ async function fetchBtcPriceForTransaction(auto = false) {
     if (!auto) setTxBtcStatus('Selecciona el activo Bitcoin para buscar su cotización histórica.');
     return;
   }
-  const dt = document.getElementById('tx-datetime')?.value;
+  const dt = getTxDateTimeFromInputs();
   if (!dt) {
     if (!auto) setTxBtcStatus('Introduce fecha y hora para consultar BTC/EUR.');
     return;
@@ -2823,9 +3226,19 @@ function onTxProductChange() {
   const fields = document.getElementById('tx-new-product-fields');
   if (!sel || !fields) return;
   fields.style.display = sel.value === '__new__' ? 'block' : 'none';
+  updateTxFormFields();
+
   if (sel.value && sel.value !== '__new__') {
     const pos = positions.find(p => p.id === Number(sel.value));
     setSectorValue(inferSectorFromPosition(pos));
+    setTxRegionValue(pos?.region || '');
+    setTxProductKindValue(pos?.productKind || inferProductKindFromPosition(pos));
+    setTxManagementTypeValue(pos?.managementType || inferManagementTypeFromPosition(pos));
+    if (positionNeedsRegionLookup(pos)) {
+      autoFillTxRegion(false);
+    } else {
+      setTxRegionStatus('');
+    }
     if (isBitcoinPosition(pos)) {
       setTxBtcStatus('Puedes autocompletar el valor con la cotización BTC/EUR de la fecha/hora.');
       onTxDateTimeChange();
@@ -2835,13 +3248,209 @@ function onTxProductChange() {
   } else if (sel.value === '__new__') {
     setSectorValue('');
     setTxBtcStatus('');
+    setTxRegionValue('');
+    setTxRegionStatus('');
+    setTxProductKindValue('');
+    setTxManagementTypeValue('');
+  } else {
+    setTxRegionValue('');
+    setTxRegionStatus('');
+    setTxProductKindValue('');
+    setTxManagementTypeValue('');
   }
 }
 
-function defaultTxDateTime() {
+function defaultTxDateParts() {
   const now = new Date();
-  const tzOffset = now.getTimezoneOffset() * 60000;
-  return new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
+  return {
+    dateDisplay: `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`,
+    time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  };
+}
+
+function parseSpanishDateInput(str) {
+  const s = String(str || '').trim();
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (!m) return null;
+  const day = parseInt(m[1], 10);
+  const month = parseInt(m[2], 10);
+  const year = parseInt(m[3], 10);
+  if (month < 1 || month > 12 || day < 1 || day > 31 || year < 1900) return null;
+  const d = new Date(year, month - 1, day);
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null;
+  return {
+    day: String(day).padStart(2, '0'),
+    month: String(month).padStart(2, '0'),
+    year: String(year)
+  };
+}
+
+function syncTxDatePickerFromText() {
+  const picker = document.getElementById('tx-date-picker');
+  const text = document.getElementById('tx-date');
+  if (!picker || !text) return;
+  const parts = parseSpanishDateInput(text.value);
+  if (parts) {
+    picker.value = `${parts.year}-${parts.month}-${parts.day}`;
+    return;
+  }
+  const now = new Date();
+  picker.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function openTxDatePicker() {
+  const picker = document.getElementById('tx-date-picker');
+  if (!picker) return;
+  syncTxDatePickerFromText();
+  if (typeof picker.showPicker === 'function') {
+    try { picker.showPicker(); return; } catch { /* fallback */ }
+  }
+  picker.focus();
+  picker.click();
+}
+
+function bindTxDatePicker() {
+  const picker = document.getElementById('tx-date-picker');
+  const wrap = document.querySelector('.tx-date-calendar-wrap');
+  if (!picker || picker.dataset.bound === '1') return;
+  picker.dataset.bound = '1';
+  picker.addEventListener('change', () => onTxDatePicked(picker));
+  if (wrap && wrap.dataset.bound !== '1') {
+    wrap.dataset.bound = '1';
+    wrap.addEventListener('click', (e) => {
+      e.preventDefault();
+      openTxDatePicker();
+    });
+    wrap.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openTxDatePicker();
+      }
+    });
+  }
+}
+
+function onTxDatePicked(picker) {
+  const value = picker?.value;
+  if (!value) return;
+  const [year, month, day] = value.split('-');
+  const text = document.getElementById('tx-date');
+  if (text) text.value = `${day}/${month}/${year}`;
+  onTxDateTimeChange();
+}
+
+function setTxDateTimeInputs(value) {
+  const p = parseTxDateTimeParts(migrateTxDatetimeValue(value));
+  const dateEl = document.getElementById('tx-date');
+  const timeEl = document.getElementById('tx-time');
+  if (!p) {
+    if (dateEl) dateEl.value = '';
+    if (timeEl) timeEl.value = '';
+    const picker = document.getElementById('tx-date-picker');
+    if (picker) picker.value = '';
+    return;
+  }
+  if (dateEl) dateEl.value = `${p.day}/${p.month}/${p.year}`;
+  if (timeEl) timeEl.value = `${p.hour}:${p.minute}`;
+  syncTxDatePickerFromText();
+}
+
+function getTxDateTimeFromInputs() {
+  const dateEl = document.getElementById('tx-date');
+  const pickerEl = document.getElementById('tx-date-picker');
+  let dateParts = parseSpanishDateInput(dateEl?.value);
+  if (!dateParts && pickerEl?.value) {
+    const [year, month, day] = pickerEl.value.split('-');
+    if (year && month && day) {
+      dateParts = { year, month, day };
+      if (dateEl) dateEl.value = `${day}/${month}/${year}`;
+    }
+  }
+  const time = (document.getElementById('tx-time')?.value || '00:00').slice(0, 5);
+  if (!dateParts) return '';
+  return `${dateParts.year}-${dateParts.month}-${dateParts.day}T${time}`;
+}
+
+function migrateTxDatetimeValue(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return raw;
+  const naive = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if (naive) return raw;
+  const localNaive = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (localNaive && !/[zZ]$/.test(raw) && !/[+-]\d{2}:?\d{2}$/.test(raw)) {
+    return `${localNaive[1]}-${localNaive[2]}-${localNaive[3]}T${localNaive[4]}:${localNaive[5]}`;
+  }
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function normalizeTxDateTimeInput(value) {
+  return migrateTxDatetimeValue(value);
+}
+
+function parseTxDateTimeParts(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  let m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (m && !/[zZ]$/.test(raw) && !/[+-]\d{2}:?\d{2}$/.test(raw)) {
+    return { year: m[1], month: m[2], day: m[3], hour: m[4], minute: m[5] };
+  }
+  m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return { year: m[1], month: m[2], day: m[3], hour: '00', minute: '00' };
+  const d = new Date(raw);
+  if (!Number.isNaN(d.getTime())) {
+    return {
+      year: String(d.getFullYear()),
+      month: String(d.getMonth() + 1).padStart(2, '0'),
+      day: String(d.getDate()).padStart(2, '0'),
+      hour: String(d.getHours()).padStart(2, '0'),
+      minute: String(d.getMinutes()).padStart(2, '0')
+    };
+  }
+  return null;
+}
+
+function formatTxDateTime(value) {
+  const p = parseTxDateTimeParts(value);
+  if (!p) return '—';
+  return `${p.day}/${p.month}/${p.year}, ${p.hour}:${p.minute}`;
+}
+
+function isCryptoTransaction(tx) {
+  if (!tx) return false;
+  if (tx.source === 'crypto') return true;
+  if (tx.sector === 'Criptomonedas') return true;
+  if (tx.positionId && CRYPTO_POSITION_IDS.has(tx.positionId)) return true;
+  const pos = positions.find(p => p.id === tx.positionId);
+  if (pos && CRYPTO_POSITION_IDS.has(pos.id)) return true;
+  const isin = String(pos?.isin || '').toUpperCase();
+  return isin in CRYPTO_CONFIG;
+}
+
+function formatCryptoQty(qty) {
+  const n = Number(qty);
+  if (!Number.isFinite(n)) return '0';
+  return parseFloat(n.toFixed(12)).toString();
+}
+
+function formatTxQtyDisplay(tx) {
+  if (tx.isAportacion) {
+    return `<span style="color:var(--accent2);font-weight:600">${fmt(tx.aportacion ?? tx.gross ?? tx.totalCost)}</span> <span style="font-size:.72rem;color:var(--muted)">aport.</span>`;
+  }
+  const qty = Number(tx.qty) || 0;
+  return isCryptoTransaction(tx) ? formatCryptoQty(qty) : qty.toFixed(3);
+}
+
+function compareTxDateTime(a, b) {
+  const pa = parseTxDateTimeParts(a);
+  const pb = parseTxDateTimeParts(b);
+  if (!pa && !pb) return 0;
+  if (!pa) return -1;
+  if (!pb) return 1;
+  return `${pa.year}${pa.month}${pa.day}${pa.hour}${pa.minute}`.localeCompare(
+    `${pb.year}${pb.month}${pb.day}${pb.hour}${pb.minute}`
+  );
 }
 
 function getOrCreateTxPosition() {
@@ -2858,8 +3467,10 @@ function getOrCreateTxPosition() {
   const isin = document.getElementById('tx-new-isin').value.trim() || '–';
   const tipo = document.getElementById('tx-new-tipo').value;
   const sector = getSelectedSector();
-  const region = document.getElementById('tx-new-region').value.trim() || 'Global';
+  const region = getSelectedTxRegion() || '–';
   const broker = document.getElementById('tx-new-broker').value.trim() || 'Otro';
+  const productKind = getSelectedTxProductKind();
+  const managementType = getSelectedTxManagementType();
   if (!name) return { error: 'Indica el nombre del nuevo producto.' };
 
   const maxId = positions.length ? Math.max(...positions.map(p => p.id)) : 0;
@@ -2874,7 +3485,9 @@ function getOrCreateTxPosition() {
     value: 0,
     cost: 0,
     units: 0,
-    comment: ''
+    comment: '',
+    ...(productKind ? { productKind } : {}),
+    ...(managementType ? { managementType } : {})
   };
   positions.push(pos);
   return { position: pos, created: true };
@@ -2887,6 +3500,8 @@ function applyTransactionToPosition(tx, sign = 1) {
   pos.value = Math.max(0, (pos.value || 0) + sign * tx.gross);
   pos.units = Math.max(0, (pos.units || 0) + sign * tx.qty);
   if (tx.sector) pos.sector = tx.sector;
+  if (tx.productKind) pos.productKind = tx.productKind;
+  if (tx.managementType) pos.managementType = tx.managementType;
 }
 
 function resetTransactionForm() {
@@ -2897,26 +3512,30 @@ function resetTransactionForm() {
   document.getElementById('tx-price').value = '';
   document.getElementById('tx-fee').value = '0';
   document.getElementById('tx-note').value = '';
-  document.getElementById('tx-datetime').value = defaultTxDateTime();
+  const def = defaultTxDateParts();
+  document.getElementById('tx-date').value = def.dateDisplay;
+  document.getElementById('tx-time').value = def.time;
+  syncTxDatePickerFromText();
   setSectorValue('');
   setTxBtcStatus('');
-  ['tx-new-name', 'tx-new-isin', 'tx-new-region', 'tx-new-broker'].forEach(id => document.getElementById(id).value = '');
+  setTxRegionValue('');
+  setTxRegionStatus('');
+  setTxProductKindValue('');
+  setTxManagementTypeValue('');
+  ['tx-new-name', 'tx-new-isin', 'tx-new-broker'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('tx-new-tipo').value = 'RV';
   onTxProductChange();
 }
 
-function saveInvestmentTransaction() {
-  const qty = parseFloat(document.getElementById('tx-qty').value) || 0;
-  const price = parseFloat(document.getElementById('tx-price').value) || 0;
-  const fee = parseFloat(document.getElementById('tx-fee').value) || 0;
-  const dateTime = document.getElementById('tx-datetime').value;
+async function saveInvestmentTransaction() {
+  const saveBtn = document.getElementById('tx-save-btn');
+  if (saveBtn?.dataset.saving === '1') return;
+
+  const dateTime = getTxDateTimeFromInputs();
   const note = document.getElementById('tx-note').value.trim();
-  if (qty <= 0 || price <= 0) {
-    alert('La cantidad y el valor de mercado deben ser mayores que 0.');
-    return;
-  }
   if (!dateTime) {
-    alert('Indica la fecha y hora de compra.');
+    alert('Indica una fecha válida en formato dd/mm/aaaa (día/mes/año).');
+    document.getElementById('tx-date')?.focus();
     return;
   }
 
@@ -2926,55 +3545,108 @@ function saveInvestmentTransaction() {
     return;
   }
   const p = productResult.position;
+  applyRegionToSelectedPosition(p);
+  applyProductMetaToSelectedPosition(p);
+  const isAport = isAportacionProduct(p);
 
-  const gross = qty * price;
-  const totalCost = gross + fee;
+  let qty, price, fee, gross, totalCost, aportacion;
+  if (isAport) {
+    // Solo importe en euros (campo Cantidad comprada)
+    aportacion = parseFloat(document.getElementById('tx-qty').value) || 0;
+    fee = 0;
+    if (aportacion <= 0) {
+      alert('Indica la cantidad aportada en euros (mayor que 0).');
+      document.getElementById('tx-qty')?.focus();
+      return;
+    }
+    qty = 0;
+    price = 0;
+    gross = aportacion;
+    totalCost = aportacion;
+  } else {
+    qty = parseFloat(document.getElementById('tx-qty').value) || 0;
+    price = parseFloat(document.getElementById('tx-price').value) || 0;
+    fee = parseFloat(document.getElementById('tx-fee').value) || 0;
+    if (qty <= 0 || price <= 0) {
+      alert('La cantidad y el valor de mercado deben ser mayores que 0.');
+      return;
+    }
+    gross = qty * price;
+    totalCost = gross + fee;
+  }
+
   const sector = getSelectedSector() || inferSectorFromPosition(p);
+  const productKind = getSelectedTxProductKind();
+  const managementType = getSelectedTxManagementType();
   const actionLabel = editingTransactionId ? 'actualizará' : 'actualizarán';
-  const warn = `Se ${actionLabel} las inversiones con los datos aportados.\n\nProducto: ${p.name}\nCantidad: ${qty}\nCoste total: ${fmt(totalCost)}\n\n¿Deseas continuar?`;
+  const warn = isAport
+    ? `Se ${actionLabel} las inversiones con los datos aportados.\n\nProducto: ${p.name}\nAportación: ${fmt(aportacion)}\nCoste total: ${fmt(totalCost)}\n\n¿Deseas continuar?`
+    : `Se ${actionLabel} las inversiones con los datos aportados.\n\nProducto: ${p.name}\nCantidad: ${qty}\nCoste total: ${fmt(totalCost)}\n\n¿Deseas continuar?`;
   if (!confirm(warn)) return;
 
-  const txData = {
-    id: editingTransactionId || Date.now(),
-    positionId: p.id,
-    product: p.name,
-    sector,
-    qty,
-    price,
-    fee,
-    gross,
-    totalCost,
-    datetime: dateTime,
-    note
-  };
+  const savingLabel = editingTransactionId ? 'Guardando cambios…' : 'Guardando…';
+  const defaultLabel = editingTransactionId ? 'Guardar cambios' : 'Guardar';
+  if (saveBtn) {
+    saveBtn.dataset.saving = '1';
+    saveBtn.disabled = true;
+    saveBtn.textContent = savingLabel;
+  }
 
-  if (editingTransactionId) {
-    const idx = investmentTransactions.findIndex(tx => tx.id === editingTransactionId);
-    if (idx >= 0) {
-      applyTransactionToPosition(investmentTransactions[idx], -1);
-      investmentTransactions[idx] = txData;
+  try {
+    const txData = {
+      id: editingTransactionId || Date.now(),
+      positionId: p.id,
+      product: p.name,
+      sector,
+      qty,
+      price,
+      fee,
+      gross,
+      totalCost,
+      datetime: normalizeTxDateTimeInput(dateTime),
+      note,
+      ...(productKind ? { productKind } : {}),
+      ...(managementType ? { managementType } : {}),
+      ...(isAport ? { isAportacion: true, aportacion } : {})
+    };
+
+    if (editingTransactionId) {
+      const idx = investmentTransactions.findIndex(tx => tx.id === editingTransactionId);
+      if (idx >= 0) {
+        applyTransactionToPosition(investmentTransactions[idx], -1);
+        investmentTransactions[idx] = txData;
+      } else {
+        investmentTransactions.push(txData);
+      }
     } else {
       investmentTransactions.push(txData);
     }
-  } else {
-    investmentTransactions.push(txData);
+    applyTransactionToPosition(txData, +1);
+
+    savePositions(positions);
+    saveInvestmentTransactions();
+    populateBrokerFilter();
+
+    if (productResult.created) {
+      populateTransactionProductSelect();
+      document.getElementById('tx-product-select').value = String(p.id);
+      onTxProductChange();
+    }
+    resetTransactionForm();
+
+    renderTransacciones();
+    const activeView = document.querySelector('.nav-item.active')?.dataset?.view || 'resumen';
+    if (activeView !== 'transacciones') renderView(activeView);
+  } catch (err) {
+    console.error(err);
+    alert(`No se pudo guardar el movimiento: ${err?.message || 'error desconocido'}`);
+  } finally {
+    if (saveBtn) {
+      saveBtn.dataset.saving = '0';
+      saveBtn.disabled = false;
+      if (saveBtn.textContent === savingLabel) saveBtn.textContent = defaultLabel;
+    }
   }
-  applyTransactionToPosition(txData, +1);
-
-  savePositions(positions);
-  saveInvestmentTransactions();
-  populateBrokerFilter();
-
-  if (productResult.created) {
-    populateTransactionProductSelect();
-    document.getElementById('tx-product-select').value = String(p.id);
-    onTxProductChange();
-  }
-  resetTransactionForm();
-
-  renderTransacciones();
-  const activeView = document.querySelector('.nav-item.active')?.dataset?.view || 'resumen';
-  if (activeView !== 'transacciones') renderView(activeView);
 }
 
 function deleteTransactionProduct() {
@@ -3008,10 +3680,20 @@ function editInvestmentTransaction(id) {
   document.getElementById('tx-product-select').value = String(tx.positionId);
   onTxProductChange();
   setSectorValue(tx.sector || 'Sin sector');
-  document.getElementById('tx-qty').value = tx.qty;
-  document.getElementById('tx-price').value = tx.price;
-  document.getElementById('tx-fee').value = tx.fee || 0;
-  document.getElementById('tx-datetime').value = tx.datetime;
+  const pos = positions.find(p => p.id === tx.positionId);
+  setTxProductKindValue(tx.productKind || pos?.productKind || inferProductKindFromPosition(pos));
+  setTxManagementTypeValue(tx.managementType || pos?.managementType || inferManagementTypeFromPosition(pos));
+  const isAport = tx.isAportacion || isAportacionProduct(pos);
+  if (isAport) {
+    document.getElementById('tx-qty').value = tx.aportacion ?? tx.gross ?? Math.max(0, (tx.totalCost || 0) - (tx.fee || 0));
+    document.getElementById('tx-price').value = '';
+    document.getElementById('tx-fee').value = '0';
+  } else {
+    document.getElementById('tx-qty').value = tx.qty;
+    document.getElementById('tx-price').value = tx.price;
+    document.getElementById('tx-fee').value = tx.fee || 0;
+  }
+  setTxDateTimeInputs(tx.datetime);
   document.getElementById('tx-note').value = tx.note || '';
   document.getElementById('view-transacciones').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -3019,7 +3701,7 @@ function editInvestmentTransaction(id) {
 function deleteInvestmentTransaction(id) {
   const tx = investmentTransactions.find(t => t.id === id);
   if (!tx) return;
-  if (!confirm(`Se eliminará el movimiento de "${tx.product}" del ${new Date(tx.datetime).toLocaleString('es-ES')}.\n\n¿Continuar?`)) return;
+  if (!confirm(`Se eliminará el movimiento de "${tx.product}" del ${formatTxDateTime(tx.datetime)}.\n\n¿Continuar?`)) return;
   applyTransactionToPosition(tx, -1);
   investmentTransactions = investmentTransactions.filter(t => t.id !== id);
   if (editingTransactionId === id) resetTransactionForm();
@@ -3031,12 +3713,9 @@ function deleteInvestmentTransaction(id) {
 }
 
 function txYearMonth(tx) {
-  const d = new Date(tx.datetime);
-  if (Number.isNaN(d.getTime())) return { year: 'Sin año', month: 'Sin mes' };
-  return {
-    year: String(d.getFullYear()),
-    month: String(d.getMonth() + 1).padStart(2, '0')
-  };
+  const p = parseTxDateTimeParts(tx.datetime);
+  if (!p) return { year: 'Sin año', month: 'Sin mes' };
+  return { year: p.year, month: p.month };
 }
 
 function getLegacyInvestmentTransactions() {
@@ -3049,6 +3728,7 @@ function getLegacyInvestmentTransactions() {
       const amount = Number(entry.amount) || 0;
       const shares = Number(entry.shares) || 0;
       const price = Number(entry.price) || (shares > 0 ? amount / shares : 0);
+      const isAportacion = posId === 9 || (posId === 10 && shares === 0 && price === 0);
       legacy.push({
         id: `legacy-${posId}-${idx}`,
         source: 'legacy',
@@ -3061,7 +3741,8 @@ function getLegacyInvestmentTransactions() {
         gross: amount,
         totalCost: amount,
         datetime: `${entry.date}T12:00`,
-        note: `Movimiento histórico (${entry.label || 'sin etiqueta'})`
+        note: `Movimiento histórico (${entry.label || 'sin etiqueta'})`,
+        ...(isAportacion ? { isAportacion: true, aportacion: amount } : {})
       });
     });
   });
@@ -3173,7 +3854,7 @@ function sortTransactionsForTable(rows) {
   const dir = txTableSort.dir === 'asc' ? 1 : -1;
   const key = txTableSort.key;
   return rows.slice().sort((a, b) => {
-    if (key === 'datetime') return (new Date(a.datetime) - new Date(b.datetime)) * dir;
+    if (key === 'datetime') return compareTxDateTime(a.datetime, b.datetime) * dir;
     if (['qty', 'price', 'fee', 'totalCost'].includes(key)) return ((Number(a[key]) || 0) - (Number(b[key]) || 0)) * dir;
     return String(a[key] || '').localeCompare(String(b[key] || ''), 'es') * dir;
   });
@@ -3185,10 +3866,16 @@ function txSortArrow(key) {
 }
 
 function renderTransacciones() {
+  bindTxDatePicker();
   populateTransactionProductSelect();
   populateTransactionChartFilters();
-  const dtEl = document.getElementById('tx-datetime');
-  if (dtEl && !dtEl.value) dtEl.value = defaultTxDateTime();
+  updateTxFormFields();
+  if (!editingTransactionId && !document.getElementById('tx-date')?.value) {
+    const def = defaultTxDateParts();
+    document.getElementById('tx-date').value = def.dateDisplay;
+    document.getElementById('tx-time').value = def.time;
+    syncTxDatePickerFromText();
+  }
 
   const byProductAmount = {};
   const byProductQty = {};
@@ -3196,7 +3883,8 @@ function renderTransacciones() {
   const chartTransactions = getFilteredTransactionsForCharts();
   chartTransactions.forEach(tx => {
     byProductAmount[tx.product] = (byProductAmount[tx.product] || 0) + tx.totalCost;
-    byProductQty[tx.product] = (byProductQty[tx.product] || 0) + tx.qty;
+    const qtyVal = tx.isAportacion ? (tx.aportacion ?? tx.gross ?? tx.totalCost) : tx.qty;
+    byProductQty[tx.product] = (byProductQty[tx.product] || 0) + qtyVal;
     const s = tx.sector || 'Sin sector';
     bySector[s] = (bySector[s] || 0) + tx.totalCost;
   });
@@ -3253,7 +3941,7 @@ function renderTransacciones() {
     <th>Acciones</th>
   </tr></thead><tbody>${
     sorted.map(tx => `<tr>
-      <td>${new Date(tx.datetime).toLocaleString('es-ES')}</td>
+      <td>${formatTxDateTime(tx.datetime)}</td>
       <td>${
         tx.source === 'legacy'
           ? '<span style="color:var(--accent2);font-weight:600">Histórico</span>'
@@ -3263,8 +3951,8 @@ function renderTransacciones() {
       }</td>
       <td><strong>${tx.product}</strong></td>
       <td>${tx.sector || 'Sin sector'}</td>
-      <td>${tx.qty.toFixed(6)}</td>
-      <td>${fmt(tx.price)}</td>
+      <td>${formatTxQtyDisplay(tx)}</td>
+      <td>${tx.isAportacion ? '—' : fmt(tx.price)}</td>
       <td>${fmt(tx.fee || 0)}</td>
       <td><strong>${fmt(tx.totalCost)}</strong></td>
       <td style="color:var(--muted)">${tx.note || '—'}</td>
@@ -3461,6 +4149,7 @@ function _initDashboard() {
   loadUserCripto();
   populateBrokerFilter();
   populateTransactionProductSelect();
+  bindTxDatePicker();
   const activeView = document.querySelector('.nav-item.active')?.dataset?.view || 'resumen';
   renderView(activeView);
 }

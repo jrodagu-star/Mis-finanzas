@@ -424,6 +424,7 @@ const AUTO_RULES = [
   { kw:['seguro','mutua','axa','zurich','generali','mapfre','allianz','linea directa'], cat:'Seguros' },
   { kw:['vueling','iberia','ryanair','easyjet','wizzair','booking','airbnb','hotel','trivago','edreams'], cat:'Viajes' },
   { kw:['nomina','nómina','salario','sueldo','haberes','remuneracion'], cat:'Nómina' },
+  { kw:['transferencia sol','transf. sol','trf sol',' transferencia sol'], cat:'Transferencia recibida' },
   { kw:['dividendo','interes abonado','myinvestor','degiro','finanbest','renta 4','openbank inver','xtb'], cat:'Inversiones y dividendos' },
   { kw:['comision','comisión','mantenimiento cuenta','cuota tarjeta','cargo tarjeta'], cat:'Finanzas y bancos' },
   { kw:['hacienda','agencia tributaria','aeat','impuesto','irpf','tributaria','modelo 100','modelo 130'], cat:'Impuestos' },
@@ -783,6 +784,7 @@ const SEED_CSV = `Fecha;Movimiento;Importe;Saldo
 31/03/2026;MOVISTAR PLUS;-9,99;9.246,26
 31/03/2026;Prime Video canal;-7,99;9.256,25
 30/03/2026;NOMINA TRF;5.347,18;9.264,24
+01/03/2026;TRANSFERENCIA SOL;1.150,00;9.264,24
 30/03/2026;GENSPARK.AI;-27,32;3.917,06
 30/03/2026;APPLE.COM/BILL;-13,49;3.944,38
 29/03/2026;MANACOR POZUELO;-4,55;3.957,87
@@ -884,6 +886,7 @@ const SEED_CSV = `Fecha;Movimiento;Importe;Saldo
 27/02/2026;FEDERACION DE GOL;-24,00;10.782,87
 27/02/2026;SpotifyES;-20,99;10.806,87
 26/02/2026;NOMINA TRF;8.008,99;10.827,86
+01/02/2026;TRANSFERENCIA SOL;1.150,00;10.827,86
 26/02/2026;APPLE.COM/BILL;-14,49;2.818,87
 26/02/2026;RCI BANQUE S;-146,09;2.833,36
 26/02/2026;ORANGE MOVIL 0226;-113,40;2.979,45
@@ -952,6 +955,7 @@ const SEED_CSV = `Fecha;Movimiento;Importe;Saldo
 30/01/2026;APPLE.COM/BILL;-1,99;7.539,98
 30/01/2026;EasyPark Espana S;-0,97;7.541,97
 29/01/2026;NOMINA TRF;6.575,09;7.542,94
+01/01/2026;TRANSFERENCIA SOL;1.150,00;7.542,94
 28/01/2026;APPLE.COM/BILL;-24,99;967,85
 28/01/2026;Microsoft*La prue;-14,99;992,84
 28/01/2026;Audible ES;-9,99;1.007,83
@@ -2128,6 +2132,70 @@ function migrateAccounts() {
   saveSettings();
 }
 
+const SOL_TRANSFER_DESC = 'TRANSFERENCIA SOL';
+const SOL_TRANSFER_AMOUNT = 1150;
+
+function isSolTransferTx(tx) {
+  if (!tx || tx.type !== 'INGRESO') return false;
+  if (Number(tx.amount) !== SOL_TRANSFER_AMOUNT) return false;
+  const d = String(tx.desc || '').toLowerCase();
+  return d.includes('transferencia sol') || d.includes('transf. sol') || d.includes('trf sol');
+}
+
+function ensureSolTransfers2026() {
+  let added = 0;
+  for (let month = 1; month <= 12; month++) {
+    const mm = String(month).padStart(2, '0');
+    const date = `2026-${mm}-01`;
+    const exists = txs.some(t => {
+      if (!isSolTransferTx(t)) return false;
+      return String(t.date || '').startsWith(`2026-${mm}`);
+    });
+    if (exists) continue;
+    txs.push({
+      id: nextId(),
+      date,
+      amount: SOL_TRANSFER_AMOUNT,
+      type: 'INGRESO',
+      desc: SOL_TRANSFER_DESC,
+      cat: 'Transferencia recibida',
+      account: 'CaixaBank',
+      notes: 'Ingreso mensual Sol 2026',
+      sub: false,
+      subPeriodo: '',
+      subcat: '',
+    });
+    added++;
+  }
+  if (added) saveTxs();
+  return added;
+}
+
+function ensureSolExpectedIncome() {
+  if (!Array.isArray(gastosEsperados)) return false;
+  const exists = gastosEsperados.some(g =>
+    g.tipo === 'INGRESO' &&
+    Number(g.amount) === SOL_TRANSFER_AMOUNT &&
+    String(g.desc || '').toLowerCase().includes('sol')
+  );
+  if (exists) return false;
+  gastosEsperados.push({
+    id: nextId(),
+    fecha: '2026-01-01',
+    desc: SOL_TRANSFER_DESC,
+    tipoSuscripcion: '',
+    pago: '',
+    tipo: 'INGRESO',
+    cat: 'Transferencia recibida',
+    subcat: '',
+    amount: SOL_TRANSFER_AMOUNT,
+    periodico: true,
+    periodo: 'Mensual',
+  });
+  saveGE();
+  return true;
+}
+
 function loadData() {
   try { txs = JSON.parse(localStorage.getItem(TX_KEY) || '[]'); } catch(e) { txs = []; }
   try { const s = JSON.parse(localStorage.getItem(SET_KEY) || '{}'); settings = { ...settings, ...s, accounts: [...ACCOUNT_OPTIONS] }; } catch(e) {}
@@ -3088,17 +3156,18 @@ function splitCSVLine(line, delim) {
 function detectColumns(headers) {
   const h = headers.map(s => s.toLowerCase().replace(/['"]/g,'').trim());
   const find = (...kws) => h.findIndex(x => kws.some(k => x.includes(k)));
+  const amtKeys = ['importe', 'cantidad', 'amount', 'cargo', 'abono', 'valor'];
 
   // Known bank formats
-  if (h.includes('concepto') && h.some(x=>x.includes('importe'))) {
-    // CaixaBank / Santander style
-    return { bank:'CaixaBank/Santander', dateCol: find('fecha'), descCol: find('concepto'), amtCol: find('importe'), balCol: find('saldo') };
+  if (h.includes('concepto') && h.some(x => amtKeys.some(k => x.includes(k)))) {
+    // CaixaBank / Santander style (Importe o Cantidad)
+    return { bank:'CaixaBank/Santander', dateCol: find('fecha'), descCol: find('concepto'), amtCol: find(...amtKeys), balCol: find('saldo') };
   }
-  if (h.some(x=>x.includes('descripci')) && h.some(x=>x.includes('importe'))) {
-    return { bank:'BBVA', dateCol: find('fecha'), descCol: find('descripci','nombre'), amtCol: find('importe'), balCol: find('disponible','saldo') };
+  if (h.some(x=>x.includes('descripci')) && h.some(x => amtKeys.some(k => x.includes(k)))) {
+    return { bank:'BBVA', dateCol: find('fecha'), descCol: find('descripci','nombre'), amtCol: find(...amtKeys), balCol: find('disponible','saldo') };
   }
   if (h.some(x=>x.includes('movimiento')) || h.some(x=>x.includes('subcategor'))) {
-    return { bank:'CaixaBank', dateCol: 0, descCol: 1, amtCol: find('importe'), balCol: find('saldo') };
+    return { bank:'CaixaBank', dateCol: 0, descCol: 1, amtCol: find(...amtKeys), balCol: find('saldo') };
   }
   if (h.some(x=>x.includes('concepto')) && h.some(x=>x.includes('cargo'))) {
     return { bank:'Bankinter', dateCol: find('fecha'), descCol: find('concepto'), amtCol: find('cargo','abono'), balCol: find('saldo') };
@@ -3107,8 +3176,8 @@ function detectColumns(headers) {
   return {
     bank: 'Genérico',
     dateCol: find('fecha','date','fec'),
-    descCol: find('concepto','descripci','nombre','desc'),
-    amtCol:  find('importe','amount','cargo','abono','amount'),
+    descCol: find('concepto','descripci','nombre','desc','movimiento'),
+    amtCol:  find(...amtKeys),
     balCol:  find('saldo','balance','disponible')
   };
 }
@@ -3319,13 +3388,13 @@ function importarTodo(input) {
 function _initContabilidad() {
   loadData();
   seedFromCSV();
+  ensureSolTransfers2026();
   loadGE();
+  ensureSolExpectedIncome();
   updatePeriodUI();
   populateCatSelect('GASTO');
   renderResumen();
 }
-window.fbRefresh = _initContabilidad;
-_initContabilidad();
 
 // ─────────────────────────────────────────────
 //  GASTOS ESPERADOS
@@ -3335,6 +3404,9 @@ let gastosEsperados = [];
 function loadGE()   { try { gastosEsperados = JSON.parse(localStorage.getItem(GE_KEY) || '[]'); } catch(e) { gastosEsperados = []; } }
 function saveGE()   { localStorage.setItem(GE_KEY, JSON.stringify(gastosEsperados)); }
 loadGE();
+
+window.fbRefresh = _initContabilidad;
+_initContabilidad();
 
 let editGEId = null;
 let geTipo   = 'GASTO';
