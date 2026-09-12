@@ -633,7 +633,7 @@
             <input type="number" id="tx-fee" min="0" step="0.01" value="0" />
           </div>
         </div>
-        <p id="tx-aportacion-hint" style="display:none;font-size:.78rem;color:var(--accent2);margin:-4px 0 12px">Cartera gestionada: escribe solo el importe en euros en <strong>Cantidad comprada</strong>. No hace falta precio ni participaciones.</p>
+        <p id="tx-aportacion-hint" style="display:none;font-size:.78rem;color:var(--accent2);margin:-4px 0 12px">Cartera Indie: escribe solo el importe en euros en <strong>Cantidad comprada</strong>. No hace falta precio ni participaciones.</p>
         <div class="form-row">
           <label>Fecha y hora de compra</label>
           <div class="tx-datetime-row">
@@ -3125,13 +3125,14 @@ function selectedPositionForTx() {
   return positions.find(p => p.id === Number(sel.value)) || null;
 }
 
-const APORTACION_PRODUCT_IDS = new Set([9, 10]); // Cartera Indie, Plan Pensiones Finanbest
+const APORTACION_PRODUCT_IDS = new Set([9]); // Solo Cartera Indie MyInvestor (importe en euros)
 
 function isAportacionProduct(pos) {
   if (!pos) return false;
   if (APORTACION_PRODUCT_IDS.has(pos.id)) return true;
   const name = String(pos.name || '').toLowerCase();
-  return name.includes('cartera indie') || name.includes('plan de pensiones n5270');
+  // Plan de pensiones NO: requiere participaciones + valor + comisión
+  return name.includes('cartera indie');
 }
 
 function updateTxFormFields() {
