@@ -103,6 +103,11 @@ if (typeof firebase === 'undefined') {
         backfillDone = true;
       }
 
+      // Cancelar subidas pendientes: no sobrescribir la nube con semilla/local vacío
+      // que se haya encolado antes de recibir Firestore.
+      clearTimeout(_fbSaveTimer);
+      _fbPendingData = {};
+
       _SYNC_KEYS.forEach(key => {
         if (data[key] !== undefined) {
           const incoming = JSON.stringify(data[key]);

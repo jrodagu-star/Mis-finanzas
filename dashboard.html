@@ -4760,7 +4760,11 @@ function _initDashboard() {
   renderView(activeView);
 }
 window.fbRefresh = _initDashboard;
-_initDashboard();
+if (window.fbReady && typeof window.fbReady.then === 'function') {
+  window.fbReady.then(() => _initDashboard());
+} else {
+  _initDashboard();
+}
 window.addEventListener('resize', () => requestAnimationFrame(resizeAllCharts));
 updateCryptoPrices().then(r => {
   if (r.ok && r.updated > 0) {

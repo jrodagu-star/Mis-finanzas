@@ -2104,19 +2104,11 @@ const SEED_CSV_2025 = `Fecha;Movimiento;Importe;Mes
 
 function seedFromCSV() {
   try {
+    // No sembrar si ya hay datos locales o si Firebase aún puede traerlos.
+    if (localStorage.getItem(TX_KEY)) return;
     const rows = [...parseCSV(SEED_CSV), ...parseCSV(SEED_CSV_2025)];
-    if (!localStorage.getItem(TX_KEY)) {
-      rows.forEach(r => { r.id = nextId(); r.account = 'CaixaBank'; });
-      txs = rows;
-    } else {
-      let added = 0;
-      rows.forEach(r => {
-        const dup = txs.some(t => t.date === r.date && t.amount === r.amount &&
-          t.desc.toLowerCase() === r.desc.toLowerCase());
-        if (!dup) { txs.push({ id: nextId(), account: 'CaixaBank', ...r }); added++; }
-      });
-      if (!added) return;
-    }
+    rows.forEach(r => { r.id = nextId(); r.account = 'CaixaBank'; });
+    txs = rows;
     saveTxs();
   } catch(e) { console.error('Error cargando datos semilla:', e); }
 }
@@ -3466,13 +3458,33 @@ function importarTodo(input) {
 function _initContabilidad() {
   loadData();
   txReviewIds = loadTxReviewIds();
-  seedFromCSV();
-  ensureSolTransfers2026();
-  loadGE();
-  ensureSolExpectedIncome();
-  updatePeriodUI();
-  populateCatSelect('GASTO');
-  renderResumen();
+  // Solo sembrar tras sincronizar Firebase, y solo si sigue vacío.
+  // Evita que un navegador nuevo sobrescriba la nube con datos semilla.
+  const afterCloud = () => {
+    loadData();
+    txReviewIds = loadTxReviewIds();
+    if (!localStorage.getItem(TX_KEY) || !txs.length) seedFromCSV();
+    ensureSolTransfers2026();
+    loadGE();
+    ensureSolExpectedIncome();
+    updatePeriodUI();
+    populateCatSelect('GASTO');
+    const activeView = document.querySelector('.nav-item.active')?.dataset?.view || 'resumen';
+    if (activeView === 'transacciones') renderTransacciones();
+    else if (activeView === 'categorias') renderCategorias();
+    else if (activeView === 'esperados') renderEsperados();
+    else renderResumen();
+  };
+  if (window.fbReady && typeof window.fbReady.then === 'function') {
+    // No escribir en localStorage hasta tener la nube (evita pisar Firestore).
+    updatePeriodUI();
+    populateCatSelect('GASTO');
+    renderResumen();
+    window.fbReady.then(afterCloud);
+  } else {
+    seedFromCSV();
+    afterCloud();
+  }
 }
 
 // ─────────────────────────────────────────────
