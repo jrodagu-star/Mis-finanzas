@@ -2,6 +2,7 @@
 // Escucha cambios en Firestore en tiempo real (onSnapshot).
 // Cuando otro dispositivo guarda datos, esta página se actualiza sola.
 // Intercepta localStorage.setItem para subir cambios locales a Firestore.
+// Al ocultar/cerrar la pestaña fuerza el volcado de todos los datos locales.
 
 const _FB_CFG = {
   apiKey:            "AIzaSyBBQHSzPfGdqLWTfOClm4IFmP2m9tfIKPk",
@@ -21,6 +22,8 @@ const _SYNC_KEYS = [
 if (typeof firebase === 'undefined') {
   console.warn('[Firebase] SDK no cargado — la página usará solo datos locales.');
   window.fbReady = Promise.resolve();
+  window.fbFlush = () => Promise.resolve();
+  window.fbHasPending = () => false;
 } else {
   if (!firebase.apps.length) firebase.initializeApp(_FB_CFG);
   const _fbDb  = firebase.firestore();
@@ -35,20 +38,68 @@ if (typeof firebase === 'undefined') {
   // ── Interceptor: cada guardado local también sube a Firestore ─────────────────
   let _fbSaveTimer = null;
   let _fbPendingData = {};
+  let _fbInFlight = null;
+  let _fbCloudReady = false;
+
+  function _fbCollectAllLocal() {
+    const payload = {};
+    _SYNC_KEYS.forEach(key => {
+      const raw = localStorage.getItem(key);
+      if (raw == null) return;
+      try { payload[key] = JSON.parse(raw); } catch (e) {}
+    });
+    return payload;
+  }
+
+  function _fbFlush(reason) {
+    clearTimeout(_fbSaveTimer);
+    _fbSaveTimer = null;
+
+    let payload = Object.assign({}, _fbPendingData);
+    _fbPendingData = {};
+
+    // Al salir o ocultar la pestaña: volcar TODO lo local (no solo el debounce).
+    if (reason === 'unload' || reason === 'hidden' || reason === 'full') {
+      payload = Object.assign(_fbCollectAllLocal(), payload);
+    }
+
+    if (!Object.keys(payload).length) {
+      return _fbInFlight || Promise.resolve();
+    }
+
+    _fbBanner(_SPIN + (reason === 'unload' || reason === 'hidden'
+      ? ' Guardando antes de salir…'
+      : ' Guardando en la nube…'));
+
+    const write = _fbDoc.set(payload, { merge: true })
+      .then(() => _fbDb.waitForPendingWrites())
+      .then(() => {
+        _fbBanner('☁️ Guardado en la nube', 1500);
+      })
+      .catch(() => {
+        _fbBanner('⚠️ Error al guardar — sin conexión', 4000);
+      })
+      .finally(() => {
+        if (_fbInFlight === write) _fbInFlight = null;
+      });
+
+    _fbInFlight = write;
+    return write;
+  }
+
+  window.fbFlush = (full) => _fbFlush(full ? 'full' : 'manual');
+  window.fbHasPending = () =>
+    Object.keys(_fbPendingData).length > 0 || !!_fbSaveTimer || !!_fbInFlight;
 
   localStorage.setItem = function(key, value) {
     _lsSet(key, value);
-    if (_SYNC_KEYS.includes(key)) {
-      try { _fbPendingData[key] = JSON.parse(value); } catch(e) { return; }
-      clearTimeout(_fbSaveTimer);
-      _fbSaveTimer = setTimeout(() => {
-        const payload = Object.assign({}, _fbPendingData);
-        _fbPendingData = {};
-        _fbDoc.set(payload, { merge: true })
-          .then(() => _fbBanner('☁️ Guardado en la nube', 1500))
-          .catch(() => _fbBanner('⚠️ Error al guardar — sin conexión', 3000));
-      }, 1000);
-    }
+    if (!_SYNC_KEYS.includes(key)) return;
+    try { _fbPendingData[key] = JSON.parse(value); } catch (e) { return; }
+    // No encolar subidas hasta haber aplicado la primera sync de la nube
+    // (evita que semilla/local vacío pise Firestore).
+    if (!_fbCloudReady) return;
+    clearTimeout(_fbSaveTimer);
+    _fbSaveTimer = setTimeout(() => { _fbFlush('debounce'); }, 800);
   };
 
   const _SPIN = '<span style="display:inline-block;width:10px;height:10px;border:2px solid #334155;border-top-color:#6c63ff;border-radius:50%;animation:_fbs .7s linear infinite;flex-shrink:0"></span><style>@keyframes _fbs{to{transform:rotate(360deg)}}</style>';
@@ -64,8 +115,15 @@ if (typeof firebase === 'undefined') {
     }
     el.style.opacity = '1';
     el.innerHTML = html;
-    if (autoHide) setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }, autoHide);
+    if (autoHide) setTimeout(() => { el.style.opacity = '0'; setTimeout(() => { if (el.style.opacity === '0') el.remove(); }, 500); }, autoHide);
   }
+
+  // Forzar sync al cambiar de pestaña, minimizar o cerrar
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') _fbFlush('hidden');
+  });
+  window.addEventListener('pagehide', () => { _fbFlush('unload'); });
+  window.addEventListener('beforeunload', () => { _fbFlush('unload'); });
 
   window.fbReady = new Promise(resolve => {
     let firstLoad = true;
@@ -78,7 +136,12 @@ if (typeof firebase === 'undefined') {
     _fbDoc.onSnapshot({ includeMetadataChanges: true }, snap => {
       if (snap.metadata.hasPendingWrites) return;
       if (!snap.exists) {
-        if (firstLoad) { firstLoad = false; _fbBanner('☁️ Firebase conectado', 2000); resolve(); }
+        if (firstLoad) {
+          firstLoad = false;
+          _fbCloudReady = true;
+          _fbBanner('☁️ Firebase conectado', 2000);
+          resolve();
+        }
         return;
       }
 
@@ -91,7 +154,7 @@ if (typeof firebase === 'undefined') {
           if (data[key] === undefined) {
             const local = localStorage.getItem(key);
             if (local !== null) {
-              try { missing[key] = JSON.parse(local); } catch(e) {}
+              try { missing[key] = JSON.parse(local); } catch (e) {}
             }
           }
         });
@@ -103,10 +166,12 @@ if (typeof firebase === 'undefined') {
         backfillDone = true;
       }
 
-      // Cancelar subidas pendientes: no sobrescribir la nube con semilla/local vacío
-      // que se haya encolado antes de recibir Firestore.
-      clearTimeout(_fbSaveTimer);
-      _fbPendingData = {};
+      // Solo en la primera carga: descartar subidas prematuras (semilla).
+      if (firstLoad) {
+        clearTimeout(_fbSaveTimer);
+        _fbSaveTimer = null;
+        _fbPendingData = {};
+      }
 
       _SYNC_KEYS.forEach(key => {
         if (data[key] !== undefined) {
@@ -125,6 +190,7 @@ if (typeof firebase === 'undefined') {
 
       if (firstLoad) {
         firstLoad = false;
+        _fbCloudReady = true;
         _fbBanner('☁️ Sincronizado con Firebase', 2000);
         resolve();
       } else if (changed) {
@@ -133,6 +199,7 @@ if (typeof firebase === 'undefined') {
 
     }, err => {
       console.warn('[Firebase] Sin conexión — usando datos locales.');
+      _fbCloudReady = true;
       _fbBanner('📴 Sin conexión — datos locales', 4000);
       resolve();
     });
