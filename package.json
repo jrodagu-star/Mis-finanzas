@@ -2,6 +2,7 @@
   "name": "mis-finanzas",
   "private": true,
   "scripts": {
-    "dev": "npx --yes serve . -l 8000"
+    "dev": "node server.mjs",
+    "start": "node server.mjs"
   }
 }

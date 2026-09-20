@@ -125,6 +125,149 @@
     .badge-cash { background: #374151; color: #d1d5db; }
     .badge-pp { background: #4a1d96; color: #c4b5fd; }
 
+    /* ── DETALLE: columnas por tipo ── */
+    .detalle-board {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+      align-items: start;
+    }
+    .detalle-col {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 12px 12px;
+      min-height: 120px;
+    }
+    .detalle-col-head {
+      display: flex; align-items: flex-start; gap: 10px;
+      margin-bottom: 12px; padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .detalle-col-icon {
+      width: 42px; height: 42px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25rem; flex-shrink: 0;
+    }
+    .detalle-col-icon.rv { background: rgba(99,102,241,.18); }
+    .detalle-col-icon.rf { background: rgba(16,185,129,.18); }
+    .detalle-col-icon.mix { background: rgba(56,189,248,.18); }
+    .detalle-col-icon.alt { background: rgba(245,158,11,.18); }
+    .detalle-col-icon.pp { background: rgba(167,139,250,.18); }
+    .detalle-col-icon.cash { background: rgba(148,163,184,.18); }
+    .detalle-col-icon.antiguas { background: rgba(100,116,139,.2); }
+    .detalle-col.detalle-col-antiguas {
+      border-style: dashed;
+      opacity: 0.95;
+    }
+    .detalle-col.detalle-col-antiguas .detalle-col-title { color: var(--muted); }
+    .detalle-col-meta { flex: 1; min-width: 0; }
+    .detalle-col-title { font-size: .78rem; font-weight: 700; color: var(--text); }
+    .detalle-col-count { font-size: .7rem; color: var(--muted); margin-top: 2px; }
+    .detalle-col-value { font-size: 1.05rem; font-weight: 700; margin-top: 4px; color: var(--accent2); }
+    .detalle-pos-card {
+      background: var(--surface2);
+      border: 1px solid transparent;
+      border-radius: 10px;
+      padding: 10px 11px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s, transform .15s;
+    }
+    .detalle-pos-card:last-child { margin-bottom: 0; }
+    .detalle-pos-card:hover { border-color: var(--border); background: #2a2e3d; }
+    .detalle-pos-card.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(108,99,255,.35);
+      background: rgba(108,99,255,.1);
+    }
+    .detalle-pos-card.closed { opacity: .72; }
+    .detalle-pos-name { font-size: .8rem; font-weight: 600; line-height: 1.3; margin-bottom: 6px; }
+    .detalle-pos-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .detalle-pos-value { font-size: .92rem; font-weight: 700; }
+    .detalle-pos-gp { font-size: .72rem; font-weight: 600; }
+    .detalle-pos-sub { font-size: .68rem; color: var(--muted); margin-top: 4px; }
+    .detalle-history-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      border-left: 3px solid var(--accent);
+    }
+    .detalle-history-panel[hidden] { display: none !important; }
+    .detalle-profile {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+      padding: 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .detalle-profile-item {
+      min-width: 0;
+    }
+    .detalle-profile-label {
+      font-size: .68rem;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .detalle-profile-value {
+      font-size: .84rem;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.35;
+    }
+    .detalle-profile-desc {
+      grid-column: 1 / -1;
+      font-size: .82rem;
+      color: var(--muted);
+      line-height: 1.45;
+      padding-top: 4px;
+      border-top: 1px solid var(--border);
+      margin-top: 2px;
+    }
+    .detalle-profile-holdings {
+      grid-column: 1 / -1;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+      margin-top: 2px;
+    }
+    .detalle-profile-holdings .detalle-profile-label {
+      margin-bottom: 8px;
+    }
+    .detalle-holdings-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .detalle-holdings-list li {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: .8rem;
+      color: var(--text);
+      line-height: 1.35;
+    }
+    .detalle-holdings-list li span:last-child {
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+    .detalle-holdings-note {
+      margin-top: 6px;
+      font-size: .68rem;
+      color: var(--muted);
+    }
+
     /* ── VIEWS ── */
     .view { display: none; }
     .view.active { display: block; }
@@ -411,11 +554,34 @@
 
     <!-- ── VIEW: DETALLE ── -->
     <div class="view" id="view-detalle">
-      <button class="add-btn" onclick="openModal()">+ Añadir posición</button>
-      <div class="table-box">
-        <h3>Todas las posiciones</h3>
-        <div style="overflow-x:auto">
-          <table id="table-detalle" style="min-width:900px"></table>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <p style="font-size:.8rem;color:var(--muted);margin:0">Selecciona una posición para ver su historial y detalle.</p>
+        <button class="add-btn" style="margin:0" onclick="openModal()">+ Añadir posición</button>
+      </div>
+      <div id="detalle-board" class="detalle-board"></div>
+      <div id="detalle-history-panel" class="detalle-history-panel" hidden>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap">
+          <div>
+            <h3 id="detalle-hist-title" style="color:var(--accent);font-size:.95rem;margin:0">Historial</h3>
+            <div id="detalle-hist-sub" style="font-size:.75rem;color:var(--muted);margin-top:4px"></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-secondary" style="padding:4px 10px;font-size:.78rem" onclick="openModal(activeHistoryId)" id="detalle-hist-edit">✏️ Editar</button>
+            <button class="btn btn-secondary" style="padding:4px 12px;font-size:.78rem" onclick="hideHistory()">✕ Cerrar</button>
+          </div>
+        </div>
+        <div id="detalle-hist-profile" class="detalle-profile" hidden></div>
+        <div class="kpi-grid" id="history-kpis-panel" style="margin-bottom:20px"></div>
+        <div id="detalle-hist-charts" class="chart-grid cols2" style="margin-bottom:16px">
+          <div class="chart-box"><h3>Aportaciones (€)</h3><div style="position:relative;height:220px"><canvas id="chart-hist-aportes-panel"></canvas></div></div>
+          <div class="chart-box"><h3>Precio de compra por aportación</h3><div style="position:relative;height:220px"><canvas id="chart-hist-precio-panel"></canvas></div></div>
+          <div class="chart-box"><h3>Invertido vs Valor actual por lote</h3><div style="position:relative;height:220px"><canvas id="chart-hist-cumul-panel"></canvas></div></div>
+          <div class="chart-box"><h3>Rentabilidad por año (%)</h3><div style="position:relative;height:220px"><canvas id="chart-hist-anual-panel"></canvas></div></div>
+        </div>
+        <div id="detalle-hist-comment" style="display:none;background:var(--surface2);padding:12px 14px;border-radius:8px;font-size:.82rem;color:var(--muted);line-height:1.5;margin-bottom:16px;border-left:3px solid var(--accent)"></div>
+        <div>
+          <h3 style="font-size:.85rem;font-weight:600;margin-bottom:12px">Detalle de aportaciones</h3>
+          <div style="overflow-x:auto"><table id="table-hist-detalle-panel"></table></div>
         </div>
       </div>
     </div>
@@ -1032,13 +1198,13 @@ const INVESTMENT_HISTORY = {
       { year: 2026, label: '2026 (YTD)',     startNav: 120.28, endNav: 129.97, ytd: true },
     ]
   },
-  7: { // Amundi Euro Stoxx Banks ETF (ex-Lyxor)
+  7: { // Lyxor Euro Stoxx Banks DR (Amundi) — LU1829219390 · XETRA
     entries: [
-      { date:'2025-09-30', label:'sep 2025', amount:2832.50, shares:10, price:283.25, marketValue:3240.40, fiscalResult:407.90 },
+      { date:'2025-09-30', time:'17:10', label:'sep 2025 XETRA', amount:2835.90, shares:10, price:283.25, fee:3.4, gross:2832.50, marketValue:3953.50, fiscalResult:1117.60 },
     ],
     yearEndPrices: [
       { year: 2025, label: '2025 (sep–dic)', startNav: 283.25, endNav: 321.94 },
-      { year: 2026, label: '2026 (YTD)',     startNav: 321.94, endNav: 324.04, ytd: true },
+      { year: 2026, label: '2026 (YTD)',     startNav: 321.94, endNav: 395.35, ytd: true },
     ]
   },
   6: { // Robeco Indian Equities D EUR
@@ -1109,12 +1275,12 @@ const DEFAULT_POSITIONS = [
   { id:2, name:'Amundi S.F. Diversified Short-Term Bond', isin:'LU1706854152', tipo:'RF', region:'Global', broker:'MyInvestor', value:11967.29, cost:11080.90, comment:'Décima de la cartera, parte defensiva.' },
   { id:3, name:'DWS Floating Rate Notes', isin:'LU0034353002', tipo:'RF', region:'Global', broker:'MyInvestor', value:5365.23, cost:5024.51, comment:'Protege frente a subidas de tipos.' },
   { id:4, name:'Amundi Core MSCI Emerging Markets', isin:'LU0996175948', tipo:'RV', region:'Emergentes Global', broker:'MyInvestor', value:17077.05, cost:12763.77, comment:'Motor EM de la cartera. Incluye traspaso desde Vanguard ESG Dev. World All Cap. VL: 69,80195 participaciones.' },
-  { id:5, name:'Magna MENA Fund G Acc (EUR)', isin:'IE00BFTW8Y10', tipo:'RV', region:'MENA (Oriente Medio y Norte de África)', broker:'Renta 4', value:6041.49, cost:5500, comment:'Fondo UCITS de renta variable pura (≥2/3 en acciones MENA). Gestora: Fiera Capital Europe. Clase G en EUR sin cobertura de divisa, acumulación. TER ~1.84-2.16%. Países: Arabia Saudí, EAU, Qatar, Egipto, Kuwait, Marruecos… VL por participación: 37,982€ (159,062 participaciones). Compras: 5.000€ ago-2023 + 500€ abr-2025. Satélite concentrado en región volátil.' },
+  { id:5, name:'Magna MENA Fund G Acc (EUR)', isin:'IE00BFTW8Y10', tipo:'RV', region:'MENA (Oriente Medio y Norte de África)', broker:'Renta 4', value:0, cost:0, comment:'Vendido por completo el 17-jun-2026 (159,062 part. a 38,877 €). Coste 5.500 € · Neto cobrado ~6.054 € tras retención.' },
   { id:6, name:'Robeco Indian Equities D EUR', isin:'LU0491217419', tipo:'RV', region:'India', broker:'Renta 4', value:3200.52, cost:3000, comment:'Fondo RV India. VL por participación: 317,15€ (10,0915 participaciones). Compra única: 3.000€ ago-2023. Satélite país único.' },
-  { id:7, name:'Amundi Euro Stoxx Banks ETF', isin:'LU1829219390', tipo:'RV', region:'Europa', broker:'MyInvestor', value:3240.40, cost:2835.90, comment:'Apuesta cíclica en bancos europeos. VL: 324,04€ (10 títulos). Compra única: 2.832,50€ sep-2025 + 3,40€ comisión.' },
+  { id:7, name:'Lyxor Euro Stoxx Banks DR', isin:'LU1829219390', tipo:'RV', region:'Europa', broker:'MyInvestor', value:3953.50, cost:2835.90, units:10, productKind:'etf', managementType:'indexado', yahooSymbol:'LYBK.DE', comment:'ETF bancos zona euro (ex-Lyxor, ahora Amundi). Compra 30/09/2025 17:10 en XETRA: 10 títulos × 283,25 € + comisión 3,40 € = 2.835,90 €. El valor de mercado se actualiza al abrir la app.' },
   { id:9, name:'Cartera Indie MyInvestor', isin:'–', tipo:'MIX', region:'Global', broker:'MyInvestor', value:17071.07, cost:13942.22, comment:'Núcleo equilibrado 60/40, muy diversificado. AVISO — HISTORIAL INCOMPLETO: valor de mercado e importe invertido tomados directamente de MyInvestor (fuente fiable). El historial de aportaciones solo cubre 12.950 € en 21 entradas (jun-2023 a dic-2025); faltan ~992,22 € en movimientos del período ene-2024 a mar-2025 no accesibles en el extracto. Pendiente de completar cuando se obtengan los datos históricos.' },
   { id:10, name:'Plan de Pensiones N5270 (Finanbest)', isin:'N5270', tipo:'PP', region:'Global', broker:'MyInvestor', value:26615.26, cost:18559.92, comment:'Plan de pensiones gestionado por Finanbest, contratado en MyInvestor. 1.351,3922 participaciones. 90.6% RV (USA, Europa, EM, Frontera, Small Caps, Japón, Inmobiliario) + 5.6% RF + 3.7% Depósitos.' },
-  { id:11, name:'Xetra-Gold ETC', isin:'DE000A0S9GB0', tipo:'ALT', region:'Global', broker:'XTB', value:17186.13, cost:8830.38, comment:'ETC respaldado por oro físico. VL: 129,97€ (132,239 participaciones). 13 compras jun-2023 → sep-2025.' },
+  { id:11, name:'Xetra-Gold ETC', isin:'DE000A0S9GB0', tipo:'ALT', region:'Global', broker:'XTB', value:16437.35, cost:9080.38, comment:'ETC respaldado por oro físico. 134,1714 participaciones. Valor 16.437,35 € · coste 9.080,38 € · G/P +7.356,97 € (~+81%).' },
   { id:12, name:'Bitcoin', isin:'BTC', tipo:'ALT', region:'Global', broker:'Bitcoin', value:10709.24, cost:6000, comment:'Bloque de riesgo muy alto y muy volátil.' },
   { id:13, name:'Liquidez (cash en banco)', isin:'–', tipo:'CASH', region:'–', broker:'Efectivo', value:9000, cost:9000, comment:'Reserva de liquidez general.' },
   { id:14, name:'Ethereum', isin:'ETH',  tipo:'ALT', region:'Global', broker:'Ledger', value:0, cost:0, comment:'0,00984898 ETH en Ledger. B2M vacío tras permuta a XRP.' },
@@ -1122,6 +1288,8 @@ const DEFAULT_POSITIONS = [
   { id:16, name:'USDC',    isin:'USDC', tipo:'CASH',region:'Global', broker:'–',               value:0,    cost:0,    comment:'Stablecoin. Actualizar saldo.' },
   { id:17, name:'BNB',     isin:'BNB',  tipo:'ALT', region:'Global', broker:'–',               value:0,    cost:0,    comment:'Actualizar valor según cotización actual.' },
   { id:18, name:'BTM',     isin:'BTM',  tipo:'ALT', region:'Global', broker:'–',               value:0,    cost:0,    comment:'Actualizar valor según cotización actual.' },
+  { id:20, name:'Amundi Global Bioenergy UCITS ETF EUR Acc', isin:'LU1681046006', tipo:'RV', region:'Global', broker:'MyInvestor', value:5584, cost:4784.43, units:10, productKind:'etf', managementType:'indexado', yahooSymbol:'CWE.PA', sector:'Energía', comment:'Compras: 6 títulos en Euronext París (2.867,70 € + comisión) y 4 en Borsa Italiana (1.911 € + comisión). Valor actualizado al abrir la app (Yahoo CWE.PA).' },
+  { id:19, name:'iShares Bitcoin ETN', isin:'IB1T.DE', tipo:'ALT', region:'Alemania', broker:'XTB', value:1054.20, cost:999.15, units:150, productKind:'etf', managementType:'indexado', yahooSymbol:'IB1T.DE', sector:'Criptomonedas', comment:'Apertura 25/05/2026: 150 títulos × 6,6610 € = 999,15 € · comisión 0 €. Valor actualizado al abrir la app (Yahoo IB1T.DE).' },
 ];
 
 function loadPositions() {
@@ -1131,10 +1299,19 @@ function loadPositions() {
   // Solo añade posiciones nuevas; no pisa value/cost (los actualiza CoinGecko / el usuario)
   let dirty = false;
   DEFAULT_POSITIONS.forEach(def => {
-    if (!positions.find(p => p.id === def.id)) {
+    const pos = positions.find(p => p.id === def.id);
+    if (!pos) {
       positions.push(JSON.parse(JSON.stringify(def)));
       dirty = true;
+      return;
     }
+    // Metadatos de catálogo (nombre, ticker Yahoo, etc.) sin tocar valor/coste
+    ['name', 'isin', 'yahooSymbol', 'productKind', 'managementType', 'broker', 'region'].forEach(k => {
+      if (def[k] != null && pos[k] !== def[k]) { pos[k] = def[k]; dirty = true; }
+    });
+    if (def.comment && pos.id === 7 && pos.comment !== def.comment) { pos.comment = def.comment; dirty = true; }
+    if (def.id === 7 && (Number(pos.cost) || 0) !== 2835.90) { pos.cost = 2835.90; dirty = true; }
+    if (def.id === 7 && (Number(pos.units) || 0) !== 10) { pos.units = 10; dirty = true; }
   });
   if (dirty) localStorage.setItem('inv_positions', JSON.stringify(positions));
   return positions;
@@ -2222,6 +2399,80 @@ function saveCriptoTx() {
 // ─────────────────────────────────────────────
 //  ACTUALIZACIÓN AUTOMÁTICA DE PRECIOS (CoinGecko)
 // ─────────────────────────────────────────────
+
+/** Tickers Yahoo Finance por ISIN (mercado EUR / XETRA cuando aplica). */
+const SECURITY_YAHOO_BY_ISIN = {
+  LU1829219390: 'LYBK.DE', // Lyxor/Amundi Euro Stoxx Banks DR
+  DE000A0S9GB0: '4GLD.DE', // Xetra-Gold ETC
+  LU1681046006: 'CWE.PA',  // Amundi Global Bioenergy UCITS ETF EUR Acc (París; también CWE.MI)
+  'IB1T.DE': 'IB1T.DE',    // iShares Bitcoin ETP/ETN (Xetra)
+};
+
+async function fetchYahooMarketPrice(symbol) {
+  // Proxy local (evita CORS de Yahoo en el navegador)
+  const localUrl = `/api/quote?symbol=${encodeURIComponent(symbol)}`;
+  let data;
+  try {
+    const res = await fetch(localUrl, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    data = await res.json();
+  } catch {
+    // Fallback directo (puede fallar por CORS fuera de localhost con proxy)
+    const res = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    data = await res.json();
+  }
+  if (data?.error) throw new Error(data.error);
+  const meta = data?.chart?.result?.[0]?.meta;
+  const price = Number(meta?.regularMarketPrice ?? meta?.fulldayPrice);
+  if (!Number.isFinite(price) || price <= 0) throw new Error('Sin precio');
+  return { price, currency: meta?.currency || 'EUR', name: meta?.longName || meta?.shortName || symbol };
+}
+
+function getPositionOpenQty(posId) {
+  try {
+    const fifo = buildFifoOpenLots(posId);
+    if (fifo?.availableQty > 1e-8) return fifo.availableQty;
+  } catch { /* buildFifo puede no estar listo en arranque temprano */ }
+  const pos = positions.find(p => p.id === posId);
+  if (pos && Number(pos.units) > 1e-8) return Number(pos.units);
+  const hist = INVESTMENT_HISTORY[posId];
+  if (hist?.entries?.length) {
+    return hist.entries.reduce((s, e) => s + (Number(e.shares) || 0), 0);
+  }
+  return 0;
+}
+
+/** Actualiza valor de mercado de ETFs/fondos con ISIN (p. ej. Lyxor Banks en XETRA). */
+async function updateListedSecurityPrices() {
+  let updated = 0;
+  for (const pos of positions) {
+    if (CRYPTO_POSITION_IDS.has(pos.id)) continue;
+    const isin = String(pos.isin || '').replace(/\s+/g, '').toUpperCase();
+    if (!isin || isin === '–' || isin === '-') continue;
+    const qty = getPositionOpenQty(pos.id);
+    if (qty < 1e-8) continue;
+
+    const symbol = pos.yahooSymbol || SECURITY_YAHOO_BY_ISIN[isin];
+    if (!symbol) continue;
+
+    try {
+      const { price } = await fetchYahooMarketPrice(symbol);
+      pos.lastPrice = price;
+      pos.yahooSymbol = symbol;
+      pos.value = parseFloat((qty * price).toFixed(2));
+      updated++;
+    } catch {
+      /* sin cotización para este símbolo */
+    }
+  }
+  if (updated > 0) savePositions(positions);
+  return { ok: updated > 0, updated };
+}
+
 async function updateCryptoPrices() {
   const statusEl = document.getElementById('cripto-price-status');
   if (statusEl) { statusEl.textContent = '↻ Actualizando...'; statusEl.style.color = 'var(--muted)'; }
@@ -2653,291 +2904,991 @@ function renderTable(elId, data, cols) {
 }
 
 // ─────────────────────────────────────────────
-//  DETALLE
 // ─────────────────────────────────────────────
-function toggleComment(id) {
-  const row = document.getElementById('comment-row-' + id);
-  if (row) row.style.display = row.style.display === 'none' ? '' : 'none';
-}
+
+//  DETALLE
+
+// ─────────────────────────────────────────────
+
+const DETALLE_TYPE_ORDER = ['RV', 'RF', 'MIX', 'ALT', 'PP', 'CASH'];
+
+const DETALLE_TYPE_ICONS = { RV: '📈', RF: '🏦', MIX: '⚖️', ALT: '🪙', PP: '🎓', CASH: '💶' };
+
+
 
 let activeHistoryId = null;
 
-function histChartIds(posId) {
-  return ['chart-hist-aportes-'+posId,'chart-hist-precio-'+posId,'chart-hist-cumul-'+posId,'chart-hist-anual-'+posId];
+
+
+function histChartIds() {
+
+  return ['chart-hist-aportes-panel','chart-hist-precio-panel','chart-hist-cumul-panel','chart-hist-anual-panel'];
+
 }
+
+
 
 function hideHistory() {
-  if (activeHistoryId === null) return;
-  histChartIds(activeHistoryId).forEach(destroyChart);
-  const row = document.getElementById('history-row-' + activeHistoryId);
-  if (row) row.style.display = 'none';
+
+  histChartIds().forEach(destroyChart);
+
   activeHistoryId = null;
+
+  const panel = document.getElementById('detalle-history-panel');
+
+  if (panel) panel.hidden = true;
+  const profileEl = document.getElementById('detalle-hist-profile');
+  if (profileEl) { profileEl.hidden = true; profileEl.innerHTML = ''; }
+
+  document.querySelectorAll('.detalle-pos-card.selected').forEach(el => el.classList.remove('selected'));
+
 }
 
-function showHistory(posId) {
+
+
+
+/** Ficha breve del producto: en qué invierte, tipo, gestión, comisiones y top holdings. */
+const PRODUCT_PROFILES = {
+  FR00140081Y1: {
+    invests: 'Bonos corporativos con vencimiento objetivo en 2027. Enfoque de crédito a plazo fijo.',
+    kind: 'Fondo de renta fija (vencimiento)',
+    management: 'Activa',
+    fees: 'TER aprox. 1,00% anual (clase A)',
+    duration: 'Duración modificada ~1,4 años (vencimiento objetivo jun-2027)',
+    topHoldings: [
+      { name: 'Novo Banco 3,5% 2028', weight: '2,1%' },
+      { name: 'Pershing Square Holdings 1,38% 2027', weight: '1,7%' },
+      { name: 'TotalEnergies 1,63% 2027', weight: '1,6%' },
+      { name: 'Athene Global Funding 3,20% 2027', weight: '1,5%' },
+      { name: 'Wells Fargo 3,19% 2027', weight: '1,4%' }
+    ],
+    holdingsNote: 'Top 5 bonos (aprox.; cartera muy diversificada).'
+  },
+  LU1706854152: {
+    invests: 'Bonos a corto plazo diversificados a nivel global, con baja duración para aportar estabilidad.',
+    kind: 'Fondo de renta fija corto plazo',
+    management: 'Activa',
+    fees: 'TER aprox. 0,35–0,50% anual',
+    duration: 'Duración modificada ~1,3–1,9 años · vida media ~3,5 años (objetivo −2 a +2)'
+  },
+  LU0034353002: {
+    invests: 'Bonos de tipo flotante (floating rate notes) que se ajustan a tipos de interés variables.',
+    kind: 'Fondo de renta fija flotante',
+    management: 'Activa',
+    fees: 'TER aprox. 0,30–0,45% anual',
+    duration: 'Duración modificada ~0,1–0,2 años · vida media ponderada ~1,3 años (~16 meses)',
+    topHoldings: [
+      { name: 'Swedbank (FRN)', weight: '~0,5%' },
+      { name: 'BNP Paribas (FRN)', weight: '~0,5%' },
+      { name: 'Société Générale (FRN)', weight: '~0,5%' },
+      { name: 'Novo Nordisk Finance (FRN)', weight: '~0,5%' },
+      { name: 'Landesbank Baden-Württemberg (FRN)', weight: '~0,5%' }
+    ],
+    holdingsNote: 'Cartera muy atomizada: ninguna posición suele superar ~1%.'
+  },
+  LU0996175948: {
+    invests: 'Replica el índice MSCI Emerging Markets: acciones de mercados emergentes globales.',
+    kind: 'ETF / fondo indexado de renta variable EM',
+    management: 'Pasiva (indexada)',
+    fees: 'TER aprox. 0,18–0,20% anual',
+    topHoldings: [
+      { name: 'Taiwan Semiconductor (TSMC)', weight: '~15%' },
+      { name: 'Samsung Electronics', weight: '~7–9%' },
+      { name: 'SK Hynix', weight: '~6%' },
+      { name: 'Tencent Holdings', weight: '~3%' },
+      { name: 'Alibaba Group', weight: '~2%' }
+    ],
+    holdingsNote: 'Pesos aproximados del índice MSCI Emerging Markets.'
+  },
+  IE00BFTW8Y10: {
+    invests: 'Renta variable de Oriente Medio y Norte de África (MENA): Arabia Saudí, EAU, Egipto, etc.',
+    kind: 'Fondo de renta variable regional',
+    management: 'Activa',
+    fees: 'TER aprox. 1,84–2,16% anual',
+    topHoldings: [
+      { name: 'Emaar Development', weight: '~9%' },
+      { name: 'Al Rajhi Bank', weight: '~9%' },
+      { name: 'Saudi National Bank (NCB)', weight: '~8–9%' },
+      { name: 'Aluminium Bahrain (Alba)', weight: '~5–7%' },
+      { name: 'Emaar Properties', weight: '~4%' }
+    ],
+    holdingsNote: 'Top 5 según fichas recientes (fondo ya cerrado en cartera).'
+  },
+  LU0491217419: {
+    invests: 'Acciones de empresas indias, exposición concentrada al mercado de la India.',
+    kind: 'Fondo de renta variable país (India)',
+    management: 'Activa',
+    fees: 'TER aprox. 1,50–1,80% anual',
+    topHoldings: [
+      { name: 'HDFC Bank', weight: '~8–9%' },
+      { name: 'Kotak Mahindra Bank', weight: '~4%' },
+      { name: 'ICICI Bank', weight: '~4%' },
+      { name: 'Reliance Industries', weight: '~3–4%' },
+      { name: 'Bharti Airtel', weight: '~3–4%' }
+    ],
+    holdingsNote: 'Top 5 según informe Robeco (ago. 2026 aprox.).'
+  },
+  LU1829219390: {
+    invests: 'Bancos de la zona euro: replica el índice Euro Stoxx Banks (sector financiero europeo).',
+    kind: 'ETF de renta variable sectorial',
+    management: 'Pasiva (indexada)',
+    fees: 'TER 0,30% anual',
+    topHoldings: [
+      { name: 'Banco Santander', weight: '~14%' },
+      { name: 'BBVA', weight: '~11%' },
+      { name: 'UniCredit', weight: '~10%' },
+      { name: 'BNP Paribas', weight: '~9%' },
+      { name: 'Intesa Sanpaolo', weight: '~8%' }
+    ],
+    holdingsNote: 'Top 5 del índice Euro Stoxx Banks (datos Amundi).'
+  },
+  DE000A0S9GB0: {
+    invests: 'Oro físico: cada participación está respaldada por oro almacenado (ETC).',
+    kind: 'ETC de materias primas (oro)',
+    management: 'Pasiva (replicación física)',
+    fees: 'TER aprox. 0,00–0,36% anual (según tramo/custodia)',
+    topHoldings: [
+      { name: 'Oro físico (lingotes custodiados)', weight: '100%' }
+    ],
+    holdingsNote: 'Un solo activo subyacente: oro.'
+  },
+  LU1681046006: {
+    invests: 'Empresas globales ligadas a la bioenergía (índice Bloomberg BioEnergy Screened).',
+    kind: 'ETF de renta variable temática (energía)',
+    management: 'Pasiva (indexada)',
+    fees: 'TER 0,35% anual',
+    topHoldings: [
+      { name: 'HF Sinclair', weight: '~9,5%' },
+      { name: 'Valero Energy', weight: '~9%' },
+      { name: 'Phillips 66', weight: '~8,6%' },
+      { name: 'Novonesis (Novozymes)', weight: '~8,3%' },
+      { name: 'Neste', weight: '~7,9%' }
+    ],
+    holdingsNote: 'Top 5 del índice Bloomberg BioEnergy Screened (Amundi).'
+  },
+  'IB1T.DE': {
+    invests: 'Exposición al precio del Bitcoin mediante un ETP/ETN cotizado en bolsa.',
+    kind: 'ETP/ETN de criptomonedas',
+    management: 'Pasiva (seguimiento del activo)',
+    fees: 'TER aprox. 0,15–0,25% anual',
+    topHoldings: [
+      { name: 'Bitcoin (exposición vía ETN)', weight: '100%' }
+    ],
+    holdingsNote: 'Replica el precio de Bitcoin; no hay cartera de acciones.'
+  },
+  BTC: {
+    invests: 'Bitcoin en cartera propia (spot), sin intermediario de fondo cotizado.',
+    kind: 'Criptomoneda (activo digital)',
+    management: 'Directa / no gestionada',
+    fees: 'Sin TER de fondo; comisiones de exchange/red según operación'
+  },
+  ETH: {
+    invests: 'Ethereum en cartera propia (spot).',
+    kind: 'Criptomoneda (activo digital)',
+    management: 'Directa / no gestionada',
+    fees: 'Sin TER de fondo; comisiones de exchange/red según operación'
+  },
+  N5270: {
+    invests: 'Plan de pensiones diversificado (RV global, RF y liquidez) gestionado por Finanbest.',
+    kind: 'Plan de pensiones',
+    management: 'Activa (cartera gestionada)',
+    fees: 'Comisiones del plan + gestora (consultar fichero MyInvestor/Finanbest)',
+    topHoldings: [
+      { name: 'Renta variable global (USA, Europa, EM, Japón…)', weight: '~91%' },
+      { name: 'Renta fija', weight: '~6%' },
+      { name: 'Depósitos / liquidez', weight: '~4%' }
+    ],
+    holdingsNote: 'Asignación aproximada según ficha Finanbest (no son 5 valores concretos).'
+  }
+};
+
+function getProductProfile(pos) {
+  if (!pos) return null;
+  const isin = String(pos.isin || '').replace(/\s+/g, '').toUpperCase();
+  const byIsin = PRODUCT_PROFILES[isin];
+  if (byIsin) return { ...byIsin };
+
+  const name = String(pos.name || '').toLowerCase();
+  if (name.includes('cartera indie')) {
+    return {
+      invests: 'Cartera indexada diversificada 60/40 (renta variable y renta fija global) en MyInvestor.',
+      kind: 'Cartera gestionada / roboadvisor',
+      management: 'Pasiva (fondos indexados subyacentes)',
+      fees: 'Comisión de gestión de cartera MyInvestor (consultar condiciones vigentes)',
+      topHoldings: [
+        { name: 'Fondos indexados de RV global', weight: '~60%' },
+        { name: 'Fondos indexados de RF global', weight: '~40%' }
+      ],
+      holdingsNote: 'Asignación objetivo 60/40; la composición exacta de fondos varía.'
+    };
+  }
+  if (name.includes('liquidez') || pos.tipo === 'CASH') {
+    return {
+      invests: 'Efectivo u otros activos líquidos en cuenta.',
+      kind: 'Liquidez',
+      management: 'N/A',
+      fees: 'Sin comisión de producto'
+    };
+  }
+
+  const kindMap = { etf: 'ETF', fondo: 'Fondo', acciones: 'Acciones', etc: 'ETC' };
+  const kind = kindMap[inferProductKindFromPosition(pos)] || (TYPE_LABELS[pos.tipo] || pos.tipo || 'Producto de inversión');
+  const mgmtRaw = inferManagementTypeFromPosition(pos);
+  const management = mgmtRaw === 'indexado' ? 'Pasiva (indexada)' : mgmtRaw === 'activo' ? 'Activa' : 'No indicado';
+  const region = pos.region && pos.region !== '–' ? pos.region : '';
+  const sector = pos.sector && pos.sector !== 'Sin sector' ? pos.sector : '';
+  const invests = [
+    sector ? 'Enfoque: ' + sector : null,
+    region ? 'Región: ' + region : null,
+    pos.comment ? String(pos.comment).split('.')[0] : null
+  ].filter(Boolean).join('. ') || 'Sin descripción detallada disponible.';
+
+  return {
+    invests,
+    kind: kind + (pos.tipo ? ' · ' + (TYPE_LABELS[pos.tipo] || pos.tipo) : ''),
+    management,
+    fees: 'Comisiones (TER) no registradas — consultar ficha del producto'
+  };
+}
+
+function renderDetalleProductProfile(pos) {
+  const el = document.getElementById('detalle-hist-profile');
+  if (!el) return;
+  const profile = getProductProfile(pos);
+  if (!profile) { el.hidden = true; el.innerHTML = ''; return; }
+  const holdings = Array.isArray(profile.topHoldings) ? profile.topHoldings.slice(0, 5) : [];
+  const holdingsHtml = holdings.length
+    ? `<div class="detalle-profile-holdings">
+        <div class="detalle-profile-label">Principales posiciones</div>
+        <ul class="detalle-holdings-list">
+          ${holdings.map(h => `<li><span>${h.name}</span><span>${h.weight || ''}</span></li>`).join('')}
+        </ul>
+        ${profile.holdingsNote ? `<div class="detalle-holdings-note">${profile.holdingsNote}</div>` : ''}
+      </div>`
+    : '';
+  const durationHtml = profile.duration
+    ? `<div class="detalle-profile-item">
+        <div class="detalle-profile-label">Duración media</div>
+        <div class="detalle-profile-value">${profile.duration}</div>
+      </div>`
+    : '';
+  el.hidden = false;
+  el.innerHTML = `
+    <div class="detalle-profile-item">
+      <div class="detalle-profile-label">Tipo de inversión</div>
+      <div class="detalle-profile-value">${profile.kind}</div>
+    </div>
+    <div class="detalle-profile-item">
+      <div class="detalle-profile-label">Gestión</div>
+      <div class="detalle-profile-value">${profile.management}</div>
+    </div>
+    <div class="detalle-profile-item">
+      <div class="detalle-profile-label">Comisiones</div>
+      <div class="detalle-profile-value">${profile.fees}</div>
+    </div>
+    ${durationHtml}
+    <div class="detalle-profile-desc"><strong style="color:var(--text)">¿En qué invierte?</strong> ${profile.invests}</div>
+    ${holdingsHtml}
+  `;
+}
+
+function selectDetallePosition(posId) {
+
   if (activeHistoryId === posId) { hideHistory(); return; }
-  hideHistory();
+
+  showHistory(posId);
+
+}
+
+
+
+function syncDetalleCardSelection(posId) {
+
+  document.querySelectorAll('.detalle-pos-card.selected').forEach(el => el.classList.remove('selected'));
+
+  const card = document.getElementById('detalle-card-' + posId);
+
+  if (card) card.classList.add('selected');
+
+}
+
+
+
+/** Entradas del extracto de detalle: histórico + compras/ventas de inv_transactions. */
+
+function getHistoryEntriesForPosition(posId) {
 
   const pos = positions.find(p => p.id === posId);
+
   const hist = INVESTMENT_HISTORY[posId];
-  if (!pos || !hist) return;
 
-  const row = document.getElementById('history-row-' + posId);
-  if (!row) return;
-  row.style.display = '';
-  activeHistoryId = posId;
-  row.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  if (!hist) return [];
 
-  const entries = hist.entries;
-  const totalAportado = entries.reduce((s,e) => s+e.amount, 0);
-  const totalShares   = entries.reduce((s,e) => s+e.shares, 0);
-  const precioMedio   = totalAportado / totalShares;
-  const valorActual   = pos.value;
-  const gp            = valorActual - totalAportado;
-  const gpPct         = (gp / totalAportado) * 100;
 
-  // KPIs
-  const kpis = [
-    { label:'Total aportado',      value: fmt(totalAportado), sub: entries.length + ' aportaciones', color:'' },
-    { label:'Valor actual',        value: fmt(valorActual),   sub: 'Precio mercado hoy',              color:'accent' },
-    { label:'Ganancias',           value: fmt(gp),            sub: pct(gpPct),                        color: gp>=0?'green':'red' },
-    { label:'Participaciones',     value: totalShares.toFixed(3), sub: 'Total acumulado',             color:'' },
-    { label:'Precio medio compra', value: precioMedio.toFixed(2)+'€', sub: 'Coste medio ponderado',  color:'yellow' },
-  ];
-  document.getElementById('history-kpis-' + posId).innerHTML = kpis.map(k => `
-    <div class="kpi-card ${k.color}">
-      <div class="kpi-label">${k.label}</div>
-      <div class="kpi-value" style="color:${k.color==='green'?'var(--green)':k.color==='red'?'var(--red)':'var(--text)'}">${k.value}</div>
-      <div class="kpi-sub">${k.sub}</div>
-    </div>`).join('');
 
-  const labels  = entries.map(e => e.label);
-  const amounts = entries.map(e => e.amount);
-  const prices  = entries.map(e => e.price);
+  const txs = getUnitTradesForPosition(posId);
 
-  // Acumulado invertido + línea valor actual
-  const cumul = entries.map((_,i) => entries.slice(0,i+1).reduce((s,e)=>s+e.amount,0));
+  if (!txs.length) return hist.entries.slice();
 
-  const chartOpts = {
-    responsive: true, maintainAspectRatio: false,
-    plugins:{ legend:{ display:false } },
-    scales:{
-      x:{ ticks:{color:'#94a3b8',font:{size:10}}, grid:{color:'#2e3248'} },
-      y:{ ticks:{color:'#94a3b8',font:{size:10}, callback:v=>fmt(v)}, grid:{color:'#2e3248'} }
-    }
+
+
+  const buys = txs.filter(tx => !isSellTx(tx));
+
+  const sells = txs.filter(tx => isSellTx(tx));
+
+  if (!buys.length && !sells.length) return hist.entries.slice();
+
+
+
+  const bought = buys.reduce((s, tx) => s + Math.abs(Number(tx.qty) || 0), 0);
+
+  const sold = sells.reduce((s, tx) => s + Math.abs(Number(tx.qty) || 0), 0);
+
+  const openShares = Math.max(0, bought - sold);
+
+  const lastSellPrice = sells.length ? Number(sells[sells.length - 1].price) || 0 : 0;
+
+  const markPrice = openShares > 1e-8 && pos
+
+    ? (Number(pos.value) || 0) / openShares
+
+    : lastSellPrice;
+
+
+
+  const fmtLabel = (datetime, fallback) => {
+
+    const date = String(datetime || '').slice(0, 10);
+
+    if (!date) return fallback;
+
+    return new Date(date + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+
   };
 
-  // Chart 1 – Barras aportaciones
-  mkChart('chart-hist-aportes-' + posId, {
+
+
+  const entries = buys.map(tx => {
+
+    const shares = Math.abs(Number(tx.qty) || 0);
+
+    const amount = Math.abs(Number(tx.totalCost) || Number(tx.gross) || (shares * (Number(tx.price) || 0)));
+
+    const price = Number(tx.price) || (shares ? amount / shares : 0);
+
+    const marketValue = shares * markPrice;
+
+    return {
+
+      date: String(tx.datetime || '').slice(0, 10),
+
+      label: fmtLabel(tx.datetime, tx.note || 'Compra'),
+
+      amount,
+
+      shares,
+
+      price,
+
+      marketValue,
+
+      fiscalResult: marketValue - amount,
+
+      tipo: 'COMPRA'
+
+    };
+
+  });
+
+
+
+  sells.forEach(tx => {
+
+    const shares = Math.abs(Number(tx.qty) || 0);
+
+    const price = Number(tx.price) || 0;
+
+    const gross = Math.abs(Number(tx.gross) || shares * price);
+
+    const fee = Math.abs(Number(tx.fee) || 0);
+
+    const retention = Math.abs(Number(tx.retention) || 0);
+
+    const neto = Math.abs(Number(tx.totalCost) || (gross - fee - retention));
+
+    const costBasis = Number.isFinite(Number(tx.costBasis)) ? Number(tx.costBasis) : null;
+
+    entries.push({
+
+      date: String(tx.datetime || '').slice(0, 10),
+
+      label: fmtLabel(tx.datetime, 'Venta') + ' · venta',
+
+      amount: -neto,
+
+      shares: -shares,
+
+      price,
+
+      marketValue: 0,
+
+      fiscalResult: costBasis != null ? (neto - costBasis) : (gross - fee - (costBasis || 0)),
+
+      tipo: 'VENTA'
+
+    });
+
+  });
+
+
+
+  return entries.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+}
+
+
+
+/** Si no quedan participaciones abiertas, pone valor/coste a 0 (p. ej. Magna vendido). */
+
+function reconcileClosedUnitPositions() {
+
+  let dirty = false;
+
+  positions.forEach(pos => {
+
+    if (!INVESTMENT_HISTORY[pos.id]) return;
+
+    const txs = getUnitTradesForPosition(pos.id);
+
+    if (!txs.length) return;
+
+    const bought = txs.filter(tx => !isSellTx(tx)).reduce((s, tx) => s + Math.abs(Number(tx.qty) || 0), 0);
+
+    const sold = txs.filter(tx => isSellTx(tx)).reduce((s, tx) => s + Math.abs(Number(tx.qty) || 0), 0);
+
+    if (bought < 1e-8) return;
+
+    if (sold + 1e-6 >= bought) {
+
+      if ((pos.value || 0) !== 0 || (pos.cost || 0) !== 0 || (pos.units || 0) !== 0) {
+
+        pos.value = 0;
+
+        pos.cost = 0;
+
+        pos.units = 0;
+
+        dirty = true;
+
+      }
+
+    }
+
+  });
+
+  if (dirty) savePositions(positions);
+
+}
+
+
+
+function showHistory(posId) {
+
+  const pos = positions.find(p => p.id === posId);
+
+  const panel = document.getElementById('detalle-history-panel');
+
+  if (!pos || !panel) return;
+
+
+
+  histChartIds().forEach(destroyChart);
+
+  activeHistoryId = posId;
+
+  syncDetalleCardSelection(posId);
+
+  panel.hidden = false;
+
+
+
+  const g = pnl(pos), gp = pnlPct(pos);
+
+  document.getElementById('detalle-hist-title').textContent = pos.name;
+
+  document.getElementById('detalle-hist-sub').textContent =
+
+    `${TYPE_LABELS[pos.tipo] || pos.tipo} · ${pos.broker || '–'} · ISIN ${pos.isin || '–'} · G/P ${pct(gp)} (${fmt(g)})`;
+
+
+
+  
+  renderDetalleProductProfile(pos);
+
+  const commentEl = document.getElementById('detalle-hist-comment');
+
+  if (pos.comment && pos.comment.trim()) {
+
+    commentEl.style.display = '';
+
+    commentEl.textContent = pos.comment;
+
+  } else {
+
+    commentEl.style.display = 'none';
+
+    commentEl.textContent = '';
+
+  }
+
+
+
+  const hist = INVESTMENT_HISTORY[posId];
+
+  const chartsWrap = document.getElementById('detalle-hist-charts');
+
+
+
+  if (!hist) {
+
+    if (chartsWrap) chartsWrap.style.display = 'none';
+
+    document.getElementById('history-kpis-panel').innerHTML = [
+
+      { label:'Valor actual', value: fmt(pos.value), sub: 'Mercado', color:'accent' },
+
+      { label:'Coste', value: fmt(pos.cost), sub: 'Invertido', color:'' },
+
+      { label:'G/P', value: fmt(g), sub: pct(gp), color: g>=0?'green':'red' },
+
+    ].map(k => `<div class="kpi-card ${k.color}">
+
+      <div class="kpi-label">${k.label}</div>
+
+      <div class="kpi-value" style="color:${k.color==='green'?'var(--green)':k.color==='red'?'var(--red)':'var(--text)'}">${k.value}</div>
+
+      <div class="kpi-sub">${k.sub}</div>
+
+    </div>`).join('');
+
+    const tEl = document.getElementById('table-hist-detalle-panel');
+
+    if (tEl) tEl.innerHTML = `<tbody><tr><td style="color:var(--muted);padding:12px 0">Sin historial de aportaciones registrado para esta posición.</td></tr></tbody>`;
+
+    panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
+
+    return;
+
+  }
+
+
+
+  if (chartsWrap) chartsWrap.style.display = '';
+
+
+
+  const entries = getHistoryEntriesForPosition(posId);
+
+  const buyEntries = entries.filter(e => e.tipo !== 'VENTA');
+
+  const sellEntries = entries.filter(e => e.tipo === 'VENTA');
+
+  const totalAportado = buyEntries.reduce((s,e) => s + e.amount, 0);
+
+  const sharesBought  = buyEntries.reduce((s,e) => s + e.shares, 0);
+
+  const sharesSold    = sellEntries.reduce((s,e) => s + Math.abs(e.shares), 0);
+
+  const totalShares   = Math.max(0, sharesBought - sharesSold);
+
+  const precioMedio   = sharesBought > 0 ? totalAportado / sharesBought : 0;
+
+  const valorActual   = pos.value;
+
+  const realizedNet   = sellEntries.reduce((s,e) => s + e.fiscalResult, 0);
+
+  const closed        = sharesBought > 0 && totalShares < 1e-6;
+
+  const gpHist        = closed ? realizedNet : (valorActual - totalAportado);
+
+  const gpHistPct     = totalAportado > 0 ? (gpHist / totalAportado) * 100 : 0;
+
+
+
+  document.getElementById('history-kpis-panel').innerHTML = [
+
+    { label:'Total aportado', value: fmt(totalAportado), sub: buyEntries.length + ' compra' + (buyEntries.length===1?'':'s') + (sellEntries.length ? ` · ${sellEntries.length} venta${sellEntries.length===1?'':'s'}` : ''), color:'' },
+
+    { label:'Valor actual', value: fmt(valorActual), sub: closed ? 'Posición cerrada' : 'Precio mercado hoy', color:'accent' },
+
+    { label: closed ? 'G/P realizado' : 'Ganancias', value: fmt(gpHist), sub: pct(gpHistPct), color: gpHist>=0?'green':'red' },
+
+    { label:'Participaciones', value: totalShares.toFixed(3), sub: closed ? 'Todo vendido' : 'Abiertas ahora', color:'' },
+
+    { label:'Precio medio compra', value: precioMedio.toFixed(2)+'€', sub: 'Coste medio ponderado', color:'yellow' },
+
+  ].map(k => `<div class="kpi-card ${k.color}">
+
+    <div class="kpi-label">${k.label}</div>
+
+    <div class="kpi-value" style="color:${k.color==='green'?'var(--green)':k.color==='red'?'var(--red)':'var(--text)'}">${k.value}</div>
+
+    <div class="kpi-sub">${k.sub}</div>
+
+  </div>`).join('');
+
+
+
+  const labels  = entries.map(e => e.label);
+
+  const amounts = entries.map(e => e.amount);
+
+  const prices  = entries.map(e => e.price);
+
+
+
+  const chartOpts = {
+
+    responsive: true, maintainAspectRatio: false,
+
+    plugins:{ legend:{ display:false } },
+
+    scales:{
+
+      x:{ ticks:{color:'#94a3b8',font:{size:10}}, grid:{color:'#2e3248'} },
+
+      y:{ ticks:{color:'#94a3b8',font:{size:10}, callback:v=>fmt(v)}, grid:{color:'#2e3248'} }
+
+    }
+
+  };
+
+
+
+  mkChart('chart-hist-aportes-panel', {
+
     type: 'bar',
-    data: {
-      labels,
-      datasets: [{ label:'Aportado (€)', data:amounts, backgroundColor:'rgba(108,99,255,.8)', borderRadius:6 }]
-    },
+
+    data: { labels, datasets: [{ label:'Aportado (€)', data:amounts, backgroundColor:'rgba(108,99,255,.8)', borderRadius:6 }] },
+
     options: chartOpts
+
   });
 
-  // Chart 2 – Precio de compra por aportación
-  mkChart('chart-hist-precio-' + posId, {
+
+
+  mkChart('chart-hist-precio-panel', {
+
     type: 'line',
+
     data: {
+
       labels,
+
       datasets: [{
+
         label:'Precio compra (€)', data:prices,
+
         borderColor:'#38bdf8', backgroundColor:'rgba(56,189,248,.12)',
+
         fill:true, tension:0.3, pointRadius:5, pointBackgroundColor:'#38bdf8'
+
       }]
+
     },
+
     options: { ...chartOpts,
+
       scales:{
+
         x:{ ticks:{color:'#94a3b8',font:{size:10}}, grid:{color:'#2e3248'} },
+
         y:{ ticks:{color:'#94a3b8',font:{size:10}, callback:v=>v.toFixed(2)+'€'}, grid:{color:'#2e3248'} }
+
       }
+
     }
+
   });
 
-  // Chart 3 – Invertido vs valor mercado por lote (barras agrupadas)
-  mkChart('chart-hist-cumul-' + posId, {
+
+
+  mkChart('chart-hist-cumul-panel', {
+
     type: 'bar',
+
     data: {
+
       labels,
+
       datasets: [
-        { label:'Invertido (€)',      data:amounts,                          backgroundColor:'rgba(167,139,250,.8)', borderRadius:4 },
-        { label:'Valor mercado (€)',  data:entries.map(e=>e.marketValue),    backgroundColor:'rgba(34,197,94,.8)',   borderRadius:4 },
+
+        { label:'Invertido (€)', data:amounts, backgroundColor:'rgba(167,139,250,.8)', borderRadius:4 },
+
+        { label:'Valor mercado (€)', data:entries.map(e=>e.marketValue), backgroundColor:'rgba(34,197,94,.8)', borderRadius:4 },
+
       ]
+
     },
-    options: { ...chartOpts,
-      plugins:{ legend:{ display:true, labels:{color:'#94a3b8',font:{size:11}} } }
-    }
+
+    options: { ...chartOpts, plugins:{ legend:{ display:true, labels:{color:'#94a3b8',font:{size:11}} } } }
+
   });
 
-  // Chart 4 – Rentabilidad por año calendario (datos reales del NAV histórico)
+
+
   const yearEntries = hist.yearEndPrices || [];
+
   const annualLabels = yearEntries.map(y => y.label || String(y.year));
-  const annualData   = yearEntries.map(y =>
-    y.startNav != null && y.endNav != null
-      ? +((y.endNav / y.startNav - 1) * 100).toFixed(2)
-      : null
+
+  const annualData = yearEntries.map(y =>
+
+    y.startNav != null && y.endNav != null ? +((y.endNav / y.startNav - 1) * 100).toFixed(2) : null
+
   );
+
   const annualColors = annualData.map(v =>
+
     v === null ? 'rgba(148,163,184,.2)' : v >= 0 ? 'rgba(34,197,94,.85)' : 'rgba(239,68,68,.85)'
+
   );
 
-  // Limpiar aviso previo si existe
-  mkChart('chart-hist-anual-' + posId, {
+
+
+  mkChart('chart-hist-anual-panel', {
+
     type: 'bar',
+
     data: {
+
       labels: annualLabels,
-      datasets: [{
-        label: 'Rentabilidad (%)',
-        data:  annualData,
-        backgroundColor: annualColors,
-        borderRadius: 6,
-        borderSkipped: false,
-      }]
+
+      datasets: [{ label: 'Rentabilidad (%)', data: annualData, backgroundColor: annualColors, borderRadius: 6, borderSkipped: false }]
+
     },
+
     options: { ...chartOpts,
+
       plugins:{
+
         legend:{ display:false },
+
         tooltip:{ callbacks:{
+
           label: ctx => {
+
             const y = yearEntries[ctx.dataIndex];
+
+            if (!y) return '';
+
             return [
+
               `Rentabilidad: ${ctx.raw >= 0 ? '+' : ''}${ctx.raw.toFixed(2)}%`,
+
               `NAV inicio: ${y.startNav.toFixed(2)} €`,
+
               `NAV fin: ${y.endNav.toFixed(2)} €`,
+
             ];
+
           }
+
         }}
+
       },
+
       scales:{
+
         x:{ ticks:{color:'#94a3b8',font:{size:11}}, grid:{color:'#2e3248'} },
-        y:{
-          ticks:{ color:'#94a3b8', font:{size:10}, callback: v => (v >= 0 ? '+' : '') + v + '%' },
-          grid:{ color:'#2e3248' }
-        }
+
+        y:{ ticks:{ color:'#94a3b8', font:{size:10}, callback: v => (v >= 0 ? '+' : '') + v + '%' }, grid:{ color:'#2e3248' } }
+
       }
+
     }
+
   });
 
-  // Tabla detalle aportaciones
-  const totalMercado   = entries.reduce((s,e) => s + e.marketValue,   0);
-  const totalFiscal    = entries.reduce((s,e) => s + e.fiscalResult,  0);
 
-  const tEl = document.getElementById('table-hist-detalle-' + posId);
+
+  const totalMercado = buyEntries.reduce((s,e) => s + e.marketValue, 0);
+
+  const totalFiscal  = closed
+
+    ? sellEntries.reduce((s,e) => s + e.fiscalResult, 0)
+
+    : buyEntries.reduce((s,e) => s + e.fiscalResult, 0);
+
+
+
+  const tEl = document.getElementById('table-hist-detalle-panel');
+
   tEl.innerHTML = `<thead><tr>
-    <th>Fecha</th>
-    <th style="text-align:right">Invertido (€)</th>
+
+    <th>Fecha</th><th>Tipo</th>
+
+    <th style="text-align:right">Importe (€)</th>
+
     <th style="text-align:right">Participaciones</th>
-    <th style="text-align:right">Precio compra</th>
+
+    <th style="text-align:right">Precio</th>
+
     <th style="text-align:right">Valor mercado (€)</th>
-    <th style="text-align:right">Resultado fiscal (€)</th>
+
+    <th style="text-align:right">Resultado (€)</th>
+
     <th style="text-align:right">% del total</th>
+
   </tr></thead>`;
+
   let tbody = '<tbody>';
+
   entries.forEach(e => {
-    const rfColor = e.fiscalResult >= 0 ? 'var(--green)' : 'var(--red)';
+
+    const isSell = e.tipo === 'VENTA';
+
+    const rf = closed && isSell ? e.fiscalResult : (!isSell ? e.fiscalResult : null);
+
+    const rfColor = rf == null ? 'var(--muted)' : rf >= 0 ? 'var(--green)' : 'var(--red)';
+
+    const badge = isSell
+
+      ? '<span class="badge" style="background:#450a0a;color:#fca5a5">VENTA</span>'
+
+      : '<span class="badge" style="background:#14532d;color:#86efac">COMPRA</span>';
+
+    const pctCell = (!isSell && totalAportado > 0) ? `${(e.amount / totalAportado * 100).toFixed(1)}%` : '–';
+
     tbody += `<tr>
+
       <td>${new Date(e.date).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}</td>
-      <td style="text-align:right;font-weight:700">${fmt(e.amount)}</td>
+
+      <td>${badge}</td>
+
+      <td style="text-align:right;font-weight:700;color:${isSell?'var(--green)':'var(--text)'}">${fmt(e.amount)}</td>
+
       <td style="text-align:right;color:var(--muted)">${e.shares.toFixed(3)}</td>
+
       <td style="text-align:right;color:var(--accent2)">${e.price.toFixed(2)} €</td>
-      <td style="text-align:right">${fmt(e.marketValue)}</td>
-      <td style="text-align:right;color:${rfColor};font-weight:600">+${fmt(e.fiscalResult)}</td>
-      <td style="text-align:right;color:var(--muted)">${(e.amount/totalAportado*100).toFixed(1)}%</td>
+
+      <td style="text-align:right">${isSell ? '–' : fmt(e.marketValue)}</td>
+
+      <td style="text-align:right;color:${rfColor};font-weight:600">${rf == null ? '–' : ((rf>=0?'+':'') + fmt(rf))}</td>
+
+      <td style="text-align:right;color:var(--muted)">${pctCell}</td>
+
     </tr>`;
+
   });
+
   tbody += `<tr style="background:var(--surface2);font-weight:700">
-    <td>TOTAL</td>
+
+    <td colspan="2">TOTAL</td>
+
     <td style="text-align:right">${fmt(totalAportado)}</td>
+
     <td style="text-align:right">${totalShares.toFixed(3)}</td>
+
     <td style="text-align:right;color:var(--accent2)">${precioMedio.toFixed(2)} € <span style="font-size:.7rem;color:var(--muted)">(medio)</span></td>
+
     <td style="text-align:right">${fmt(totalMercado)}</td>
-    <td style="text-align:right;color:var(--green)">+${fmt(totalFiscal)}</td>
+
+    <td style="text-align:right;color:${totalFiscal>=0?'var(--green)':'var(--red)'}">${(totalFiscal>=0?'+':'') + fmt(totalFiscal)}</td>
+
     <td style="text-align:right">100%</td>
-  </tr>`;
-  tEl.innerHTML += tbody + '</tbody>';
+
+  </tr></tbody>`;
+
+  tEl.innerHTML += tbody;
+
+
+
+  panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
+
+}
+
+
+
+function isDetalleAntigua(pos) {
+  return (Number(pos?.value) || 0) < 1;
+}
+
+function renderDetallePosCard(p, { antigua = false } = {}) {
+  const g = pnl(p);
+  const closed = antigua || ((Number(p.value) || 0) < 0.01 && (Number(p.cost) || 0) < 0.01);
+  return `<div class="detalle-pos-card${closed ? ' closed' : ''}" id="detalle-card-${p.id}" onclick="selectDetallePosition(${p.id})">
+        <div class="detalle-pos-name">${p.name}</div>
+        <div class="detalle-pos-row">
+          <span class="detalle-pos-value">${fmt(p.value)}</span>
+          <span class="detalle-pos-gp" style="color:${g>=0?'var(--green)':'var(--red)'}">${pct(pnlPct(p))}</span>
+        </div>
+        <div class="detalle-pos-sub">${p.broker || '–'}${antigua ? ' · cerrada' : ''} · ${TYPE_LABELS[p.tipo] || p.tipo}</div>
+      </div>`;
 }
 
 function renderDetalle() {
+  const keepId = activeHistoryId;
   hideHistory();
   const fp = filteredPositions();
-  const el = document.getElementById('table-detalle');
+  const board = document.getElementById('detalle-board');
+  if (!board) return;
 
-  const now = Date.now();
+  const activas = fp.filter(p => !isDetalleAntigua(p));
+  const antiguas = fp.filter(p => isDetalleAntigua(p))
+    .slice()
+    .sort((a, b) => String(a.name).localeCompare(String(b.name), 'es'));
 
-  // Calcula G/P % anualizado dado el % total y años de tenencia
-  function annualizedPct(gpPctTotal, startDateStr) {
-    if (!startDateStr) return null;
-    const years = (now - new Date(startDateStr).getTime()) / (365.25 * 24 * 3600 * 1000);
-    if (years < 0.01) return null;
-    const r = Math.pow(1 + gpPctTotal / 100, 1 / years) - 1;
-    return r * 100;
-  }
-
-  let html = `<thead><tr>
-    <th>Nombre</th><th>Tipo</th><th>ISIN</th><th>Región</th><th>Broker</th>
-    <th>Valor (€)</th><th>Coste (€)</th><th>G/P (€)</th><th>G/P %</th><th>G/P % anual</th><th></th>
-  </tr></thead><tbody>`;
-
-  fp.forEach(p => {
-    const g = pnl(p), gp = pnlPct(p);
-    const ann = annualizedPct(gp, START_DATES[p.id]);
-    const annStr = ann !== null
-      ? `<span style="color:${ann>=0?'var(--green)':'var(--red)'};font-size:.8rem">${(ann>=0?'+':'')+ann.toFixed(1)}%</span>`
-      : `<span style="color:var(--muted);font-size:.75rem">–</span>`;
-    const hasComment = p.comment && p.comment.trim();
-    const hasHistory = !!INVESTMENT_HISTORY[p.id];
-    html += `<tr>
-      <td><strong>${p.name}</strong></td>
-      <td><span class="badge ${BADGE_CLASS[p.tipo]||''}">${TYPE_LABELS[p.tipo]||p.tipo}</span></td>
-      <td><span style="color:var(--muted);font-size:.75rem">${p.isin}</span></td>
-      <td>${p.region}</td>
-      <td>${p.broker}</td>
-      <td><strong>${fmt(p.value)}</strong></td>
-      <td>${fmt(p.cost)}</td>
-      <td><span style="color:${g>=0?'var(--green)':'var(--red)'}">${fmt(g)}</span></td>
-      <td><span style="color:${g>=0?'var(--green)':'var(--red)'}">${pct(gp)}</span></td>
-      <td>${annStr}</td>
-      <td style="white-space:nowrap">
-        ${hasHistory  ? `<button class="btn btn-secondary" style="padding:3px 8px;font-size:.72rem;margin-right:4px" onclick="showHistory(${p.id})" title="Ver historial">📊</button>` : ''}
-        ${hasComment  ? `<button class="btn btn-secondary" style="padding:3px 8px;font-size:.72rem;margin-right:4px" onclick="toggleComment(${p.id})" title="Ver comentario">💬</button>` : ''}
-        <button class="btn btn-secondary" style="padding:3px 10px;font-size:.72rem" onclick="openModal(${p.id})">✏️</button>
-      </td>
-    </tr>`;
-    if (hasComment) {
-      html += `<tr id="comment-row-${p.id}" style="display:none">
-        <td colspan="11" style="background:var(--surface2);padding:10px 20px;font-size:.82rem;color:var(--muted);border-left:3px solid var(--accent);line-height:1.5">${p.comment}</td>
-      </tr>`;
-    }
-    if (hasHistory) {
-      html += `<tr id="history-row-${p.id}" style="display:none">
-        <td colspan="11" style="padding:0">
-          <div style="padding:16px 20px;background:var(--surface2);border-left:3px solid var(--accent)">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-              <h3 style="color:var(--accent);font-size:.9rem">📊 Historial — ${p.name}</h3>
-              <button onclick="hideHistory()" style="background:var(--surface);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 12px;cursor:pointer;font-size:.8rem">✕ Cerrar</button>
-            </div>
-            <div class="kpi-grid" id="history-kpis-${p.id}" style="margin-bottom:20px"></div>
-            <div class="chart-grid cols2" style="margin-bottom:16px">
-              <div class="chart-box"><h3>Aportaciones (€)</h3><div style="position:relative;height:220px"><canvas id="chart-hist-aportes-${p.id}"></canvas></div></div>
-              <div class="chart-box"><h3>Precio de compra por aportación</h3><div style="position:relative;height:220px"><canvas id="chart-hist-precio-${p.id}"></canvas></div></div>
-              <div class="chart-box"><h3>Invertido vs Valor actual por lote</h3><div style="position:relative;height:220px"><canvas id="chart-hist-cumul-${p.id}"></canvas></div></div>
-              <div class="chart-box"><h3>Rentabilidad por año (%)</h3><div style="position:relative;height:220px"><canvas id="chart-hist-anual-${p.id}"></canvas></div></div>
-            </div>
-            <div>
-              <h3 style="font-size:.85rem;font-weight:600;margin-bottom:12px">Detalle de aportaciones</h3>
-              <table id="table-hist-detalle-${p.id}"></table>
-            </div>
-          </div>
-        </td>
-      </tr>`;
-    }
+  const byTipo = {};
+  activas.forEach(p => {
+    const t = p.tipo || 'ALT';
+    if (!byTipo[t]) byTipo[t] = [];
+    byTipo[t].push(p);
   });
 
-  html += '</tbody>';
-  el.innerHTML = html;
+  const tipos = DETALLE_TYPE_ORDER.filter(t => byTipo[t]?.length);
+  Object.keys(byTipo).forEach(t => { if (!tipos.includes(t)) tipos.push(t); });
+
+  let htmlBoard = tipos.map(tipo => {
+    const list = byTipo[tipo].slice().sort((a, b) => (b.value || 0) - (a.value || 0));
+    const totalVal = list.reduce((s, p) => s + (Number(p.value) || 0), 0);
+    const n = list.length;
+    const icon = DETALLE_TYPE_ICONS[tipo] || '📁';
+    const cards = list.map(p => renderDetallePosCard(p)).join('');
+    return `<section class="detalle-col" data-tipo="${tipo}">
+      <div class="detalle-col-head">
+        <div class="detalle-col-icon ${String(tipo).toLowerCase()}">${icon}</div>
+        <div class="detalle-col-meta">
+          <div class="detalle-col-title">${TYPE_LABELS[tipo] || tipo}</div>
+          <div class="detalle-col-count">${n} posición${n === 1 ? '' : 'es'}</div>
+          <div class="detalle-col-value">${fmt(totalVal)}</div>
+        </div>
+      </div>
+      ${cards}
+    </section>`;
+  }).join('');
+
+  if (antiguas.length) {
+    const cards = antiguas.map(p => renderDetallePosCard(p, { antigua: true })).join('');
+    htmlBoard += `<section class="detalle-col detalle-col-antiguas" data-tipo="ANTIGUAS">
+      <div class="detalle-col-head">
+        <div class="detalle-col-icon antiguas">📦</div>
+        <div class="detalle-col-meta">
+          <div class="detalle-col-title">Inversiones Antiguas</div>
+          <div class="detalle-col-count">${antiguas.length} posición${antiguas.length === 1 ? '' : 'es'} cerrada${antiguas.length === 1 ? '' : 's'}</div>
+          <div class="detalle-col-value" style="color:var(--muted)">Sin saldo</div>
+        </div>
+      </div>
+      ${cards}
+    </section>`;
+  }
+
+  board.innerHTML = htmlBoard || '<p style="color:var(--muted);font-size:.85rem">No hay posiciones para mostrar.</p>';
+
+  if (keepId && positions.some(p => p.id === keepId)) {
+    showHistory(keepId);
+  }
 }
+
 
 function populateTransactionProductSelect() {
   const sel = document.getElementById('tx-product-select');
@@ -4316,7 +5267,10 @@ function getLegacyInvestmentTransactions() {
     info.entries.forEach((entry, idx) => {
       const amount = Number(entry.amount) || 0;
       const shares = Number(entry.shares) || 0;
-      const price = Number(entry.price) || (shares > 0 ? amount / shares : 0);
+      const fee = Number(entry.fee) || 0;
+      const price = Number(entry.price) || (shares > 0 ? (amount - fee) / shares : 0);
+      const gross = Number(entry.gross) || Math.max(0, amount - fee) || (shares * price);
+      const time = String(entry.time || '12:00').slice(0, 5);
       const isAportacion = posId === 9 || (posId === 10 && shares === 0 && price === 0);
       legacy.push({
         id: `legacy-${posId}-${idx}`,
@@ -4326,10 +5280,10 @@ function getLegacyInvestmentTransactions() {
         sector: inferSectorFromPosition(pos),
         qty: shares,
         price,
-        fee: 0,
-        gross: amount,
+        fee,
+        gross,
         totalCost: amount,
-        datetime: `${entry.date}T12:00`,
+        datetime: `${entry.date}T${time}`,
         note: `Movimiento histórico (${entry.label || 'sin etiqueta'})`,
         ...(isAportacion ? { isAportacion: true, aportacion: amount } : {})
       });
@@ -4803,6 +5757,7 @@ function _initDashboard() {
   investmentTransactions = loadInvestmentTransactions();
   hiddenVirtualTxIds = loadHiddenVirtualTxIds();
   loadUserCripto();
+  reconcileClosedUnitPositions();
   populateBrokerFilter();
   populateTransactionProductSelect();
   bindTxDatePicker();
@@ -4817,8 +5772,12 @@ if (window.fbReady && typeof window.fbReady.then === 'function') {
   _initDashboard();
 }
 window.addEventListener('resize', () => requestAnimationFrame(resizeAllCharts));
-updateCryptoPrices().then(r => {
-  if (r.ok && r.updated > 0) {
+Promise.all([
+  updateCryptoPrices(),
+  updateListedSecurityPrices()
+]).then(([crypto, listed]) => {
+  const any = (crypto?.ok && crypto.updated > 0) || (listed?.ok && listed.updated > 0);
+  if (any) {
     const activeView = document.querySelector('.nav-item.active')?.dataset?.view || 'resumen';
     renderView(activeView);
     requestAnimationFrame(resizeAllCharts);
