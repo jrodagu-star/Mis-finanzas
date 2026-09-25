@@ -267,6 +267,21 @@
       font-size: .68rem;
       color: var(--muted);
     }
+    .tx-group-header td {
+      background: var(--surface2);
+      color: var(--accent);
+      font-weight: 700;
+      font-size: .82rem;
+      padding: 10px 12px;
+      border-top: 1px solid var(--border);
+      letter-spacing: .02em;
+    }
+    .tx-group-header td span {
+      color: var(--muted);
+      font-weight: 500;
+      font-size: .75rem;
+      margin-left: 8px;
+    }
 
     /* ── VIEWS ── */
     .view { display: none; }
@@ -816,6 +831,14 @@
             <label id="tx-price-label">Valor de mercado por unidad (€)</label>
             <input type="number" id="tx-price" min="0" step="0.0001" placeholder="0.00" oninput="onTxQtyInput()" />
           </div>
+          <div class="form-row" id="tx-btc-price-row" style="display:none">
+            <label id="tx-btc-price-label">Valor BTC (€/BTC)</label>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <input type="number" id="tx-btc-price" min="0" step="0.01" placeholder="0.00" oninput="onTxQtyInput()" style="flex:1;min-width:120px" />
+              <button class="btn btn-secondary" type="button" onclick="fetchBtcPriceForTransaction()" style="white-space:nowrap">Buscar BTC/EUR</button>
+            </div>
+            <div id="tx-btc-price-status" style="margin-top:6px;font-size:.75rem;color:var(--muted)"></div>
+          </div>
           <div class="form-row" id="tx-fee-row">
             <label>Comisión (€)</label>
             <input type="number" id="tx-fee" min="0" step="0.01" value="0" oninput="onTxQtyInput()" />
@@ -838,10 +861,8 @@
               </span>
             </div>
             <input type="time" id="tx-time" step="60" oninput="onTxDateTimeChange()" />
-            <button class="btn btn-secondary" type="button" onclick="fetchBtcPriceForTransaction()" style="white-space:nowrap">Buscar BTC/EUR</button>
           </div>
           <div style="font-size:.75rem;color:var(--muted);margin-top:4px">Fecha: <strong>día/mes/año</strong> (ej. 08/07/2026). Puedes escribirla o usar el calendario 📅.</div>
-          <div id="tx-btc-price-status" style="margin-top:6px;font-size:.75rem;color:var(--muted)"></div>
         </div>
         <div class="form-row" style="margin-bottom:0">
           <label>Notas (opcional)</label>
@@ -4414,7 +4435,7 @@ function updateTxFifoPanel() {
   const excludeId = getEditingTxExcludeId();
   const { lots, availableQty } = buildFifoOpenLots(pos.id, { excludeId, asOf: asOf || null });
   const qty = parseFloat(document.getElementById('tx-qty')?.value) || 0;
-  const price = parseFloat(document.getElementById('tx-price')?.value) || 0;
+  const price = getTxUnitPriceFromForm(pos);
   const fee = parseFloat(document.getElementById('tx-fee')?.value) || 0;
   const retention = parseFloat(document.getElementById('tx-retention')?.value) || 0;
   const preview = qty > 0 ? consumeFifoLots(lots, qty) : null;
@@ -4509,14 +4530,24 @@ function setTxSide(side) {
   updateTxFormFields();
 }
 
+function getTxUnitPriceFromForm(pos = selectedPositionForTx()) {
+  if (isBitcoinPosition(pos)) {
+    return parseFloat(document.getElementById('tx-btc-price')?.value) || 0;
+  }
+  return parseFloat(document.getElementById('tx-price')?.value) || 0;
+}
+
 function updateTxFormFields() {
   const pos = selectedPositionForTx();
   const isAport = isAportacionProduct(pos);
+  const isBtc = isBitcoinPosition(pos);
   const isSell = txSide === 'sell';
   const qtyLabel = document.getElementById('tx-qty-label');
   const priceLabel = document.getElementById('tx-price-label');
+  const btcLabel = document.getElementById('tx-btc-price-label');
   const qtyInput = document.getElementById('tx-qty');
   const priceRow = document.getElementById('tx-price-row');
+  const btcRow = document.getElementById('tx-btc-price-row');
   const feeRow = document.getElementById('tx-fee-row');
   const retentionRow = document.getElementById('tx-retention-row');
   const hint = document.getElementById('tx-aportacion-hint');
@@ -4525,11 +4556,13 @@ function updateTxFormFields() {
     else qtyLabel.textContent = isSell ? 'Cantidad vendida' : 'Cantidad comprada';
   }
   if (priceLabel) priceLabel.textContent = isSell ? 'Precio de venta por unidad (€)' : 'Valor de mercado por unidad (€)';
+  if (btcLabel) btcLabel.textContent = isSell ? 'Precio de venta BTC (€/BTC)' : 'Valor BTC (€/BTC)';
   if (qtyInput) {
     qtyInput.step = isAport ? '0.01' : '0.000001';
     qtyInput.placeholder = isAport ? 'Ej: 200' : '0';
   }
-  if (priceRow) priceRow.style.display = isAport ? 'none' : '';
+  if (priceRow) priceRow.style.display = (!isAport && !isBtc) ? '' : 'none';
+  if (btcRow) btcRow.style.display = (!isAport && isBtc) ? '' : 'none';
   if (feeRow) feeRow.style.display = '';
   if (retentionRow) retentionRow.style.display = isSell ? '' : 'none';
   if (hint) {
@@ -4547,9 +4580,9 @@ function updateTxFormFields() {
 
 function isBitcoinPosition(pos) {
   if (!pos) return false;
-  const isin = String(pos.isin || '').toUpperCase();
-  const name = String(pos.name || '').toLowerCase();
-  return isin === 'BTC' || name.includes('bitcoin');
+  const isin = String(pos.isin || '').replace(/\s+/g, '').toUpperCase();
+  // Solo Bitcoin spot (no ETN/ETP como IB1T.DE)
+  return isin === 'BTC';
 }
 
 function setTxBtcStatus(msg, isError = false) {
@@ -4598,10 +4631,11 @@ async function fetchBtcPriceForTransaction(auto = false) {
     const nearest = nearestBtcEurPrice(data?.prices, targetMs);
     if (!nearest) throw new Error('Sin datos de cotización para ese momento');
 
-    const priceEl = document.getElementById('tx-price');
-    if (priceEl) priceEl.value = Number(nearest.price).toFixed(2);
+    const btcEl = document.getElementById('tx-btc-price');
+    if (btcEl) btcEl.value = Number(nearest.price).toFixed(2);
+    onTxQtyInput();
     const sampleTime = new Date(nearest.ts).toLocaleString('es-ES');
-    setTxBtcStatus(`BTC/EUR aplicado: ${fmt(nearest.price)} (muestra más cercana: ${sampleTime})`);
+    setTxBtcStatus(`BTC/EUR: ${fmt(nearest.price)} (muestra más cercana: ${sampleTime})`);
   } catch (e) {
     setTxBtcStatus(`No se pudo obtener BTC/EUR: ${e.message || 'error desconocido'}`, true);
   }
@@ -4953,6 +4987,8 @@ function resetTransactionForm() {
   document.getElementById('tx-product-select').value = '';
   document.getElementById('tx-qty').value = '';
   document.getElementById('tx-price').value = '';
+  const btcPriceEl = document.getElementById('tx-btc-price');
+  if (btcPriceEl) btcPriceEl.value = '';
   document.getElementById('tx-fee').value = '0';
   const retentionEl = document.getElementById('tx-retention');
   if (retentionEl) retentionEl.value = '0';
@@ -5016,11 +5052,15 @@ async function saveInvestmentTransaction() {
     totalCost = isSell ? Math.max(0, aportacion - fee - retention) : aportacion + fee;
   } else {
     qty = parseFloat(document.getElementById('tx-qty').value) || 0;
-    price = parseFloat(document.getElementById('tx-price').value) || 0;
+    price = getTxUnitPriceFromForm(p);
     if (qty <= 0 || price <= 0) {
       alert(isSell
-        ? 'La cantidad vendida y el precio de venta deben ser mayores que 0.'
-        : 'La cantidad y el valor de mercado deben ser mayores que 0.');
+        ? (isBitcoinPosition(p)
+          ? 'La cantidad vendida y el valor BTC deben ser mayores que 0.'
+          : 'La cantidad vendida y el precio de venta deben ser mayores que 0.')
+        : (isBitcoinPosition(p)
+          ? 'La cantidad y el valor BTC deben ser mayores que 0.'
+          : 'La cantidad y el valor de mercado deben ser mayores que 0.'));
       return;
     }
     gross = qty * price;
@@ -5215,10 +5255,21 @@ function editInvestmentTransaction(id) {
   if (isAport) {
     document.getElementById('tx-qty').value = Math.abs(tx.aportacion ?? tx.gross ?? Math.max(0, (tx.totalCost || 0) - (tx.fee || 0) - (tx.retention || 0)));
     document.getElementById('tx-price').value = '';
+    const btcEl = document.getElementById('tx-btc-price');
+    if (btcEl) btcEl.value = '';
     document.getElementById('tx-fee').value = Math.abs(tx.fee || 0);
   } else {
     document.getElementById('tx-qty').value = Math.abs(tx.qty || 0);
-    document.getElementById('tx-price').value = Math.abs(tx.price || 0);
+    const unitPrice = Math.abs(tx.price || 0);
+    if (isBitcoinPosition(pos)) {
+      document.getElementById('tx-price').value = '';
+      const btcEl = document.getElementById('tx-btc-price');
+      if (btcEl) btcEl.value = unitPrice;
+    } else {
+      document.getElementById('tx-price').value = unitPrice;
+      const btcEl = document.getElementById('tx-btc-price');
+      if (btcEl) btcEl.value = '';
+    }
     document.getElementById('tx-fee').value = Math.abs(tx.fee || 0);
   }
   const retentionEl = document.getElementById('tx-retention');
@@ -5256,6 +5307,131 @@ function txYearMonth(tx) {
   const p = parseTxDateTimeParts(tx.datetime);
   if (!p) return { year: 'Sin año', month: 'Sin mes' };
   return { year: p.year, month: p.month };
+}
+
+const TX_MONTH_LABELS = {
+  '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril',
+  '05': 'Mayo', '06': 'Junio', '07': 'Julio', '08': 'Agosto',
+  '09': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
+};
+
+function txMonthGroupKey(tx) {
+  const ym = txYearMonth(tx);
+  return `${ym.year}-${ym.month}`;
+}
+
+function txMonthGroupLabel(key) {
+  const [year, month] = String(key).split('-');
+  if (!year || year === 'Sin año') return 'Sin fecha';
+  return `${TX_MONTH_LABELS[month] || month} ${year}`;
+}
+
+function getTxHistoryGroupMode() {
+  const { year, month } = getTxFilterValues();
+  // Filtro por fecha (año y/o mes) → bloques mensuales
+  if (year !== 'all' || month !== 'all') return 'month';
+  // Sin filtro de fecha → historial separado por sectores
+  return 'sector';
+}
+
+function groupTransactionsForHistory(rows, mode) {
+  if (mode === 'none' || !rows.length) {
+    return [{ key: 'all', label: null, rows }];
+  }
+  const map = new Map();
+  rows.forEach(tx => {
+    let key, label;
+    if (mode === 'month') {
+      key = txMonthGroupKey(tx);
+      label = txMonthGroupLabel(key);
+    } else {
+      key = tx.sector || 'Sin sector';
+      label = key;
+    }
+    if (!map.has(key)) map.set(key, { key, label, rows: [] });
+    map.get(key).rows.push(tx);
+  });
+  const groups = [...map.values()];
+  if (mode === 'month') {
+    groups.sort((a, b) => b.key.localeCompare(a.key));
+  } else {
+    groups.sort((a, b) => String(a.label).localeCompare(String(b.label), 'es'));
+  }
+  return groups;
+}
+
+function renderTxHistoryRow(tx) {
+  const idJson = JSON.stringify(String(tx.id));
+  return `<tr>
+      <td>${formatTxDateTime(tx.datetime)}</td>
+      <td>${
+        isSellTx(tx)
+          ? '<span style="color:var(--red);font-weight:600">Venta</span>'
+          : tx.source === 'legacy'
+            ? '<span style="color:var(--accent2);font-weight:600">Histórico</span>'
+            : tx.source === 'crypto'
+              ? '<span style="color:#f59e0b;font-weight:600">Cripto</span>'
+              : '<span style="color:var(--green);font-weight:600">Compra</span>'
+      }</td>
+      <td><strong>${tx.product}</strong></td>
+      <td>${tx.sector || 'Sin sector'}</td>
+      <td>${formatTxQtyDisplay(tx)}</td>
+      <td>${tx.isAportacion ? '—' : fmtPrice(Math.abs(tx.price || 0))}</td>
+      <td>${fmt(Math.abs(tx.fee || 0))}</td>
+      <td>${isSellTx(tx) ? fmt(Math.abs(tx.retention || 0)) : '—'}</td>
+      <td><strong>${fmt(Math.abs(tx.totalCost || 0))}</strong></td>
+      <td style="color:var(--muted)">${tx.note || '—'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-secondary" style="padding:3px 8px;font-size:.72rem;margin-right:4px" onclick='editInvestmentTransaction(${idJson})'>✏️ Editar</button>
+        <button class="btn btn-danger" style="padding:3px 8px;font-size:.72rem" onclick='deleteInvestmentTransaction(${idJson})'>🗑 Eliminar</button>
+      </td>
+    </tr>`;
+}
+
+function renderTransacciones() {
+  bindTxDatePicker();
+  populateTransactionProductSelect();
+  populateTransactionChartFilters();
+  updateTxFormFields();
+  if (!editingTransactionId && !editingVirtualId && !document.getElementById('tx-date')?.value) {
+    const def = defaultTxDateParts();
+    document.getElementById('tx-date').value = def.dateDisplay;
+    document.getElementById('tx-time').value = def.time;
+    syncTxDatePickerFromText();
+  }
+
+  const table = document.getElementById('table-transacciones');
+  if (!table) return;
+  const filtered = getFilteredTransactionsForCharts();
+  const sorted = sortTransactionsForTable(filtered);
+  if (!filtered.length) {
+    table.innerHTML = '<thead><tr><th>Estado</th></tr></thead><tbody><tr><td style="color:var(--muted)">No hay movimientos para los filtros seleccionados.</td></tr></tbody>';
+    return;
+  }
+
+  const groupMode = getTxHistoryGroupMode();
+  const groups = groupTransactionsForHistory(sorted, groupMode);
+  const colCount = 11;
+  const bodyHtml = groups.map(group => {
+    const header = group.label
+      ? `<tr class="tx-group-header"><td colspan="${colCount}">${group.label}<span>${group.rows.length} movimiento${group.rows.length === 1 ? '' : 's'}</span></td></tr>`
+      : '';
+    return header + group.rows.map(renderTxHistoryRow).join('');
+  }).join('');
+
+  table.innerHTML = `<thead><tr>
+    <th style="cursor:pointer" onclick="setTxTableSort('datetime')">Fecha y hora${txSortArrow('datetime')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('source')">Origen${txSortArrow('source')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('product')">Producto${txSortArrow('product')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('sector')">Sector${txSortArrow('sector')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('qty')">Cantidad${txSortArrow('qty')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('price')">Precio${txSortArrow('price')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('fee')">Comisión${txSortArrow('fee')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('retention')">Retención${txSortArrow('retention')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('totalCost')">Neto / Coste${txSortArrow('totalCost')}</th>
+    <th style="cursor:pointer" onclick="setTxTableSort('note')">Nota${txSortArrow('note')}</th>
+    <th>Acciones</th>
+  </tr></thead><tbody>${bodyHtml}</tbody>`;
 }
 
 function getLegacyInvestmentTransactions() {
@@ -5462,70 +5638,6 @@ function sortTransactionsForTable(rows) {
 function txSortArrow(key) {
   if (txTableSort.key !== key) return '';
   return txTableSort.dir === 'asc' ? ' ▲' : ' ▼';
-}
-
-function renderTransacciones() {
-  bindTxDatePicker();
-  populateTransactionProductSelect();
-  populateTransactionChartFilters();
-  updateTxFormFields();
-  if (!editingTransactionId && !editingVirtualId && !document.getElementById('tx-date')?.value) {
-    const def = defaultTxDateParts();
-    document.getElementById('tx-date').value = def.dateDisplay;
-    document.getElementById('tx-time').value = def.time;
-    syncTxDatePickerFromText();
-  }
-
-  const table = document.getElementById('table-transacciones');
-  if (!table) return;
-  const filtered = getFilteredTransactionsForCharts();
-  const sorted = sortTransactionsForTable(filtered);
-  if (!filtered.length) {
-    table.innerHTML = '<thead><tr><th>Estado</th></tr></thead><tbody><tr><td style="color:var(--muted)">No hay movimientos para los filtros seleccionados.</td></tr></tbody>';
-    return;
-  }
-
-  table.innerHTML = `<thead><tr>
-    <th style="cursor:pointer" onclick="setTxTableSort('datetime')">Fecha y hora${txSortArrow('datetime')}</th>
-    <th style="cursor:pointer" onclick="setTxTableSort('source')">Origen${txSortArrow('source')}</th>
-    <th style="cursor:pointer" onclick="setTxTableSort('product')">Producto${txSortArrow('product')}</th>
-    <th style="cursor:pointer" onclick="setTxTableSort('sector')">Sector${txSortArrow('sector')}</th>
-    <th style="cursor:pointer" onclick="setTxTableSort('qty')">Cantidad${txSortArrow('qty')}</th>
-    <th style="cursor:pointer" onclick="setTxTableSort('price')">Precio${txSortArrow('price')}</th>
-    <th style="cursor:pointer" onclick="setTxTableSort('fee')">Comisión${txSortArrow('fee')}</th>
-    <th style="cursor:pointer" onclick="setTxTableSort('retention')">Retención${txSortArrow('retention')}</th>
-    <th style="cursor:pointer" onclick="setTxTableSort('totalCost')">Neto / Coste${txSortArrow('totalCost')}</th>
-    <th style="cursor:pointer" onclick="setTxTableSort('note')">Nota${txSortArrow('note')}</th>
-    <th>Acciones</th>
-  </tr></thead><tbody>${
-    sorted.map(tx => {
-      const idJson = JSON.stringify(String(tx.id));
-      return `<tr>
-      <td>${formatTxDateTime(tx.datetime)}</td>
-      <td>${
-        isSellTx(tx)
-          ? '<span style="color:var(--red);font-weight:600">Venta</span>'
-          : tx.source === 'legacy'
-            ? '<span style="color:var(--accent2);font-weight:600">Histórico</span>'
-            : tx.source === 'crypto'
-              ? '<span style="color:#f59e0b;font-weight:600">Cripto</span>'
-              : '<span style="color:var(--green);font-weight:600">Compra</span>'
-      }</td>
-      <td><strong>${tx.product}</strong></td>
-      <td>${tx.sector || 'Sin sector'}</td>
-      <td>${formatTxQtyDisplay(tx)}</td>
-      <td>${tx.isAportacion ? '—' : fmtPrice(Math.abs(tx.price || 0))}</td>
-      <td>${fmt(Math.abs(tx.fee || 0))}</td>
-      <td>${isSellTx(tx) ? fmt(Math.abs(tx.retention || 0)) : '—'}</td>
-      <td><strong>${fmt(Math.abs(tx.totalCost || 0))}</strong></td>
-      <td style="color:var(--muted)">${tx.note || '—'}</td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-secondary" style="padding:3px 8px;font-size:.72rem;margin-right:4px" onclick='editInvestmentTransaction(${idJson})'>✏️ Editar</button>
-        <button class="btn btn-danger" style="padding:3px 8px;font-size:.72rem" onclick='deleteInvestmentTransaction(${idJson})'>🗑 Eliminar</button>
-      </td>
-    </tr>`;
-    }).join('')
-  }</tbody>`;
 }
 
 function renderTxGraficos() {
