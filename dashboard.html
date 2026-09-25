@@ -338,6 +338,63 @@
     .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
     .btn-danger { background: var(--red); color: #fff; }
     .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+    .tx-page-toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+    }
+    .tx-page-toolbar h2 {
+      margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text);
+    }
+    .tx-page-toolbar p {
+      margin: 4px 0 0; font-size: .78rem; color: var(--muted);
+    }
+    .tx-filters-box { margin-bottom: 14px; }
+    .tx-filters-box h3 { margin-bottom: 10px; }
+    .tx-history-box { margin-bottom: 0; }
+    .tx-history-box h3 { margin-bottom: 10px; }
+    #tx-modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75);
+      z-index: 220; align-items: flex-start; justify-content: center;
+      padding: 24px 12px; overflow-y: auto;
+    }
+    #tx-modal-overlay.open { display: flex; }
+    #tx-modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 0; width: 640px; max-width: 96vw; max-height: none;
+      margin: auto 0; box-shadow: 0 18px 50px rgba(0,0,0,.45);
+    }
+    .tx-modal-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 12px; padding: 18px 20px 14px; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: var(--surface); z-index: 1;
+      border-radius: 14px 14px 0 0;
+    }
+    .tx-modal-header h3 { margin: 0; font-size: 1rem; color: var(--accent); }
+    .tx-modal-header p { margin: 4px 0 0; font-size: .75rem; color: var(--muted); }
+    .tx-modal-body { padding: 16px 20px 8px; }
+    .tx-modal-footer {
+      display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap;
+      padding: 14px 20px 18px; border-top: 1px solid var(--border);
+      position: sticky; bottom: 0; background: var(--surface);
+      border-radius: 0 0 14px 14px;
+    }
+    .tx-form-section {
+      margin-bottom: 16px; padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .tx-form-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .tx-form-section-title {
+      font-size: .72rem; text-transform: uppercase; letter-spacing: .06em;
+      color: var(--muted); font-weight: 700; margin-bottom: 10px;
+    }
+    .tx-form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    }
+    .tx-form-grid .span-2 { grid-column: 1 / -1; }
+    @media (max-width: 640px) {
+      .tx-form-grid { grid-template-columns: 1fr; }
+      .tx-form-grid .span-2 { grid-column: 1; }
+    }
 
     .add-btn {
       display: flex; align-items: center; gap: 6px; margin-bottom: 12px;
@@ -709,201 +766,44 @@
 
     <!-- ── VIEW: TRANSACCIONES ── -->
     <div class="view" id="view-transacciones">
-      <div class="table-box">
-        <h3>Registrar movimiento de inversión</h3>
-        <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">Añade compras de acciones/participaciones o aportaciones a carteras gestionadas para actualizar tu cartera.</p>
-        <div class="form-row">
-          <label>Producto en cartera</label>
-          <select id="tx-product-select" onchange="onTxProductChange()"></select>
+      <div class="tx-page-toolbar">
+        <div>
+          <h2>Transacciones</h2>
+          <p>Consulta el historial, filtra movimientos o registra uno nuevo.</p>
         </div>
-        <div class="form-row" id="tx-isin-row" style="display:none;margin-top:-6px">
-          <label>ISIN / Ticker</label>
-          <div id="tx-isin-display" style="padding:8px 12px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);font-size:.88rem;font-family:ui-monospace,Consolas,monospace;color:var(--text)"></div>
-        </div>
-        <div class="chart-grid cols2">
-          <div class="form-row">
+        <button class="add-btn" style="margin:0" type="button" onclick="openTxModal()">+ Nuevo movimiento</button>
+      </div>
+
+      <div class="table-box tx-filters-box">
+        <h3>Filtros</h3>
+        <div class="chart-grid cols3">
+          <div class="form-row" style="margin-bottom:0">
+            <label>Producto</label>
+            <select id="tx-chart-product" class="tx-filter-product" onchange="onTxChartFilterChange(event)"></select>
+          </div>
+          <div class="form-row" style="margin-bottom:0">
+            <label>Broker</label>
+            <select id="tx-chart-broker" class="tx-filter-broker" onchange="onTxChartFilterChange(event)"></select>
+          </div>
+          <div class="form-row" style="margin-bottom:0">
             <label>Sector</label>
-            <select id="tx-sector-select" onchange="onTxSectorChange()">
-              <option value="">Seleccionar sector...</option>
-              <option value="Tecnología">Tecnología</option>
-              <option value="Salud">Salud</option>
-              <option value="Financiero">Financiero</option>
-              <option value="Consumo">Consumo</option>
-              <option value="Energía">Energía</option>
-              <option value="Industria">Industria</option>
-              <option value="Utilities">Utilities</option>
-              <option value="Inmobiliario">Inmobiliario</option>
-              <option value="Materias primas">Materias primas</option>
-              <option value="Telecomunicaciones">Telecomunicaciones</option>
-              <option value="Servicios públicos">Servicios públicos</option>
-              <option value="Criptomonedas">Criptomonedas</option>
-              <option value="Otro">Otro (especificar)</option>
-            </select>
-          </div>
-          <div class="form-row" id="tx-sector-custom-row" style="display:none">
-            <label>Sector personalizado</label>
-            <input type="text" id="tx-sector-custom" placeholder="Escribe el sector" />
-          </div>
-        </div>
-        <div id="tx-region-fields" class="form-row" style="display:none;margin-bottom:12px">
-          <label>Región del mundo</label>
-          <select id="tx-region" onchange="onTxRegionChange()">
-            <option value="">Seleccionar región...</option>
-            <option value="USA">USA</option>
-            <option value="Europa">Europa</option>
-            <option value="Asia">Asia</option>
-            <option value="Latinoamérica">Latinoamérica</option>
-            <option value="Japón">Japón</option>
-            <option value="China">China</option>
-            <option value="Global">Global</option>
-            <option value="Otros">Otros</option>
-          </select>
-          <div class="form-row" id="tx-region-custom-row" style="display:none;margin-top:8px;margin-bottom:0">
-            <label>Especificar región</label>
-            <input type="text" id="tx-region-custom" placeholder="Ej: MENA, Emergentes..." />
-          </div>
-          <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
-            <button type="button" class="btn btn-secondary" onclick="autoFillTxRegion(true)" style="padding:5px 12px;font-size:.78rem">Detectar región</button>
-            <span id="tx-region-status" style="font-size:.75rem;color:var(--muted)"></span>
-          </div>
-        </div>
-        <div id="tx-product-meta-fields" class="chart-grid cols2" style="display:none;margin-bottom:12px">
-          <div class="form-row" style="margin-bottom:0">
-            <label>Tipo de producto</label>
-            <select id="tx-product-kind">
-              <option value="">Seleccionar tipo...</option>
-              <option value="fondo">Fondo de inversión</option>
-              <option value="etf">ETF</option>
-              <option value="acciones">Acciones</option>
-            </select>
+            <select id="tx-chart-sector" class="tx-filter-sector" onchange="onTxChartFilterChange(event)"></select>
           </div>
           <div class="form-row" style="margin-bottom:0">
-            <label>Tipo de gestión</label>
-            <select id="tx-management-type">
-              <option value="">Seleccionar gestión...</option>
-              <option value="activo">Activo</option>
-              <option value="indexado">Indexado</option>
-            </select>
+            <label>Año</label>
+            <select id="tx-chart-year" class="tx-filter-year" onchange="onTxChartFilterChange(event)"></select>
           </div>
-        </div>
-        <div id="tx-new-product-fields" style="display:none;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px;background:var(--surface2)">
-          <p style="font-size:.78rem;color:var(--accent);margin-bottom:8px;font-weight:600">Nuevo producto</p>
-          <div class="form-row">
-            <label>Nombre</label>
-            <input type="text" id="tx-new-name" placeholder="Ej: iShares MSCI World" onblur="autoFillTxRegion()" />
+          <div class="form-row" style="margin-bottom:0">
+            <label>Mes</label>
+            <select id="tx-chart-month" class="tx-filter-month" onchange="onTxChartFilterChange(event)"></select>
           </div>
-          <div class="chart-grid cols2" style="margin-bottom:0">
-            <div class="form-row" style="margin-bottom:10px">
-              <label>ISIN / Ticker</label>
-              <input type="text" id="tx-new-isin" placeholder="IE00..." onblur="autoFillTxRegion()" />
-            </div>
-            <div class="form-row" style="margin-bottom:10px">
-              <label>Tipo de activo</label>
-              <select id="tx-new-tipo">
-                <option value="RV">Renta Variable</option>
-                <option value="RF">Renta Fija</option>
-                <option value="MIX">Mixto</option>
-                <option value="ALT">Alternativo</option>
-                <option value="PP">Plan de Pensiones</option>
-                <option value="CASH">Liquidez</option>
-              </select>
-            </div>
-            <div class="form-row" style="margin-bottom:0">
-              <label>Broker / Plataforma</label>
-              <input type="text" id="tx-new-broker" placeholder="MyInvestor, XTB..." />
-            </div>
-          </div>
-        </div>
-        <div class="form-row" id="tx-side-row" style="margin-bottom:12px">
-          <label>Tipo de operación</label>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button type="button" class="btn btn-secondary" id="tx-side-buy" onclick="setTxSide('buy')" style="flex:1">▲ Compra / Aportación</button>
-            <button type="button" class="btn btn-secondary" id="tx-side-sell" onclick="setTxSide('sell')" style="flex:1">▼ Venta / Retiro</button>
-          </div>
-          <div id="tx-sell-hint" style="display:none;font-size:.75rem;color:var(--accent2);margin-top:6px">Indica las participaciones (o euros) a vender, el precio, la comisión y la retención. La venta de fondos consume lotes por <strong>FIFO</strong> (España). Puedes vender parcial o todo.</div>
-        </div>
-        <div class="chart-grid cols3" id="tx-standard-trade-fields">
-          <div class="form-row" id="tx-qty-row">
-            <label id="tx-qty-label">Cantidad comprada</label>
-            <input type="number" id="tx-qty" min="0" step="0.000001" placeholder="0" oninput="onTxQtyInput()" />
-          </div>
-          <div class="form-row" id="tx-price-row">
-            <label id="tx-price-label">Valor de mercado por unidad (€)</label>
-            <input type="number" id="tx-price" min="0" step="0.0001" placeholder="0.00" oninput="onTxQtyInput()" />
-          </div>
-          <div class="form-row" id="tx-btc-price-row" style="display:none">
-            <label id="tx-btc-price-label">Valor BTC (€/BTC)</label>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-              <input type="number" id="tx-btc-price" min="0" step="0.01" placeholder="0.00" oninput="onTxQtyInput()" style="flex:1;min-width:120px" />
-              <button class="btn btn-secondary" type="button" onclick="fetchBtcPriceForTransaction()" style="white-space:nowrap">Buscar BTC/EUR</button>
-            </div>
-            <div id="tx-btc-price-status" style="margin-top:6px;font-size:.75rem;color:var(--muted)"></div>
-          </div>
-          <div class="form-row" id="tx-fee-row">
-            <label>Comisión (€)</label>
-            <input type="number" id="tx-fee" min="0" step="0.01" value="0" oninput="onTxQtyInput()" />
-          </div>
-          <div class="form-row" id="tx-retention-row" style="display:none">
-            <label>Retención (€)</label>
-            <input type="number" id="tx-retention" min="0" step="0.01" value="0" oninput="onTxQtyInput()" />
-          </div>
-        </div>
-        <div id="tx-fifo-panel" style="display:none;margin:0 0 14px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface2)"></div>
-        <p id="tx-aportacion-hint" style="display:none;font-size:.78rem;color:var(--accent2);margin:-4px 0 12px">Cartera Indie: escribe solo el importe en euros en <strong>Cantidad comprada</strong>. No hace falta precio ni participaciones.</p>
-        <div class="form-row">
-          <label id="tx-datetime-label">Fecha y hora de la operación</label>
-          <div class="tx-datetime-row">
-            <div class="tx-date-group">
-              <input type="text" id="tx-date" placeholder="dd/mm/aaaa" inputmode="numeric" oninput="onTxDateTimeChange()" />
-              <span class="tx-date-calendar-wrap" title="Elegir fecha en calendario" role="button" tabindex="0">
-                <span class="btn btn-secondary tx-date-calendar-btn" aria-hidden="true">📅</span>
-                <input type="date" id="tx-date-picker" class="tx-date-picker-hidden" tabindex="-1" aria-hidden="true" />
-              </span>
-            </div>
-            <input type="time" id="tx-time" step="60" oninput="onTxDateTimeChange()" />
-          </div>
-          <div style="font-size:.75rem;color:var(--muted);margin-top:4px">Fecha: <strong>día/mes/año</strong> (ej. 08/07/2026). Puedes escribirla o usar el calendario 📅.</div>
-        </div>
-        <div class="form-row" style="margin-bottom:0">
-          <label>Notas (opcional)</label>
-          <textarea id="tx-note" placeholder="Detalles del movimiento..."></textarea>
-        </div>
-        <div class="modal-actions" style="margin-top:14px;justify-content:space-between">
-          <button class="btn btn-danger" onclick="deleteTransactionProduct()">Eliminar producto seleccionado</button>
-          <button class="btn btn-primary" type="button" id="tx-save-btn" onclick="saveInvestmentTransaction()">Guardar</button>
-        </div>
-      </div>
-      <div class="chart-grid cols3" style="margin-bottom:16px">
-        <div class="table-box" style="grid-column:1 / -1;margin-bottom:0">
-          <h3>Filtros del historial</h3>
-          <div class="chart-grid cols3">
-            <div class="form-row" style="margin-bottom:0">
-              <label>Producto</label>
-              <select id="tx-chart-product" class="tx-filter-product" onchange="onTxChartFilterChange(event)"></select>
-            </div>
-            <div class="form-row" style="margin-bottom:0">
-              <label>Broker</label>
-              <select id="tx-chart-broker" class="tx-filter-broker" onchange="onTxChartFilterChange(event)"></select>
-            </div>
-            <div class="form-row" style="margin-bottom:0">
-              <label>Sector</label>
-              <select id="tx-chart-sector" class="tx-filter-sector" onchange="onTxChartFilterChange(event)"></select>
-            </div>
-            <div class="form-row" style="margin-bottom:0">
-              <label>Año</label>
-              <select id="tx-chart-year" class="tx-filter-year" onchange="onTxChartFilterChange(event)"></select>
-            </div>
-            <div class="form-row" style="margin-bottom:0">
-              <label>Mes</label>
-              <select id="tx-chart-month" class="tx-filter-month" onchange="onTxChartFilterChange(event)"></select>
-            </div>
-          </div>
-          <div style="margin-top:10px">
-            <button class="btn btn-secondary" type="button" onclick="resetTransactionChartFilters()">Limpiar filtros</button>
+          <div class="form-row" style="margin-bottom:0;display:flex;align-items:flex-end">
+            <button class="btn btn-secondary" type="button" onclick="resetTransactionChartFilters()" style="width:100%">Limpiar filtros</button>
           </div>
         </div>
       </div>
-      <div class="table-box">
+
+      <div class="table-box tx-history-box">
         <h3>Historial de movimientos</h3>
         <div style="overflow-x:auto">
           <table id="table-transacciones" style="min-width:900px"></table>
@@ -959,6 +859,195 @@
 
   </div><!-- /content -->
 </div><!-- /main -->
+
+<!-- MODAL REGISTRAR / EDITAR MOVIMIENTO -->
+<div id="tx-modal-overlay" onclick="if(event.target===this)closeTxModal()">
+  <div id="tx-modal" role="dialog" aria-modal="true" aria-labelledby="tx-modal-title">
+    <div class="tx-modal-header">
+      <div>
+        <h3 id="tx-modal-title">Nuevo movimiento</h3>
+        <p>Compra, venta o aportación para actualizar tu cartera.</p>
+      </div>
+      <button type="button" class="btn btn-secondary" onclick="closeTxModal()" style="padding:6px 12px" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="tx-modal-body">
+      <div class="tx-form-section">
+        <div class="tx-form-section-title">1. Producto</div>
+        <div class="form-row">
+          <label>Producto en cartera</label>
+          <select id="tx-product-select" onchange="onTxProductChange()"></select>
+        </div>
+        <div class="form-row" id="tx-isin-row" style="display:none">
+          <label>ISIN / Ticker</label>
+          <div id="tx-isin-display" style="padding:8px 12px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);font-size:.88rem;font-family:ui-monospace,Consolas,monospace;color:var(--text)"></div>
+        </div>
+        <div class="tx-form-grid">
+          <div class="form-row" style="margin-bottom:0">
+            <label>Sector</label>
+            <select id="tx-sector-select" onchange="onTxSectorChange()">
+              <option value="">Seleccionar sector...</option>
+              <option value="Tecnología">Tecnología</option>
+              <option value="Salud">Salud</option>
+              <option value="Financiero">Financiero</option>
+              <option value="Consumo">Consumo</option>
+              <option value="Energía">Energía</option>
+              <option value="Industria">Industria</option>
+              <option value="Utilities">Utilities</option>
+              <option value="Inmobiliario">Inmobiliario</option>
+              <option value="Materias primas">Materias primas</option>
+              <option value="Telecomunicaciones">Telecomunicaciones</option>
+              <option value="Servicios públicos">Servicios públicos</option>
+              <option value="Criptomonedas">Criptomonedas</option>
+              <option value="Otro">Otro (especificar)</option>
+            </select>
+          </div>
+          <div class="form-row" id="tx-sector-custom-row" style="display:none;margin-bottom:0">
+            <label>Sector personalizado</label>
+            <input type="text" id="tx-sector-custom" placeholder="Escribe el sector" />
+          </div>
+        </div>
+        <div id="tx-region-fields" class="form-row" style="display:none;margin-top:12px;margin-bottom:0">
+          <label>Región del mundo</label>
+          <select id="tx-region" onchange="onTxRegionChange()">
+            <option value="">Seleccionar región...</option>
+            <option value="USA">USA</option>
+            <option value="Europa">Europa</option>
+            <option value="Asia">Asia</option>
+            <option value="Latinoamérica">Latinoamérica</option>
+            <option value="Japón">Japón</option>
+            <option value="China">China</option>
+            <option value="Global">Global</option>
+            <option value="Otros">Otros</option>
+          </select>
+          <div class="form-row" id="tx-region-custom-row" style="display:none;margin-top:8px;margin-bottom:0">
+            <label>Especificar región</label>
+            <input type="text" id="tx-region-custom" placeholder="Ej: MENA, Emergentes..." />
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+            <button type="button" class="btn btn-secondary" onclick="autoFillTxRegion(true)" style="padding:5px 12px;font-size:.78rem">Detectar región</button>
+            <span id="tx-region-status" style="font-size:.75rem;color:var(--muted)"></span>
+          </div>
+        </div>
+        <div id="tx-product-meta-fields" class="tx-form-grid" style="display:none;margin-top:12px">
+          <div class="form-row" style="margin-bottom:0">
+            <label>Tipo de producto</label>
+            <select id="tx-product-kind">
+              <option value="">Seleccionar tipo...</option>
+              <option value="fondo">Fondo de inversión</option>
+              <option value="etf">ETF</option>
+              <option value="acciones">Acciones</option>
+            </select>
+          </div>
+          <div class="form-row" style="margin-bottom:0">
+            <label>Tipo de gestión</label>
+            <select id="tx-management-type">
+              <option value="">Seleccionar gestión...</option>
+              <option value="activo">Activo</option>
+              <option value="indexado">Indexado</option>
+            </select>
+          </div>
+        </div>
+        <div id="tx-new-product-fields" style="display:none;border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:12px;background:var(--surface2)">
+          <p style="font-size:.78rem;color:var(--accent);margin-bottom:8px;font-weight:600">Nuevo producto</p>
+          <div class="form-row">
+            <label>Nombre</label>
+            <input type="text" id="tx-new-name" placeholder="Ej: iShares MSCI World" onblur="autoFillTxRegion()" />
+          </div>
+          <div class="tx-form-grid">
+            <div class="form-row" style="margin-bottom:0">
+              <label>ISIN / Ticker</label>
+              <input type="text" id="tx-new-isin" placeholder="IE00..." onblur="autoFillTxRegion()" />
+            </div>
+            <div class="form-row" style="margin-bottom:0">
+              <label>Tipo de activo</label>
+              <select id="tx-new-tipo">
+                <option value="RV">Renta Variable</option>
+                <option value="RF">Renta Fija</option>
+                <option value="MIX">Mixto</option>
+                <option value="ALT">Alternativo</option>
+                <option value="PP">Plan de Pensiones</option>
+                <option value="CASH">Liquidez</option>
+              </select>
+            </div>
+            <div class="form-row span-2" style="margin-bottom:0">
+              <label>Broker / Plataforma</label>
+              <input type="text" id="tx-new-broker" placeholder="MyInvestor, XTB..." />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tx-form-section">
+        <div class="tx-form-section-title">2. Operación</div>
+        <div class="form-row" id="tx-side-row" style="margin-bottom:12px">
+          <label>Tipo de operación</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn btn-secondary" id="tx-side-buy" onclick="setTxSide('buy')" style="flex:1">▲ Compra / Aportación</button>
+            <button type="button" class="btn btn-secondary" id="tx-side-sell" onclick="setTxSide('sell')" style="flex:1">▼ Venta / Retiro</button>
+          </div>
+          <div id="tx-sell-hint" style="display:none;font-size:.75rem;color:var(--accent2);margin-top:6px">Indica las participaciones (o euros) a vender, el precio, la comisión y la retención. La venta de fondos consume lotes por <strong>FIFO</strong> (España).</div>
+        </div>
+        <div class="tx-form-grid" id="tx-standard-trade-fields">
+          <div class="form-row" id="tx-qty-row" style="margin-bottom:0">
+            <label id="tx-qty-label">Cantidad comprada</label>
+            <input type="number" id="tx-qty" min="0" step="0.000001" placeholder="0" oninput="onTxQtyInput()" />
+          </div>
+          <div class="form-row" id="tx-price-row" style="margin-bottom:0">
+            <label id="tx-price-label">Valor de mercado por unidad (€)</label>
+            <input type="number" id="tx-price" min="0" step="0.0001" placeholder="0.00" oninput="onTxQtyInput()" />
+          </div>
+          <div class="form-row span-2" id="tx-btc-price-row" style="display:none;margin-bottom:0">
+            <label id="tx-btc-price-label">Valor BTC (€/BTC)</label>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <input type="number" id="tx-btc-price" min="0" step="0.01" placeholder="0.00" oninput="onTxQtyInput()" style="flex:1;min-width:120px" />
+              <button class="btn btn-secondary" type="button" onclick="fetchBtcPriceForTransaction()" style="white-space:nowrap">Buscar BTC/EUR</button>
+            </div>
+            <div id="tx-btc-price-status" style="margin-top:6px;font-size:.75rem;color:var(--muted)"></div>
+          </div>
+          <div class="form-row" id="tx-fee-row" style="margin-bottom:0">
+            <label>Comisión (€)</label>
+            <input type="number" id="tx-fee" min="0" step="0.01" value="0" oninput="onTxQtyInput()" />
+          </div>
+          <div class="form-row" id="tx-retention-row" style="display:none;margin-bottom:0">
+            <label>Retención (€)</label>
+            <input type="number" id="tx-retention" min="0" step="0.01" value="0" oninput="onTxQtyInput()" />
+          </div>
+        </div>
+        <div id="tx-fifo-panel" style="display:none;margin:12px 0 0;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface2)"></div>
+        <p id="tx-aportacion-hint" style="display:none;font-size:.78rem;color:var(--accent2);margin:10px 0 0">Cartera Indie: escribe solo el importe en euros en <strong>Cantidad comprada</strong>. No hace falta precio ni participaciones.</p>
+      </div>
+
+      <div class="tx-form-section">
+        <div class="tx-form-section-title">3. Fecha y notas</div>
+        <div class="form-row">
+          <label id="tx-datetime-label">Fecha y hora de la operación</label>
+          <div class="tx-datetime-row">
+            <div class="tx-date-group">
+              <input type="text" id="tx-date" placeholder="dd/mm/aaaa" inputmode="numeric" oninput="onTxDateTimeChange()" />
+              <span class="tx-date-calendar-wrap" title="Elegir fecha en calendario" role="button" tabindex="0">
+                <span class="btn btn-secondary tx-date-calendar-btn" aria-hidden="true">📅</span>
+                <input type="date" id="tx-date-picker" class="tx-date-picker-hidden" tabindex="-1" aria-hidden="true" />
+              </span>
+            </div>
+            <input type="time" id="tx-time" step="60" oninput="onTxDateTimeChange()" />
+          </div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:4px">Formato <strong>día/mes/año</strong> (ej. 08/07/2026).</div>
+        </div>
+        <div class="form-row" style="margin-bottom:0">
+          <label>Notas (opcional)</label>
+          <textarea id="tx-note" placeholder="Detalles del movimiento..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="tx-modal-footer">
+      <button class="btn btn-danger" type="button" onclick="deleteTransactionProduct()">Eliminar producto</button>
+      <div style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap">
+        <button class="btn btn-secondary" type="button" onclick="closeTxModal()">Cancelar</button>
+        <button class="btn btn-primary" type="button" id="tx-save-btn" onclick="saveInvestmentTransaction()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL EDICIÓN -->
 <div id="modal-overlay">
@@ -4979,6 +5068,40 @@ function applyTransactionToPosition(tx, sign = 1) {
   if (tx.managementType) pos.managementType = tx.managementType;
 }
 
+function openTxModal(opts = {}) {
+  const { reset = true, title } = opts;
+  const sel = document.getElementById('tx-product-select');
+  const prevProduct = sel?.value || '';
+  if (reset) resetTransactionForm();
+  const overlay = document.getElementById('tx-modal-overlay');
+  const titleEl = document.getElementById('tx-modal-title');
+  if (titleEl) {
+    titleEl.textContent = title
+      || ((editingTransactionId || editingVirtualId) ? 'Editar movimiento' : 'Nuevo movimiento');
+  }
+  const saveBtn = document.getElementById('tx-save-btn');
+  if (saveBtn && !saveBtn.dataset.saving) {
+    saveBtn.textContent = (editingTransactionId || editingVirtualId) ? 'Guardar cambios' : 'Guardar';
+  }
+  populateTransactionProductSelect();
+  if (!reset && prevProduct && sel) {
+    sel.value = prevProduct;
+  }
+  updateTxFormFields();
+  bindTxDatePicker();
+  if (overlay) overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeTxModal() {
+  const overlay = document.getElementById('tx-modal-overlay');
+  if (overlay) overlay.classList.remove('open');
+  document.body.style.overflow = '';
+  if (!(document.getElementById('tx-save-btn')?.dataset?.saving === '1')) {
+    resetTransactionForm();
+  }
+}
+
 function resetTransactionForm() {
   editingTransactionId = null;
   editingOriginalTx = null;
@@ -5164,6 +5287,7 @@ async function saveInvestmentTransaction() {
       onTxProductChange();
     }
     resetTransactionForm();
+    closeTxModal();
 
     renderTransacciones();
     const activeView = document.querySelector('.nav-item.active')?.dataset?.view || 'resumen';
@@ -5277,7 +5401,7 @@ function editInvestmentTransaction(id) {
   setTxDateTimeInputs(tx.datetime);
   document.getElementById('tx-note').value = tx.note || '';
   updateTxFifoPanel();
-  document.getElementById('view-transacciones').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  openTxModal({ reset: false, title: 'Editar movimiento' });
 }
 
 function deleteInvestmentTransaction(id) {
@@ -5296,6 +5420,7 @@ function deleteInvestmentTransaction(id) {
 
   if (String(editingTransactionId) === String(id) || String(editingVirtualId) === String(id)) {
     resetTransactionForm();
+    closeTxModal();
   }
   savePositions(positions);
   renderTransacciones();
@@ -5348,14 +5473,22 @@ function groupTransactionsForHistory(rows, mode) {
       key = tx.sector || 'Sin sector';
       label = key;
     }
-    if (!map.has(key)) map.set(key, { key, label, rows: [] });
-    map.get(key).rows.push(tx);
+    if (!map.has(key)) map.set(key, { key, label, rows: [], latest: '' });
+    const g = map.get(key);
+    g.rows.push(tx);
+    const dt = String(tx.datetime || '');
+    if (dt > g.latest) g.latest = dt;
   });
   const groups = [...map.values()];
   if (mode === 'month') {
     groups.sort((a, b) => b.key.localeCompare(a.key));
   } else {
-    groups.sort((a, b) => String(a.label).localeCompare(String(b.label), 'es'));
+    // Sectores con movimientos más recientes primero (evita que queden ocultos abajo)
+    groups.sort((a, b) => {
+      const byDate = String(b.latest || '').localeCompare(String(a.latest || ''));
+      if (byDate) return byDate;
+      return String(a.label).localeCompare(String(b.label), 'es');
+    });
   }
   return groups;
 }
@@ -5857,6 +5990,22 @@ function deletePosition() {
 // Close modal on overlay click
 document.getElementById('modal-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const txOverlay = document.getElementById('tx-modal-overlay');
+  if (txOverlay?.classList.contains('open')) {
+    closeTxModal();
+    return;
+  }
+  const criptoOverlay = document.getElementById('cripto-modal-overlay');
+  if (criptoOverlay?.classList.contains('open')) {
+    closeCriptoModal();
+    return;
+  }
+  const posOverlay = document.getElementById('modal-overlay');
+  if (posOverlay?.classList.contains('open')) closeModal();
 });
 
 // ─────────────────────────────────────────────
