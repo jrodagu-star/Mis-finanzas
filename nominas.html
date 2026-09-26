@@ -36,6 +36,31 @@
     .sidebar-links { padding: 10px 8px; }
     .sidebar-link { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 6px; font-size: .78rem; color: var(--muted); text-decoration: none; }
     .sidebar-link:hover { color: var(--text); background: var(--surface2); }
+    .nav-toggle {
+      display: none; align-items: center; justify-content: center;
+      width: 40px; height: 40px; flex: 0 0 auto;
+      border: 1px solid var(--border); border-radius: 10px;
+      background: var(--surface2); color: var(--text);
+      font-size: 1.25rem; line-height: 1; cursor: pointer; padding: 0;
+    }
+    .nav-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 250; }
+    .topbar-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .topbar-left h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    @media (max-width: 900px) {
+      .nav-toggle { display: inline-flex; }
+      #sidebar {
+        position: fixed; left: 0; top: 0; bottom: 0;
+        width: min(86vw, 300px); min-width: 0;
+        transform: translateX(-105%); transition: transform .22s ease;
+        z-index: 300; box-shadow: none;
+      }
+      body.nav-open #sidebar { transform: translateX(0); box-shadow: 10px 0 40px rgba(0,0,0,.45); }
+      body.nav-open .nav-backdrop { display: block; }
+      body.nav-open { overflow: hidden; }
+      #topbar { padding: 10px 12px; }
+      #topbar h1 { font-size: .95rem; }
+      #content { padding: 14px; }
+    }
 
     #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
     #topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 11px 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -129,6 +154,8 @@
 </head>
 <body>
 
+<div id="nav-backdrop" class="nav-backdrop" onclick="closeMobileNav()"></div>
+
 <!-- SIDEBAR -->
 <nav id="sidebar">
   <div class="sidebar-logo">💼 Nóminas</div>
@@ -149,8 +176,11 @@
 <!-- MAIN -->
 <div id="main">
   <div id="topbar">
-    <h1 id="page-title">Resumen de Nóminas</h1>
-    <div style="display:flex;align-items:center;gap:10px">
+    <div class="topbar-left">
+      <button type="button" id="btn-nav-toggle" class="nav-toggle" onclick="toggleMobileNav()" aria-label="Abrir menú" aria-expanded="false">☰</button>
+      <h1 id="page-title">Resumen de Nóminas</h1>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <button class="add-btn" type="button" onclick="chooseImportPdf()">⬆ Importar PDF</button>
       <input type="file" id="import-nomina-file" accept=".pdf,application/pdf" style="display:none" />
       <button class="add-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text)" onclick="exportarTodo()" title="Exportar todos los datos a JSON">⬇ Exportar</button>
@@ -1012,7 +1042,24 @@ document.querySelectorAll('.nav-item[data-view]').forEach(el => {
     if (activeView === 'resumen')   renderResumen();
     if (activeView === 'lista')     renderLista();
     if (activeView === 'ganancias') renderGanancias();
+    closeMobileNav();
   });
+});
+
+function toggleMobileNav(force) {
+  const open = force === true ? true : force === false ? false : !document.body.classList.contains('nav-open');
+  document.body.classList.toggle('nav-open', open);
+  const btn = document.getElementById('btn-nav-toggle');
+  if (btn) {
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.setAttribute('aria-label', open ? 'Cerrar menú' : 'Abrir menú');
+    btn.textContent = open ? '✕' : '☰';
+  }
+}
+function closeMobileNav() { toggleMobileNav(false); }
+document.querySelectorAll('#sidebar a').forEach(a => a.addEventListener('click', () => closeMobileNav()));
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.body.classList.contains('nav-open')) closeMobileNav();
 });
 
 // ─────────────────────────────────────────────

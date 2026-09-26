@@ -32,6 +32,32 @@
     .nav-item.active { background: var(--accent); color: #fff; }
     .nav-item .icon { font-size: 1rem; width: 20px; text-align: center; }
     .sidebar-footer { margin-top: auto; padding: 14px 12px; border-top: 1px solid var(--border); font-size: .72rem; color: var(--muted); text-align: center; }
+    .nav-toggle {
+      display: none; align-items: center; justify-content: center;
+      width: 40px; height: 40px; flex: 0 0 auto;
+      border: 1px solid var(--border); border-radius: 10px;
+      background: var(--surface2); color: var(--text);
+      font-size: 1.25rem; line-height: 1; cursor: pointer; padding: 0;
+    }
+    .nav-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 250; }
+    .topbar-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .topbar-left h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    @media (max-width: 900px) {
+      .nav-toggle { display: inline-flex; }
+      #sidebar {
+        position: fixed; left: 0; top: 0; bottom: 0;
+        width: min(86vw, 300px); min-width: 0;
+        transform: translateX(-105%); transition: transform .22s ease;
+        z-index: 300; box-shadow: none;
+      }
+      body.nav-open #sidebar { transform: translateX(0); box-shadow: 10px 0 40px rgba(0,0,0,.45); }
+      body.nav-open .nav-backdrop { display: block; }
+      body.nav-open { overflow: hidden; }
+      #topbar { padding: 10px 12px; }
+      #topbar h1 { font-size: .95rem; }
+      #content { padding: 14px; }
+      .cols2 { grid-template-columns: 1fr; }
+    }
 
     #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
     #topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 11px 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -159,6 +185,8 @@
 </head>
 <body>
 
+<div id="nav-backdrop" class="nav-backdrop" onclick="closeMobileNav()"></div>
+
 <nav id="sidebar">
   <div class="sidebar-logo">🏛️ Hacienda</div>
   <div class="sidebar-section">Declaraciones</div>
@@ -173,7 +201,10 @@
 
 <div id="main">
   <div id="topbar">
-    <h1>🏛️ Declaraciones IRPF — Jorge A. Rodríguez Aguirregabiria</h1>
+    <div class="topbar-left">
+      <button type="button" id="btn-nav-toggle" class="nav-toggle" onclick="toggleMobileNav()" aria-label="Abrir menú" aria-expanded="false">☰</button>
+      <h1>🏛️ Declaraciones IRPF</h1>
+    </div>
   </div>
 
   <div id="content">
@@ -562,6 +593,22 @@
 </div>
 
 <script>
+function toggleMobileNav(force) {
+  const open = force === true ? true : force === false ? false : !document.body.classList.contains('nav-open');
+  document.body.classList.toggle('nav-open', open);
+  const btn = document.getElementById('btn-nav-toggle');
+  if (btn) {
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.setAttribute('aria-label', open ? 'Cerrar menú' : 'Abrir menú');
+    btn.textContent = open ? '✕' : '☰';
+  }
+}
+function closeMobileNav() { toggleMobileNav(false); }
+document.querySelectorAll('#sidebar a').forEach(a => a.addEventListener('click', () => closeMobileNav()));
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.body.classList.contains('nav-open')) closeMobileNav();
+});
+
 function showYear(y) {
   ['2024','2025','cmp'].forEach(id => {
     document.getElementById('panel-' + id).classList.toggle('active', id === y);

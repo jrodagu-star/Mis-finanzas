@@ -410,13 +410,57 @@
     }
     .tag.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
+    .nav-toggle {
+      display: none;
+      align-items: center; justify-content: center;
+      width: 40px; height: 40px; flex: 0 0 auto;
+      border: 1px solid var(--border); border-radius: 10px;
+      background: var(--surface2); color: var(--text);
+      font-size: 1.25rem; line-height: 1; cursor: pointer; padding: 0;
+    }
+    .nav-backdrop {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.55);
+      z-index: 250;
+    }
+    .topbar-left {
+      display: flex; align-items: center; gap: 10px; min-width: 0;
+    }
+    .topbar-left h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
     @media (max-width: 900px) {
       .chart-grid.cols2, .chart-grid.cols3 { grid-template-columns: 1fr; }
-      #sidebar { width: 60px; min-width: 60px; }
-      .nav-item span:not(.icon) { display: none; }
-      .sidebar-logo .logo-text { display: none; }
-      .filter-panel { display: none; }
-      .sidebar-section { display: none; }
+      .nav-toggle { display: inline-flex; }
+      #sidebar {
+        position: fixed; left: 0; top: 0; bottom: 0;
+        width: min(86vw, 300px); min-width: 0;
+        transform: translateX(-105%);
+        transition: transform .22s ease;
+        z-index: 300;
+        box-shadow: none;
+        border-right: 1px solid var(--border);
+      }
+      body.nav-open #sidebar {
+        transform: translateX(0);
+        box-shadow: 10px 0 40px rgba(0,0,0,.45);
+      }
+      body.nav-open .nav-backdrop { display: block; }
+      .nav-item span:not(.icon),
+      .sidebar-logo .logo-text,
+      .sidebar-section,
+      .filter-panel { display: revert; }
+      .filter-panel { display: block; }
+      .sidebar-section { display: block; }
+      #topbar { padding: 10px 12px; gap: 8px; }
+      #topbar h1 { font-size: .95rem; }
+      #content { padding: 14px; }
+      body { overflow: hidden; }
+      body.nav-open { overflow: hidden; }
+    }
+
+    @media (max-width: 480px) {
+      #topbar .date { display: none; }
     }
 
     /* ── FISCALIDAD CRIPTO ── */
@@ -437,6 +481,8 @@
   </style>
 </head>
 <body>
+
+<div id="nav-backdrop" class="nav-backdrop" onclick="closeMobileNav()"></div>
 
 <!-- SIDEBAR -->
 <nav id="sidebar">
@@ -514,8 +560,11 @@
 <!-- MAIN -->
 <div id="main">
   <div id="topbar">
-    <h1 id="page-title">Resumen de Cartera</h1>
-    <div style="display:flex;align-items:center;gap:8px">
+    <div class="topbar-left">
+      <button type="button" id="btn-nav-toggle" class="nav-toggle" onclick="toggleMobileNav()" aria-label="Abrir menú" aria-expanded="false">☰</button>
+      <h1 id="page-title">Resumen de Cartera</h1>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
       <div class="date" id="topbar-date"></div>
       <button onclick="exportarTodo()" title="Exportar todos los datos a JSON" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer">⬇ Exportar</button>
       <label style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer" title="Restaurar backup completo exportado desde Finanzas (.json)">⬆ Importar backup<input type="file" accept=".json" style="display:none" onchange="importarTodo(this)"/></label>
@@ -1604,7 +1653,27 @@ document.querySelectorAll('.nav-item').forEach(item => {
     document.getElementById('page-title').textContent = VIEW_TITLES[view] || view;
     renderView(view);
     requestAnimationFrame(resizeAllCharts);
+    closeMobileNav();
   });
+});
+
+function toggleMobileNav(force) {
+  const open = force === true ? true : force === false ? false : !document.body.classList.contains('nav-open');
+  document.body.classList.toggle('nav-open', open);
+  const btn = document.getElementById('btn-nav-toggle');
+  if (btn) {
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.setAttribute('aria-label', open ? 'Cerrar menú' : 'Abrir menú');
+    btn.textContent = open ? '✕' : '☰';
+  }
+}
+
+function closeMobileNav() {
+  toggleMobileNav(false);
+}
+
+document.querySelectorAll('#sidebar a').forEach(a => {
+  a.addEventListener('click', () => closeMobileNav());
 });
 
 // ─────────────────────────────────────────────
@@ -5994,6 +6063,10 @@ document.getElementById('modal-overlay').addEventListener('click', e => {
 
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
+  if (document.body.classList.contains('nav-open')) {
+    closeMobileNav();
+    return;
+  }
   const txOverlay = document.getElementById('tx-modal-overlay');
   if (txOverlay?.classList.contains('open')) {
     closeTxModal();
