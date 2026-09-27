@@ -183,7 +183,21 @@
       background: rgba(108,99,255,.1);
     }
     .detalle-pos-card.closed { opacity: .72; }
+    .detalle-pos-card.pos-active {
+      border-color: rgba(34,197,94,.45);
+      box-shadow: inset 3px 0 0 var(--green);
+    }
+    .detalle-pos-card.pos-inactive {
+      border-color: rgba(239,68,68,.4);
+      box-shadow: inset 3px 0 0 var(--red);
+    }
+    .detalle-pos-card.pos-active .detalle-pos-name { color: var(--green); }
+    .detalle-pos-card.pos-inactive .detalle-pos-name { color: var(--red); }
     .detalle-pos-name { font-size: .8rem; font-weight: 600; line-height: 1.3; margin-bottom: 6px; }
+    .tx-mode-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .tx-mode-btns .btn { flex: 1; min-width: 110px; font-size: .78rem; padding: 7px 10px; }
+    option.pos-active-opt { color: #22c55e; }
+    option.pos-inactive-opt { color: #ef4444; }
     .detalle-pos-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
     .detalle-pos-value { font-size: .92rem; font-weight: 700; }
     .detalle-pos-gp { font-size: .72rem; font-weight: 600; }
@@ -915,7 +929,7 @@
     <div class="tx-modal-header">
       <div>
         <h3 id="tx-modal-title">Nuevo movimiento</h3>
-        <p>Compra, venta o aportación para actualizar tu cartera.</p>
+        <p id="tx-modal-subtitle">Compra, venta, aportación o traspaso entre fondos.</p>
       </div>
       <button type="button" class="btn btn-secondary" onclick="closeTxModal()" style="padding:6px 12px" aria-label="Cerrar">✕</button>
     </div>
@@ -1033,8 +1047,18 @@
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button type="button" class="btn btn-secondary" id="tx-side-buy" onclick="setTxSide('buy')" style="flex:1">▲ Compra / Aportación</button>
             <button type="button" class="btn btn-secondary" id="tx-side-sell" onclick="setTxSide('sell')" style="flex:1">▼ Venta / Retiro</button>
+            <button type="button" class="btn btn-secondary" id="tx-side-transfer" onclick="setTxSide('transfer')" style="flex:1">⇄ Traspaso</button>
           </div>
           <div id="tx-sell-hint" style="display:none;font-size:.75rem;color:var(--accent2);margin-top:6px">Indica las participaciones (o euros) a vender, el precio, la comisión y la retención. La venta de fondos consume lotes por <strong>FIFO</strong> (España).</div>
+          <div id="tx-transfer-hint" style="display:none;font-size:.75rem;color:var(--accent2);margin-top:6px">Elige cómo indicar la cantidad: participaciones, valor unitario o importe en euros. El coste fiscal se traspasa por <strong>FIFO</strong> al fondo destino (sin plusvalía).</div>
+        </div>
+        <div id="tx-transfer-mode-row" class="form-row" style="display:none;margin-bottom:12px">
+          <label>Cantidad traspasada</label>
+          <div class="tx-mode-btns">
+            <button type="button" class="btn btn-secondary" id="tx-xfer-mode-units" onclick="setTxTransferMode('units')">Nº participaciones</button>
+            <button type="button" class="btn btn-secondary" id="tx-xfer-mode-price" onclick="setTxTransferMode('price')">Valor unitario</button>
+            <button type="button" class="btn btn-secondary" id="tx-xfer-mode-amount" onclick="setTxTransferMode('amount')">Importe (€)</button>
+          </div>
         </div>
         <div class="tx-form-grid" id="tx-standard-trade-fields">
           <div class="form-row" id="tx-qty-row" style="margin-bottom:0">
@@ -1044,6 +1068,10 @@
           <div class="form-row" id="tx-price-row" style="margin-bottom:0">
             <label id="tx-price-label">Valor de mercado por unidad (€)</label>
             <input type="number" id="tx-price" min="0" step="0.0001" placeholder="0.00" oninput="onTxQtyInput()" />
+          </div>
+          <div class="form-row" id="tx-amount-row" style="display:none;margin-bottom:0">
+            <label id="tx-amount-label">Importe traspasado (€)</label>
+            <input type="number" id="tx-amount" min="0" step="0.01" placeholder="0.00" oninput="onTxTransferAmountInput()" />
           </div>
           <div class="form-row span-2" id="tx-btc-price-row" style="display:none;margin-bottom:0">
             <label id="tx-btc-price-label">Valor BTC (€/BTC)</label>
@@ -1060,6 +1088,47 @@
           <div class="form-row" id="tx-retention-row" style="display:none;margin-bottom:0">
             <label>Retención (€)</label>
             <input type="number" id="tx-retention" min="0" step="0.01" value="0" oninput="onTxQtyInput()" />
+          </div>
+        </div>
+        <div id="tx-transfer-calc" style="display:none;margin-top:10px;font-size:.78rem;color:var(--muted)"></div>
+        <div id="tx-dest-section" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+          <div class="tx-form-section-title" style="margin-bottom:10px">Fondo destino</div>
+          <div class="form-row">
+            <label>Traspasar a</label>
+            <select id="tx-dest-select" onchange="onTxDestChange()"></select>
+          </div>
+          <div class="form-row" id="tx-dest-price-row" style="margin-bottom:0">
+            <label>Valor unitario destino (€) — opcional</label>
+            <input type="number" id="tx-dest-price" min="0" step="0.0001" placeholder="Si lo dejas vacío, se usan las mismas participaciones" oninput="updateTxTransferCalc()" />
+            <div style="font-size:.72rem;color:var(--muted);margin-top:4px">Si lo indicas, las participaciones destino = importe ÷ valor unitario destino.</div>
+          </div>
+          <div id="tx-dest-new-fields" style="display:none;border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:12px;background:var(--surface2)">
+            <p style="font-size:.78rem;color:var(--accent);margin-bottom:8px;font-weight:600">Nuevo producto destino</p>
+            <div class="form-row">
+              <label>Nombre</label>
+              <input type="text" id="tx-dest-new-name" placeholder="Ej: Amundi MSCI World" />
+            </div>
+            <div class="tx-form-grid">
+              <div class="form-row" style="margin-bottom:0">
+                <label>ISIN / Ticker</label>
+                <input type="text" id="tx-dest-new-isin" placeholder="IE00..." />
+              </div>
+              <div class="form-row" style="margin-bottom:0">
+                <label>Tipo de activo</label>
+                <select id="tx-dest-new-tipo">
+                  <option value="RV">Renta Variable</option>
+                  <option value="RF">Renta Fija</option>
+                  <option value="MIX">Mixto</option>
+                  <option value="ALT">Alternativo</option>
+                  <option value="PP">Plan de Pensiones</option>
+                  <option value="CASH">Liquidez</option>
+                </select>
+              </div>
+              <div class="form-row span-2" style="margin-bottom:0">
+                <label>Broker / Plataforma</label>
+                <input type="text" id="tx-dest-new-broker" placeholder="MyInvestor, XTB..." />
+              </div>
+            </div>
           </div>
         </div>
         <div id="tx-fifo-panel" style="display:none;margin:12px 0 0;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface2)"></div>
@@ -1485,7 +1554,9 @@ let editId = null;
 let editingTransactionId = null;
 let editingOriginalTx = null;
 let editingVirtualId = null;
-let txSide = 'buy'; // 'buy' | 'sell'
+let txSide = 'buy'; // 'buy' | 'sell' | 'transfer'
+let txTransferMode = 'units'; // 'units' | 'price' | 'amount'
+let _txTransferSyncing = false;
 let hiddenVirtualTxIds = loadHiddenVirtualTxIds();
 let txTableSort = { key: 'datetime', dir: 'desc' };
 let chartInstances = {};
@@ -3992,16 +4063,23 @@ function isDetalleAntigua(pos) {
   return (Number(pos?.value) || 0) < 1;
 }
 
+function isPositionActive(pos) {
+  if (!pos) return false;
+  return !isDetalleAntigua(pos);
+}
+
 function renderDetallePosCard(p, { antigua = false } = {}) {
   const g = pnl(p);
   const closed = antigua || ((Number(p.value) || 0) < 0.01 && (Number(p.cost) || 0) < 0.01);
-  return `<div class="detalle-pos-card${closed ? ' closed' : ''}" id="detalle-card-${p.id}" onclick="selectDetallePosition(${p.id})">
+  const active = isPositionActive(p) && !antigua;
+  const statusClass = active ? 'pos-active' : 'pos-inactive';
+  return `<div class="detalle-pos-card ${statusClass}${closed ? ' closed' : ''}" id="detalle-card-${p.id}" onclick="selectDetallePosition(${p.id})">
         <div class="detalle-pos-name">${p.name}</div>
         <div class="detalle-pos-row">
           <span class="detalle-pos-value">${fmt(p.value)}</span>
           <span class="detalle-pos-gp" style="color:${g>=0?'var(--green)':'var(--red)'}">${pct(pnlPct(p))}</span>
         </div>
-        <div class="detalle-pos-sub">${p.broker || '–'}${antigua ? ' · cerrada' : ''} · ${TYPE_LABELS[p.tipo] || p.tipo}</div>
+        <div class="detalle-pos-sub">${p.broker || '–'}${antigua || !active ? ' · inactivo' : ' · activo'} · ${TYPE_LABELS[p.tipo] || p.tipo}</div>
       </div>`;
 }
 
@@ -4073,21 +4151,66 @@ function populateTransactionProductSelect() {
   const sel = document.getElementById('tx-product-select');
   if (!sel) return;
   const current = sel.value || '';
+  const allowNew = txSide !== 'transfer';
   sel.innerHTML = '<option value="">Selecciona un producto...</option>';
   positions
     .slice()
-    .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+    .sort((a, b) => {
+      const aa = isPositionActive(a) ? 0 : 1;
+      const bb = isPositionActive(b) ? 0 : 1;
+      if (aa !== bb) return aa - bb;
+      return a.name.localeCompare(b.name, 'es');
+    })
     .forEach(p => {
       const opt = document.createElement('option');
       opt.value = String(p.id);
-      opt.textContent = p.name;
+      const active = isPositionActive(p);
+      opt.textContent = `${active ? '●' : '○'} ${p.name}`;
+      opt.className = active ? 'pos-active-opt' : 'pos-inactive-opt';
+      opt.style.color = active ? '#22c55e' : '#ef4444';
+      sel.appendChild(opt);
+    });
+  if (allowNew) {
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '➕ Añadir producto nuevo';
+    sel.appendChild(newOpt);
+  }
+  if (current && [...sel.options].some(o => o.value === current)) sel.value = current;
+  populateTxDestSelect();
+}
+
+function populateTxDestSelect() {
+  const sel = document.getElementById('tx-dest-select');
+  if (!sel) return;
+  const current = sel.value || '';
+  const sourceId = document.getElementById('tx-product-select')?.value;
+  sel.innerHTML = '<option value="">Selecciona fondo destino...</option>';
+  positions
+    .slice()
+    .sort((a, b) => {
+      const aa = isPositionActive(a) ? 0 : 1;
+      const bb = isPositionActive(b) ? 0 : 1;
+      if (aa !== bb) return aa - bb;
+      return a.name.localeCompare(b.name, 'es');
+    })
+    .forEach(p => {
+      if (sourceId && String(p.id) === String(sourceId)) return;
+      const opt = document.createElement('option');
+      opt.value = String(p.id);
+      const active = isPositionActive(p);
+      opt.textContent = `${active ? '●' : '○'} ${p.name}`;
+      opt.className = active ? 'pos-active-opt' : 'pos-inactive-opt';
+      opt.style.color = active ? '#22c55e' : '#ef4444';
       sel.appendChild(opt);
     });
   const newOpt = document.createElement('option');
   newOpt.value = '__new__';
-  newOpt.textContent = '➕ Añadir producto nuevo';
+  newOpt.textContent = '➕ Nuevo producto destino';
   sel.appendChild(newOpt);
   if (current && [...sel.options].some(o => o.value === current)) sel.value = current;
+  else if (current === '__new__') sel.value = '__new__';
+  onTxDestChange();
 }
 
 function inferSectorFromPosition(pos) {
@@ -4459,11 +4582,26 @@ function isAportacionProduct(pos) {
 
 function isSellTx(tx) {
   if (!tx) return false;
+  if (tx.side === 'transfer_in') return false;
+  if (tx.side === 'transfer_out') return true;
   if (tx.side === 'sell' || tx.isSell) return true;
   if (tx.tipo === 'VENTA') return true;
   if (Number(tx.qty) < 0) return true;
   if (Number(tx.gross) < 0 || Number(tx.totalCost) < 0) return true;
   return false;
+}
+
+function isTransferTx(tx) {
+  if (!tx) return false;
+  return !!(tx.isTransfer || tx.side === 'transfer_out' || tx.side === 'transfer_in');
+}
+
+function isTransferOutTx(tx) {
+  return !!(tx && (tx.side === 'transfer_out' || (tx.isTransfer && isSellTx(tx))));
+}
+
+function isTransferInTx(tx) {
+  return !!(tx && (tx.side === 'transfer_in' || (tx.isTransfer && !isSellTx(tx) && tx.transferFromId != null)));
 }
 
 function txDateTimeSortKey(value) {
@@ -4486,6 +4624,11 @@ function formatUnitsDisplay(n) {
 
 function getEditingTxExcludeId() {
   if (editingVirtualId) return editingVirtualId;
+  if (editingOriginalTx && isTransferTx(editingOriginalTx)) {
+    const pair = findTransferPair(editingOriginalTx);
+    const out = pair.find(t => isTransferOutTx(t));
+    if (out) return out.id;
+  }
   if (editingTransactionId != null) return editingTransactionId;
   return null;
 }
@@ -4582,7 +4725,7 @@ function updateTxFifoPanel() {
   if (!panel) return;
   const pos = selectedPositionForTx();
   const isAport = isAportacionProduct(pos);
-  const isSell = txSide === 'sell';
+  const isSell = txSide === 'sell' || txSide === 'transfer';
   if (!isSell || !pos || isAport) {
     panel.style.display = 'none';
     panel.innerHTML = '';
@@ -4592,10 +4735,12 @@ function updateTxFifoPanel() {
   const asOf = getTxDateTimeFromInputs();
   const excludeId = getEditingTxExcludeId();
   const { lots, availableQty } = buildFifoOpenLots(pos.id, { excludeId, asOf: asOf || null });
-  const qty = parseFloat(document.getElementById('tx-qty')?.value) || 0;
+  const qty = txSide === 'transfer'
+    ? (getTxTransferValues().qty || 0)
+    : (parseFloat(document.getElementById('tx-qty')?.value) || 0);
   const price = getTxUnitPriceFromForm(pos);
   const fee = parseFloat(document.getElementById('tx-fee')?.value) || 0;
-  const retention = parseFloat(document.getElementById('tx-retention')?.value) || 0;
+  const retention = txSide === 'sell' ? (parseFloat(document.getElementById('tx-retention')?.value) || 0) : 0;
   const preview = qty > 0 ? consumeFifoLots(lots, qty) : null;
   const asOfLabel = asOf ? formatTxDateTime(asOf) : 'hoy (indica fecha)';
   const lotRows = lots.length
@@ -4617,10 +4762,12 @@ function updateTxFifoPanel() {
     const gs = gain >= 0 ? '+' : '';
     const lotDates = [...new Set(preview.lotsUsed.map(l => formatTxDateTime(l.datetime)))].join(' · ');
     consumeHtml = `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:.78rem">
-      <div><strong>Consumo FIFO de esta venta:</strong> ${formatUnitsDisplay(preview.filledQty)} part. · coste ${fmt(preview.costBasis)}${preview.unfilledQty > 1e-9 ? ` <span style="color:var(--red)">(faltan ${formatUnitsDisplay(preview.unfilledQty)})</span>` : ''}</div>
+      <div><strong>${txSide === 'transfer' ? 'Coste FIFO del traspaso' : 'Consumo FIFO de esta venta'}:</strong> ${formatUnitsDisplay(preview.filledQty)} part. · coste ${fmt(preview.costBasis)}${preview.unfilledQty > 1e-9 ? ` <span style="color:var(--red)">(faltan ${formatUnitsDisplay(preview.unfilledQty)})</span>` : ''}</div>
       <div style="color:var(--muted);margin-top:4px">Lotes: ${lotDates || '—'}</div>
-      ${price > 0 ? `<div style="margin-top:4px">Plusvalía / minusvalía est.: <strong style="color:${gc}">${gs}${fmt(gain)}</strong> <span style="color:var(--muted)">(bruto − comisión − coste FIFO)</span></div>
-      <div style="margin-top:2px;color:var(--muted)">Neto cobrado est.: <strong style="color:var(--text)">${fmt(netCash)}</strong> <span style="color:var(--muted)">(tras comisión y retención)</span></div>` : ''}
+      ${txSide === 'transfer'
+        ? `<div style="margin-top:4px;color:var(--accent2)">Este coste fiscal se traslada al fondo destino (sin plusvalía).</div>`
+        : (price > 0 ? `<div style="margin-top:4px">Plusvalía / minusvalía est.: <strong style="color:${gc}">${gs}${fmt(gain)}</strong> <span style="color:var(--muted)">(bruto − comisión − coste FIFO)</span></div>
+      <div style="margin-top:2px;color:var(--muted)">Neto cobrado est.: <strong style="color:var(--text)">${fmt(netCash)}</strong> <span style="color:var(--muted)">(tras comisión y retención)</span></div>` : '')}
     </div>`;
   }
 
@@ -4629,11 +4776,11 @@ function updateTxFifoPanel() {
     <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px">
       <div>
         <div style="font-weight:700;color:var(--text)">Participaciones disponibles (FIFO)</div>
-        <div style="font-size:.78rem;color:var(--muted);margin-top:2px">Hasta ${asOfLabel} · se venden primero las compras más antiguas</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-top:2px">Hasta ${asOfLabel} · se ${txSide === 'transfer' ? 'traspasan' : 'venden'} primero las compras más antiguas</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <div style="font-size:1.15rem;font-weight:800;font-family:monospace;color:var(--accent)">${formatUnitsDisplay(availableQty)}</div>
-        <button type="button" class="btn btn-secondary" style="padding:6px 10px;font-size:.78rem" onclick="sellAllAvailableUnits()" ${availableQty <= 1e-12 ? 'disabled' : ''}>Vender todas</button>
+        ${txSide === 'sell' ? `<button type="button" class="btn btn-secondary" style="padding:6px 10px;font-size:.78rem" onclick="sellAllAvailableUnits()" ${availableQty <= 1e-12 ? 'disabled' : ''}>Vender todas</button>` : `<button type="button" class="btn btn-secondary" style="padding:6px 10px;font-size:.78rem" onclick="transferAllAvailableUnits()" ${availableQty <= 1e-12 ? 'disabled' : ''}>Traspasar todas</button>`}
       </div>
     </div>
     <div style="overflow-x:auto">
@@ -4652,7 +4799,7 @@ function updateTxFifoPanel() {
 
 function sellAllAvailableUnits() {
   const pos = selectedPositionForTx();
-  if (!pos || isAportacionProduct(pos) || txSide !== 'sell') return;
+  if (!pos || isAportacionProduct(pos) || (txSide !== 'sell' && txSide !== 'transfer')) return;
   const asOf = getTxDateTimeFromInputs();
   const { availableQty } = buildFifoOpenLots(pos.id, {
     excludeId: getEditingTxExcludeId(),
@@ -4664,28 +4811,25 @@ function sellAllAvailableUnits() {
   }
   const qtyEl = document.getElementById('tx-qty');
   if (qtyEl) qtyEl.value = formatUnitsForInput(availableQty);
+  if (txSide === 'transfer') {
+    syncTxTransferFields('qty');
+    updateTxTransferCalc();
+  }
   updateTxFifoPanel();
 }
 
-function onTxQtyInput() {
-  if (txSide === 'sell') updateTxFifoPanel();
+function transferAllAvailableUnits() {
+  sellAllAvailableUnits();
 }
 
-function setTxSide(side) {
-  txSide = side === 'sell' ? 'sell' : 'buy';
-  const buyBtn = document.getElementById('tx-side-buy');
-  const sellBtn = document.getElementById('tx-side-sell');
-  if (buyBtn) {
-    buyBtn.style.background = txSide === 'buy' ? 'var(--accent)' : 'var(--surface2)';
-    buyBtn.style.color = txSide === 'buy' ? '#fff' : 'var(--text)';
+function onTxQtyInput() {
+  if (txSide === 'transfer') {
+    syncTxTransferFields(txTransferMode === 'amount' ? 'price' : txTransferMode === 'price' ? 'price' : 'qty');
+    updateTxTransferCalc();
+    updateTxFifoPanel();
+    return;
   }
-  if (sellBtn) {
-    sellBtn.style.background = txSide === 'sell' ? 'var(--red)' : 'var(--surface2)';
-    sellBtn.style.color = txSide === 'sell' ? '#fff' : 'var(--text)';
-  }
-  const sellHint = document.getElementById('tx-sell-hint');
-  if (sellHint) sellHint.style.display = txSide === 'sell' ? 'block' : 'none';
-  updateTxFormFields();
+  if (txSide === 'sell') updateTxFifoPanel();
 }
 
 function getTxUnitPriceFromForm(pos = selectedPositionForTx()) {
@@ -4695,20 +4839,222 @@ function getTxUnitPriceFromForm(pos = selectedPositionForTx()) {
   return parseFloat(document.getElementById('tx-price')?.value) || 0;
 }
 
+function onTxTransferAmountInput() {
+  if (txSide !== 'transfer') return;
+  syncTxTransferFields('amount');
+  updateTxTransferCalc();
+  updateTxFifoPanel();
+}
+
+function setTxTransferMode(mode) {
+  txTransferMode = (mode === 'price' || mode === 'amount') ? mode : 'units';
+  paintTxTransferModeButtons();
+  updateTxFormFields();
+}
+
+function paintTxTransferModeButtons() {
+  ['units', 'price', 'amount'].forEach(m => {
+    const btn = document.getElementById('tx-xfer-mode-' + m);
+    if (!btn) return;
+    const on = txTransferMode === m;
+    btn.style.background = on ? 'var(--accent)' : 'var(--surface2)';
+    btn.style.color = on ? '#fff' : 'var(--text)';
+  });
+}
+
+function syncTxTransferFields(changed) {
+  if (_txTransferSyncing || txSide !== 'transfer') return;
+  _txTransferSyncing = true;
+  try {
+    const qtyEl = document.getElementById('tx-qty');
+    const priceEl = document.getElementById('tx-price');
+    const amountEl = document.getElementById('tx-amount');
+    if (!qtyEl || !priceEl || !amountEl) return;
+    let qty = parseFloat(qtyEl.value) || 0;
+    let price = getTxUnitPriceFromForm();
+    let amount = parseFloat(amountEl.value) || 0;
+
+    if (changed === 'qty' || changed === 'price') {
+      if (qty > 0 && price > 0) {
+        amountEl.value = (qty * price).toFixed(2);
+      }
+    } else if (changed === 'amount') {
+      amount = parseFloat(amountEl.value) || 0;
+      if (amount > 0 && price > 0) {
+        qtyEl.value = formatUnitsForInput(amount / price);
+      } else if (amount > 0 && qty > 0 && !(parseFloat(priceEl.value) > 0)) {
+        const unit = amount / qty;
+        if (isBitcoinPosition(selectedPositionForTx())) {
+          const btcEl = document.getElementById('tx-btc-price');
+          if (btcEl) btcEl.value = unit.toFixed(2);
+        } else {
+          priceEl.value = unit.toFixed(4);
+        }
+      }
+    }
+  } finally {
+    _txTransferSyncing = false;
+  }
+}
+
+function getTxTransferValues() {
+  const pos = selectedPositionForTx();
+  const isAport = isAportacionProduct(pos);
+  let qty = parseFloat(document.getElementById('tx-qty')?.value) || 0;
+  let price = getTxUnitPriceFromForm(pos);
+  let amount = parseFloat(document.getElementById('tx-amount')?.value) || 0;
+
+  if (isAport) {
+    amount = parseFloat(document.getElementById('tx-qty')?.value) || amount || 0;
+    qty = 0;
+    price = 0;
+  } else if (txTransferMode === 'amount') {
+    amount = parseFloat(document.getElementById('tx-amount')?.value) || 0;
+    if (amount > 0 && price > 0) qty = amount / price;
+    else if (qty > 0 && price > 0) amount = qty * price;
+  } else if (txTransferMode === 'price') {
+    amount = parseFloat(document.getElementById('tx-amount')?.value) || 0;
+    if (amount > 0 && price > 0) qty = amount / price;
+    else if (qty > 0 && price > 0) amount = qty * price;
+  } else {
+    if (qty > 0 && price > 0) amount = qty * price;
+    else if (amount > 0 && price > 0) qty = amount / price;
+  }
+  return { qty, price, amount, isAport };
+}
+
+function getTxDestUnitsAndPrice(sourceAmount, sourceQty, sourcePrice) {
+  const destPrice = parseFloat(document.getElementById('tx-dest-price')?.value) || 0;
+  if (destPrice > 0 && sourceAmount > 0) {
+    return { destQty: sourceAmount / destPrice, destPrice };
+  }
+  if (sourceQty > 0) {
+    return { destQty: sourceQty, destPrice: sourcePrice || (sourceAmount / sourceQty) };
+  }
+  return { destQty: 0, destPrice: destPrice || sourcePrice || 0 };
+}
+
+function updateTxTransferCalc() {
+  const el = document.getElementById('tx-transfer-calc');
+  if (!el) return;
+  if (txSide !== 'transfer') {
+    el.style.display = 'none';
+    el.textContent = '';
+    return;
+  }
+  const { qty, price, amount, isAport } = getTxTransferValues();
+  const { destQty, destPrice } = getTxDestUnitsAndPrice(amount, qty, price);
+  el.style.display = 'block';
+  if (isAport) {
+    el.innerHTML = amount > 0
+      ? `Importe a traspasar: <strong style="color:var(--text)">${fmt(amount)}</strong>`
+      : 'Indica el importe en euros a traspasar.';
+    return;
+  }
+  if (qty <= 0 || price <= 0) {
+    el.textContent = 'Completa participaciones y valor (o importe y valor) para calcular el traspaso.';
+    return;
+  }
+  el.innerHTML = `Origen: <strong style="color:var(--text)">${formatUnitsDisplay(qty)}</strong> part. × ${fmtPrice(price)} = <strong style="color:var(--text)">${fmt(amount)}</strong>`
+    + (destQty > 0
+      ? `<br>Destino: <strong style="color:var(--green)">${formatUnitsDisplay(destQty)}</strong> part. @ ${fmtPrice(destPrice)}`
+      : '');
+}
+
+function setTxSide(side) {
+  txSide = side === 'sell' ? 'sell' : side === 'transfer' ? 'transfer' : 'buy';
+  const buyBtn = document.getElementById('tx-side-buy');
+  const sellBtn = document.getElementById('tx-side-sell');
+  const xferBtn = document.getElementById('tx-side-transfer');
+  if (buyBtn) {
+    buyBtn.style.background = txSide === 'buy' ? 'var(--accent)' : 'var(--surface2)';
+    buyBtn.style.color = txSide === 'buy' ? '#fff' : 'var(--text)';
+  }
+  if (sellBtn) {
+    sellBtn.style.background = txSide === 'sell' ? 'var(--red)' : 'var(--surface2)';
+    sellBtn.style.color = txSide === 'sell' ? '#fff' : 'var(--text)';
+  }
+  if (xferBtn) {
+    xferBtn.style.background = txSide === 'transfer' ? '#38bdf8' : 'var(--surface2)';
+    xferBtn.style.color = txSide === 'transfer' ? '#0f1117' : 'var(--text)';
+  }
+  const sellHint = document.getElementById('tx-sell-hint');
+  if (sellHint) sellHint.style.display = txSide === 'sell' ? 'block' : 'none';
+  const xferHint = document.getElementById('tx-transfer-hint');
+  if (xferHint) xferHint.style.display = txSide === 'transfer' ? 'block' : 'none';
+  populateTransactionProductSelect();
+  updateTxFormFields();
+}
+
 function updateTxFormFields() {
   const pos = selectedPositionForTx();
   const isAport = isAportacionProduct(pos);
   const isBtc = isBitcoinPosition(pos);
   const isSell = txSide === 'sell';
+  const isXfer = txSide === 'transfer';
   const qtyLabel = document.getElementById('tx-qty-label');
   const priceLabel = document.getElementById('tx-price-label');
   const btcLabel = document.getElementById('tx-btc-price-label');
   const qtyInput = document.getElementById('tx-qty');
   const priceRow = document.getElementById('tx-price-row');
+  const amountRow = document.getElementById('tx-amount-row');
   const btcRow = document.getElementById('tx-btc-price-row');
   const feeRow = document.getElementById('tx-fee-row');
   const retentionRow = document.getElementById('tx-retention-row');
   const hint = document.getElementById('tx-aportacion-hint');
+  const modeRow = document.getElementById('tx-transfer-mode-row');
+  const destSection = document.getElementById('tx-dest-section');
+  const qtyRow = document.getElementById('tx-qty-row');
+
+  if (modeRow) modeRow.style.display = isXfer && !isAport ? '' : 'none';
+  if (destSection) destSection.style.display = isXfer ? '' : 'none';
+
+  if (isXfer) {
+    paintTxTransferModeButtons();
+    if (isAport) {
+      if (qtyLabel) qtyLabel.textContent = 'Importe traspasado (€)';
+      if (qtyRow) qtyRow.style.display = '';
+      if (priceRow) priceRow.style.display = 'none';
+      if (amountRow) amountRow.style.display = 'none';
+      if (btcRow) btcRow.style.display = 'none';
+      if (qtyInput) { qtyInput.step = '0.01'; qtyInput.placeholder = 'Ej: 500'; }
+    } else {
+      const showQty = txTransferMode === 'units' || txTransferMode === 'price';
+      const showAmount = txTransferMode === 'amount' || txTransferMode === 'price';
+      const showPrice = true;
+      if (qtyLabel) qtyLabel.textContent = 'Nº de participaciones';
+      if (priceLabel) priceLabel.textContent = 'Valor unitario origen (€)';
+      if (btcLabel) btcLabel.textContent = 'Valor BTC origen (€/BTC)';
+      if (qtyRow) qtyRow.style.display = showQty || txTransferMode === 'units' ? '' : (txTransferMode === 'amount' ? '' : '');
+      // Always show the three linked fields for clarity, highlight by mode
+      if (qtyRow) qtyRow.style.display = '';
+      if (amountRow) amountRow.style.display = '';
+      if (priceRow) priceRow.style.display = (!isBtc && showPrice) ? '' : 'none';
+      if (btcRow) btcRow.style.display = (!isAport && isBtc) ? '' : 'none';
+      if (qtyInput) { qtyInput.step = '0.000001'; qtyInput.placeholder = '0'; }
+      if (txTransferMode === 'units') {
+        if (qtyLabel) qtyLabel.textContent = 'Nº de participaciones (principal)';
+      } else if (txTransferMode === 'price') {
+        if (priceLabel) priceLabel.textContent = 'Valor unitario origen (€) (principal)';
+      } else {
+        const amtLabel = document.getElementById('tx-amount-label');
+        if (amtLabel) amtLabel.textContent = 'Importe traspasado (€) (principal)';
+      }
+    }
+    if (feeRow) feeRow.style.display = '';
+    if (retentionRow) retentionRow.style.display = 'none';
+    if (hint) {
+      hint.style.display = isAport ? 'block' : 'none';
+      if (isAport) hint.innerHTML = 'Cartera Indie: indica el <strong>importe en euros</strong> a traspasar al fondo destino.';
+    }
+    updateTxTransferCalc();
+    updateTxRegionFieldsVisibility();
+    updateTxProductMetaFieldsVisibility();
+    updateTxFifoPanel();
+    return;
+  }
+
+  if (amountRow) amountRow.style.display = 'none';
   if (qtyLabel) {
     if (isAport) qtyLabel.textContent = isSell ? 'Importe retirado (€)' : 'Cantidad comprada (€ aportados)';
     else qtyLabel.textContent = isSell ? 'Cantidad vendida' : 'Cantidad comprada';
@@ -4719,6 +5065,7 @@ function updateTxFormFields() {
     qtyInput.step = isAport ? '0.01' : '0.000001';
     qtyInput.placeholder = isAport ? 'Ej: 200' : '0';
   }
+  if (qtyRow) qtyRow.style.display = '';
   if (priceRow) priceRow.style.display = (!isAport && !isBtc) ? '' : 'none';
   if (btcRow) btcRow.style.display = (!isAport && isBtc) ? '' : 'none';
   if (feeRow) feeRow.style.display = '';
@@ -4731,6 +5078,8 @@ function updateTxFormFields() {
         : 'Cartera Indie: escribe solo el importe en euros en <strong>Cantidad comprada</strong>. No hace falta precio ni participaciones.')
       : hint.innerHTML;
   }
+  const calc = document.getElementById('tx-transfer-calc');
+  if (calc) { calc.style.display = 'none'; calc.textContent = ''; }
   updateTxRegionFieldsVisibility();
   updateTxProductMetaFieldsVisibility();
   updateTxFifoPanel();
@@ -4828,11 +5177,20 @@ function updateTxIsinDisplay() {
   display.style.color = 'var(--text)';
 }
 
+function onTxDestChange() {
+  const sel = document.getElementById('tx-dest-select');
+  const fields = document.getElementById('tx-dest-new-fields');
+  if (!fields) return;
+  fields.style.display = sel?.value === '__new__' ? 'block' : 'none';
+  updateTxTransferCalc();
+}
+
 function onTxProductChange() {
   const sel = document.getElementById('tx-product-select');
   const fields = document.getElementById('tx-new-product-fields');
   if (!sel || !fields) return;
-  fields.style.display = sel.value === '__new__' ? 'block' : 'none';
+  fields.style.display = (sel.value === '__new__' && txSide !== 'transfer') ? 'block' : 'none';
+  populateTxDestSelect();
   updateTxFormFields();
   updateTxIsinDisplay();
 
@@ -5045,11 +5403,14 @@ function formatCryptoQty(qty) {
 function formatTxQtyDisplay(tx) {
   if (tx.isAportacion) {
     const amt = fmt(Math.abs(tx.aportacion ?? tx.gross ?? tx.totalCost));
-    const tag = isSellTx(tx) ? 'retiro' : 'aport.';
-    return `<span style="color:var(--accent2);font-weight:600">${isSellTx(tx) ? '−' : ''}${amt}</span> <span style="font-size:.72rem;color:var(--muted)">${tag}</span>`;
+    const tag = isTransferOutTx(tx) ? 'traspaso' : isTransferInTx(tx) ? 'traspaso' : (isSellTx(tx) ? 'retiro' : 'aport.');
+    const sign = (isSellTx(tx) || isTransferOutTx(tx)) ? '−' : (isTransferInTx(tx) ? '+' : '');
+    return `<span style="color:var(--accent2);font-weight:600">${sign}${amt}</span> <span style="font-size:.72rem;color:var(--muted)">${tag}</span>`;
   }
   const qty = Math.abs(Number(tx.qty) || 0);
   const formatted = isCryptoTransaction(tx) ? formatCryptoQty(qty) : qty.toFixed(3);
+  if (isTransferOutTx(tx)) return `<span style="color:#38bdf8">−${formatted}</span>`;
+  if (isTransferInTx(tx)) return `<span style="color:#38bdf8">+${formatted}</span>`;
   return isSellTx(tx) ? `<span style="color:var(--red)">−${formatted}</span>` : formatted;
 }
 
@@ -5074,6 +5435,10 @@ function getOrCreateTxPosition() {
     return { position: pos, created: false };
   }
 
+  if (txSide === 'transfer') {
+    return { error: 'En un traspaso el producto origen debe existir ya en cartera.' };
+  }
+
   const name = document.getElementById('tx-new-name').value.trim();
   const isin = document.getElementById('tx-new-isin').value.trim() || '–';
   const tipo = document.getElementById('tx-new-tipo').value;
@@ -5083,6 +5448,49 @@ function getOrCreateTxPosition() {
   const productKind = getSelectedTxProductKind();
   const managementType = getSelectedTxManagementType();
   if (!name) return { error: 'Indica el nombre del nuevo producto.' };
+
+  const maxId = positions.length ? Math.max(...positions.map(p => p.id)) : 0;
+  const pos = {
+    id: maxId + 1,
+    name,
+    isin,
+    tipo,
+    sector,
+    region,
+    broker,
+    value: 0,
+    cost: 0,
+    units: 0,
+    comment: '',
+    ...(productKind ? { productKind } : {}),
+    ...(managementType ? { managementType } : {})
+  };
+  positions.push(pos);
+  return { position: pos, created: true };
+}
+
+function getOrCreateTxDestPosition(sourcePos) {
+  const sel = document.getElementById('tx-dest-select');
+  if (!sel || !sel.value) return { error: 'Selecciona el fondo destino del traspaso.' };
+
+  if (sel.value !== '__new__') {
+    const pos = positions.find(p => p.id === Number(sel.value));
+    if (!pos) return { error: 'No se encontró el fondo destino.' };
+    if (sourcePos && Number(pos.id) === Number(sourcePos.id)) {
+      return { error: 'El fondo destino debe ser distinto del origen.' };
+    }
+    return { position: pos, created: false };
+  }
+
+  const name = document.getElementById('tx-dest-new-name')?.value.trim();
+  const isin = document.getElementById('tx-dest-new-isin')?.value.trim() || '–';
+  const tipo = document.getElementById('tx-dest-new-tipo')?.value || 'RV';
+  const broker = document.getElementById('tx-dest-new-broker')?.value.trim() || (sourcePos?.broker || 'Otro');
+  const sector = getSelectedSector() || inferSectorFromPosition(sourcePos);
+  const region = getSelectedTxRegion() || sourcePos?.region || '–';
+  const productKind = getSelectedTxProductKind() || sourcePos?.productKind || '';
+  const managementType = getSelectedTxManagementType() || sourcePos?.managementType || '';
+  if (!name) return { error: 'Indica el nombre del nuevo producto destino.' };
 
   const maxId = positions.length ? Math.max(...positions.map(p => p.id)) : 0;
   const pos = {
@@ -5179,6 +5587,18 @@ function resetTransactionForm() {
   document.getElementById('tx-product-select').value = '';
   document.getElementById('tx-qty').value = '';
   document.getElementById('tx-price').value = '';
+  const amountEl = document.getElementById('tx-amount');
+  if (amountEl) amountEl.value = '';
+  const destPriceEl = document.getElementById('tx-dest-price');
+  if (destPriceEl) destPriceEl.value = '';
+  const destSel = document.getElementById('tx-dest-select');
+  if (destSel) destSel.value = '';
+  ['tx-dest-new-name', 'tx-dest-new-isin', 'tx-dest-new-broker'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const destTipo = document.getElementById('tx-dest-new-tipo');
+  if (destTipo) destTipo.value = 'RV';
   const btcPriceEl = document.getElementById('tx-btc-price');
   if (btcPriceEl) btcPriceEl.value = '';
   document.getElementById('tx-fee').value = '0';
@@ -5197,8 +5617,196 @@ function resetTransactionForm() {
   setTxManagementTypeValue('');
   ['tx-new-name', 'tx-new-isin', 'tx-new-broker'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('tx-new-tipo').value = 'RV';
+  txTransferMode = 'units';
   setTxSide('buy');
   onTxProductChange();
+}
+
+function findTransferPair(tx) {
+  if (!tx || !isTransferTx(tx)) return [];
+  const tid = tx.transferId != null ? String(tx.transferId) : null;
+  if (!tid) return [tx];
+  return investmentTransactions.filter(t => String(t.transferId) === tid);
+}
+
+function removeTransferPairFromLedger(tx) {
+  const pair = findTransferPair(tx);
+  const targets = pair.length ? pair : (tx ? [tx] : []);
+  targets.forEach(t => applyTransactionToPosition(normalizeTxForApply(t), -1));
+  const ids = new Set(targets.map(t => String(t.id)));
+  investmentTransactions = investmentTransactions.filter(t => !ids.has(String(t.id)));
+}
+
+async function saveTransferTransaction(dateTime, note, saveBtn) {
+  const productResult = getOrCreateTxPosition();
+  if (productResult.error) {
+    alert(productResult.error);
+    return;
+  }
+  const source = productResult.position;
+  applyRegionToSelectedPosition(source);
+  applyProductMetaToSelectedPosition(source);
+
+  const destResult = getOrCreateTxDestPosition(source);
+  if (destResult.error) {
+    alert(destResult.error);
+    return;
+  }
+  const dest = destResult.position;
+
+  const fee = parseFloat(document.getElementById('tx-fee')?.value) || 0;
+  if (fee < 0) {
+    alert('La comisión no puede ser negativa.');
+    return;
+  }
+
+  const { qty, price, amount, isAport } = getTxTransferValues();
+  if (isAport) {
+    if (amount <= 0) {
+      alert('Indica el importe en euros a traspasar (mayor que 0).');
+      document.getElementById('tx-qty')?.focus();
+      return;
+    }
+  } else if (qty <= 0 || price <= 0 || amount <= 0) {
+    alert('Indica participaciones y valor unitario, o importe y valor, para calcular el traspaso.');
+    return;
+  }
+
+  const { destQty, destPrice } = getTxDestUnitsAndPrice(amount, qty, price);
+  if (!isAport && destQty <= 0) {
+    alert('No se pudo calcular las participaciones del fondo destino. Revisa el valor unitario destino o el importe.');
+    return;
+  }
+
+  let fifoPreview = null;
+  if (!isAport) {
+    fifoPreview = computeSellFifoPreview(source.id, qty, {
+      excludeId: getEditingTxExcludeId(),
+      asOf: dateTime
+    });
+    if (qty > fifoPreview.availableQty + 1e-9) {
+      if (!confirm(`Vas a traspasar ${formatUnitsDisplay(qty)} participaciones pero hasta ${formatTxDateTime(dateTime)} solo hay ${formatUnitsDisplay(fifoPreview.availableQty)} disponibles (FIFO).\n\n¿Continuar igual?`)) return;
+    }
+  }
+
+  const sector = getSelectedSector() || inferSectorFromPosition(source);
+  const productKind = getSelectedTxProductKind();
+  const managementType = getSelectedTxManagementType();
+  if (!dest.sector) dest.sector = sector;
+  if (productKind && !dest.productKind) dest.productKind = productKind;
+  if (managementType && !dest.managementType) dest.managementType = managementType;
+
+  const costBasis = isAport ? amount : (fifoPreview?.costBasis ?? (amount));
+  const actionLabel = (editingTransactionId || editingVirtualId) ? 'actualizará' : 'registrará';
+  const detail = isAport
+    ? `Importe: ${fmt(amount)}\nComisión: ${fmt(fee)}\nCoste fiscal transferido: ${fmt(costBasis)}`
+    : `Origen: ${formatUnitsDisplay(qty)} × ${fmtPrice(price)} = ${fmt(amount)}\nDestino: ${formatUnitsDisplay(destQty)} × ${fmtPrice(destPrice)}\nComisión: ${fmt(fee)}\nCoste fiscal (FIFO): ${fmt(costBasis)}`;
+
+  if (!confirm(`Se ${actionLabel} un traspaso.\n\nDe: ${source.name}\nA: ${dest.name}\n${detail}\n\n¿Deseas continuar?`)) return;
+
+  const savingLabel = (editingTransactionId || editingVirtualId) ? 'Guardando cambios…' : 'Guardando…';
+  const defaultLabel = (editingTransactionId || editingVirtualId) ? 'Guardar cambios' : 'Guardar';
+  if (saveBtn) {
+    saveBtn.dataset.saving = '1';
+    saveBtn.disabled = true;
+    saveBtn.textContent = savingLabel;
+  }
+
+  try {
+    if (editingOriginalTx) {
+      if (isTransferTx(editingOriginalTx)) removeTransferPairFromLedger(editingOriginalTx);
+      else {
+        applyTransactionToPosition(normalizeTxForApply(editingOriginalTx), -1);
+        if (editingVirtualId) hideVirtualTxId(editingVirtualId);
+        if (editingTransactionId && !editingVirtualId) {
+          const idx = investmentTransactions.findIndex(tx => String(tx.id) === String(editingTransactionId));
+          if (idx >= 0) investmentTransactions.splice(idx, 1);
+        }
+      }
+    }
+
+    let lotsUsed = [];
+    let finalCostBasis = costBasis;
+    if (!isAport) {
+      const fifoAfter = computeSellFifoPreview(source.id, qty, { excludeId: null, asOf: dateTime });
+      finalCostBasis = fifoAfter.costBasis;
+      lotsUsed = fifoAfter.lotsUsed || [];
+    }
+
+    const transferId = Date.now();
+    const outTx = {
+      id: transferId,
+      transferId,
+      positionId: source.id,
+      product: source.name,
+      sector,
+      qty: isAport ? 0 : qty,
+      price: isAport ? 0 : price,
+      fee,
+      retention: 0,
+      gross: amount,
+      totalCost: amount,
+      costBasis: finalCostBasis,
+      datetime: normalizeTxDateTimeInput(dateTime),
+      note: note || `Traspaso → ${dest.name}`,
+      source: 'manual',
+      side: 'transfer_out',
+      isTransfer: true,
+      transferToId: dest.id,
+      transferToName: dest.name,
+      ...(lotsUsed.length ? { lotsUsed } : {}),
+      ...(productKind ? { productKind } : {}),
+      ...(managementType ? { managementType } : {}),
+      ...(isAport ? { isAportacion: true, aportacion: amount } : {})
+    };
+
+    const inTx = {
+      id: transferId + 1,
+      transferId,
+      positionId: dest.id,
+      product: dest.name,
+      sector: dest.sector || sector,
+      qty: isAport ? 0 : destQty,
+      price: isAport ? 0 : destPrice,
+      fee: 0,
+      retention: 0,
+      gross: amount,
+      totalCost: finalCostBasis,
+      datetime: normalizeTxDateTimeInput(dateTime),
+      note: note || `Traspaso ← ${source.name}`,
+      source: 'manual',
+      side: 'transfer_in',
+      isTransfer: true,
+      transferFromId: source.id,
+      transferFromName: source.name,
+      ...(dest.productKind ? { productKind: dest.productKind } : productKind ? { productKind } : {}),
+      ...(dest.managementType ? { managementType: dest.managementType } : managementType ? { managementType } : {}),
+      ...(isAport ? { isAportacion: true, aportacion: amount } : {})
+    };
+
+    investmentTransactions.push(outTx, inTx);
+    applyTransactionToPosition(outTx, +1);
+    applyTransactionToPosition(inTx, +1);
+
+    savePositions(positions);
+    saveInvestmentTransactions();
+    populateBrokerFilter();
+
+    resetTransactionForm();
+    closeTxModal();
+    renderTransacciones();
+    const activeView = document.querySelector('.nav-item.active')?.dataset?.view || 'resumen';
+    if (activeView !== 'transacciones') renderView(activeView);
+  } catch (err) {
+    console.error(err);
+    alert(`No se pudo guardar el traspaso: ${err?.message || 'error desconocido'}`);
+  } finally {
+    if (saveBtn) {
+      saveBtn.dataset.saving = '0';
+      saveBtn.disabled = false;
+      if (saveBtn.textContent === savingLabel) saveBtn.textContent = defaultLabel;
+    }
+  }
 }
 
 async function saveInvestmentTransaction() {
@@ -5210,6 +5818,11 @@ async function saveInvestmentTransaction() {
   if (!dateTime) {
     alert('Indica una fecha válida en formato dd/mm/aaaa (día/mes/año).');
     document.getElementById('tx-date')?.focus();
+    return;
+  }
+
+  if (txSide === 'transfer') {
+    await saveTransferTransaction(dateTime, note, saveBtn);
     return;
   }
 
@@ -5302,11 +5915,15 @@ async function saveInvestmentTransaction() {
 
   try {
     if (editingOriginalTx) {
-      applyTransactionToPosition(normalizeTxForApply(editingOriginalTx), -1);
-      if (editingVirtualId) hideVirtualTxId(editingVirtualId);
-      if (editingTransactionId && !editingVirtualId) {
-        const idx = investmentTransactions.findIndex(tx => String(tx.id) === String(editingTransactionId));
-        if (idx >= 0) investmentTransactions.splice(idx, 1);
+      if (isTransferTx(editingOriginalTx)) {
+        removeTransferPairFromLedger(editingOriginalTx);
+      } else {
+        applyTransactionToPosition(normalizeTxForApply(editingOriginalTx), -1);
+        if (editingVirtualId) hideVirtualTxId(editingVirtualId);
+        if (editingTransactionId && !editingVirtualId) {
+          const idx = investmentTransactions.findIndex(tx => String(tx.id) === String(editingTransactionId));
+          if (idx >= 0) investmentTransactions.splice(idx, 1);
+        }
       }
     }
 
@@ -5436,6 +6053,58 @@ function editInvestmentTransaction(id) {
   editingVirtualId = tx.source && tx.source !== 'manual' ? String(tx.id) : null;
   editingTransactionId = (!editingVirtualId) ? tx.id : null;
   document.getElementById('tx-save-btn').textContent = 'Guardar cambios';
+
+  if (isTransferTx(tx)) {
+    const pair = findTransferPair(tx);
+    const outTx = pair.find(isTransferOutTx) || (isTransferOutTx(tx) ? tx : null);
+    const inTx = pair.find(isTransferInTx) || (isTransferInTx(tx) ? tx : null);
+    const sourceTx = outTx || tx;
+    const destTx = inTx;
+    populateTransactionProductSelect();
+    setTxSide('transfer');
+    document.getElementById('tx-product-select').value = String(sourceTx.positionId);
+    onTxProductChange();
+    if (destTx) {
+      const destSel = document.getElementById('tx-dest-select');
+      if (destSel) destSel.value = String(destTx.positionId);
+      onTxDestChange();
+      const destPriceEl = document.getElementById('tx-dest-price');
+      if (destPriceEl && !destTx.isAportacion) destPriceEl.value = Math.abs(destTx.price || 0) || '';
+    }
+    setSectorValue(sourceTx.sector || 'Sin sector');
+    const pos = positions.find(p => p.id === sourceTx.positionId);
+    setTxProductKindValue(sourceTx.productKind || pos?.productKind || inferProductKindFromPosition(pos));
+    setTxManagementTypeValue(sourceTx.managementType || pos?.managementType || inferManagementTypeFromPosition(pos));
+    const isAport = sourceTx.isAportacion || isAportacionProduct(pos);
+    if (isAport) {
+      document.getElementById('tx-qty').value = Math.abs(sourceTx.aportacion ?? sourceTx.gross ?? 0);
+      document.getElementById('tx-price').value = '';
+      const amountEl = document.getElementById('tx-amount');
+      if (amountEl) amountEl.value = Math.abs(sourceTx.aportacion ?? sourceTx.gross ?? 0);
+    } else {
+      txTransferMode = 'units';
+      paintTxTransferModeButtons();
+      document.getElementById('tx-qty').value = Math.abs(sourceTx.qty || 0);
+      const unitPrice = Math.abs(sourceTx.price || 0);
+      if (isBitcoinPosition(pos)) {
+        document.getElementById('tx-price').value = '';
+        const btcEl = document.getElementById('tx-btc-price');
+        if (btcEl) btcEl.value = unitPrice;
+      } else {
+        document.getElementById('tx-price').value = unitPrice;
+      }
+      const amountEl = document.getElementById('tx-amount');
+      if (amountEl) amountEl.value = Math.abs(sourceTx.gross || (sourceTx.qty * sourceTx.price) || 0).toFixed(2);
+    }
+    document.getElementById('tx-fee').value = Math.abs(sourceTx.fee || 0);
+    setTxDateTimeInputs(sourceTx.datetime);
+    document.getElementById('tx-note').value = sourceTx.note || '';
+    updateTxFormFields();
+    updateTxFifoPanel();
+    openTxModal({ reset: false, title: 'Editar traspaso' });
+    return;
+  }
+
   populateTransactionProductSelect();
   document.getElementById('tx-product-select').value = String(tx.positionId);
   onTxProductChange();
@@ -5476,22 +6145,31 @@ function editInvestmentTransaction(id) {
 function deleteInvestmentTransaction(id) {
   const tx = findAnyTransaction(id);
   if (!tx) return;
-  if (!confirm(`Se eliminará el movimiento de "${tx.product}" del ${formatTxDateTime(tx.datetime)}.\n\n¿Continuar?`)) return;
+  const isXfer = isTransferTx(tx);
+  const msg = isXfer
+    ? `Se eliminará el traspaso completo de "${tx.product}" del ${formatTxDateTime(tx.datetime)} (origen y destino).\n\n¿Continuar?`
+    : `Se eliminará el movimiento de "${tx.product}" del ${formatTxDateTime(tx.datetime)}.\n\n¿Continuar?`;
+  if (!confirm(msg)) return;
 
-  applyTransactionToPosition(normalizeTxForApply(tx), -1);
-
-  if (tx.source && tx.source !== 'manual') {
-    hideVirtualTxId(tx.id);
-  } else {
-    investmentTransactions = investmentTransactions.filter(t => String(t.id) !== String(id));
+  if (isXfer && (!tx.source || tx.source === 'manual')) {
+    removeTransferPairFromLedger(tx);
     saveInvestmentTransactions();
+    savePositions(positions);
+  } else {
+    applyTransactionToPosition(normalizeTxForApply(tx), -1);
+
+    if (tx.source && tx.source !== 'manual') {
+      hideVirtualTxId(tx.id);
+    } else {
+      investmentTransactions = investmentTransactions.filter(t => String(t.id) !== String(id));
+      saveInvestmentTransactions();
+    }
+    savePositions(positions);
   }
 
-  if (String(editingTransactionId) === String(id) || String(editingVirtualId) === String(id)) {
-    resetTransactionForm();
-    closeTxModal();
-  }
-  savePositions(positions);
+  populateBrokerFilter();
+  resetTransactionForm();
+  closeTxModal();
   renderTransacciones();
   const activeView = document.querySelector('.nav-item.active')?.dataset?.view || 'resumen';
   if (activeView !== 'transacciones') renderView(activeView);
@@ -5564,23 +6242,29 @@ function groupTransactionsForHistory(rows, mode) {
 
 function renderTxHistoryRow(tx) {
   const idJson = JSON.stringify(String(tx.id));
+  let origenHtml;
+  if (isTransferOutTx(tx)) {
+    origenHtml = `<span style="color:#38bdf8;font-weight:600">Traspaso →</span><div style="font-size:.72rem;color:var(--muted)">${tx.transferToName || 'destino'}</div>`;
+  } else if (isTransferInTx(tx)) {
+    origenHtml = `<span style="color:#38bdf8;font-weight:600">Traspaso ←</span><div style="font-size:.72rem;color:var(--muted)">${tx.transferFromName || 'origen'}</div>`;
+  } else if (isSellTx(tx)) {
+    origenHtml = '<span style="color:var(--red);font-weight:600">Venta</span>';
+  } else if (tx.source === 'legacy') {
+    origenHtml = '<span style="color:var(--accent2);font-weight:600">Histórico</span>';
+  } else if (tx.source === 'crypto') {
+    origenHtml = '<span style="color:#f59e0b;font-weight:600">Cripto</span>';
+  } else {
+    origenHtml = '<span style="color:var(--green);font-weight:600">Compra</span>';
+  }
   return `<tr>
       <td>${formatTxDateTime(tx.datetime)}</td>
-      <td>${
-        isSellTx(tx)
-          ? '<span style="color:var(--red);font-weight:600">Venta</span>'
-          : tx.source === 'legacy'
-            ? '<span style="color:var(--accent2);font-weight:600">Histórico</span>'
-            : tx.source === 'crypto'
-              ? '<span style="color:#f59e0b;font-weight:600">Cripto</span>'
-              : '<span style="color:var(--green);font-weight:600">Compra</span>'
-      }</td>
+      <td>${origenHtml}</td>
       <td><strong>${tx.product}</strong></td>
       <td>${tx.sector || 'Sin sector'}</td>
       <td>${formatTxQtyDisplay(tx)}</td>
       <td>${tx.isAportacion ? '—' : fmtPrice(Math.abs(tx.price || 0))}</td>
       <td>${fmt(Math.abs(tx.fee || 0))}</td>
-      <td>${isSellTx(tx) ? fmt(Math.abs(tx.retention || 0)) : '—'}</td>
+      <td>${isSellTx(tx) && !isTransferTx(tx) ? fmt(Math.abs(tx.retention || 0)) : '—'}</td>
       <td><strong>${fmt(Math.abs(tx.totalCost || 0))}</strong></td>
       <td style="color:var(--muted)">${tx.note || '—'}</td>
       <td style="white-space:nowrap">
