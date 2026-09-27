@@ -296,6 +296,49 @@
       font-size: .75rem;
       margin-left: 8px;
     }
+    .tx-xfer-toggle {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--accent2);
+      font-weight: 700;
+      font-size: .95rem;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    .tx-xfer-detail td {
+      background: #1a2030;
+      padding: 12px 14px 14px;
+    }
+    .tx-xfer-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .tx-xfer-box {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: var(--surface);
+    }
+    .tx-xfer-box h4 {
+      margin: 0 0 6px;
+      font-size: .78rem;
+      color: var(--text);
+    }
+    .tx-xfer-box p {
+      margin: 3px 0;
+      font-size: .78rem;
+      color: var(--muted);
+    }
+    @media (max-width: 720px) {
+      .tx-xfer-grid { grid-template-columns: 1fr; }
+    }
 
     /* ── VIEWS ── */
     .view { display: none; }
@@ -3472,7 +3515,7 @@ function getHistoryEntriesForPosition(posId) {
 
   const hist = INVESTMENT_HISTORY[posId];
 
-  if (!hist) return [];
+  if (!hist && !getUnitTradesForPosition(posId).length) return [];
 
 
 
@@ -3532,7 +3575,7 @@ function getHistoryEntriesForPosition(posId) {
 
       date: String(tx.datetime || '').slice(0, 10),
 
-      label: fmtLabel(tx.datetime, tx.note || 'Compra'),
+      label: fmtLabel(tx.datetime, tx.note || 'Compra') + (isTransferInTx(tx) ? ` · traspaso desde ${tx.transferFromName || 'origen'}` : ''),
 
       amount,
 
@@ -3544,7 +3587,9 @@ function getHistoryEntriesForPosition(posId) {
 
       fiscalResult: marketValue - amount,
 
-      tipo: 'COMPRA'
+      tipo: 'COMPRA',
+
+      isTransfer: isTransferInTx(tx)
 
     };
 
@@ -3572,7 +3617,7 @@ function getHistoryEntriesForPosition(posId) {
 
       date: String(tx.datetime || '').slice(0, 10),
 
-      label: fmtLabel(tx.datetime, 'Venta') + ' · venta',
+      label: fmtLabel(tx.datetime, 'Venta') + (isTransferOutTx(tx) ? ` · traspaso a ${tx.transferToName || 'destino'}` : ' · venta'),
 
       amount: -neto,
 
@@ -3582,9 +3627,11 @@ function getHistoryEntriesForPosition(posId) {
 
       marketValue: 0,
 
-      fiscalResult: costBasis != null ? (neto - costBasis) : (gross - fee - (costBasis || 0)),
+      fiscalResult: isTransferOutTx(tx) ? 0 : (costBasis != null ? (neto - costBasis) : (gross - fee - (costBasis || 0))),
 
-      tipo: 'VENTA'
+      tipo: 'VENTA',
+
+      isTransfer: isTransferOutTx(tx)
 
     });
 
@@ -3699,7 +3746,7 @@ function showHistory(posId) {
 
 
 
-  if (!hist) {
+  if (!hist && !getHistoryEntriesForPosition(posId).length) {
 
     if (chartsWrap) chartsWrap.style.display = 'none';
 
@@ -3887,7 +3934,7 @@ function showHistory(posId) {
 
 
 
-  const yearEntries = hist.yearEndPrices || [];
+  const yearEntries = (hist && hist.yearEndPrices) || [];
 
   const annualLabels = yearEntries.map(y => y.label || String(y.year));
 
@@ -4001,11 +4048,15 @@ function showHistory(posId) {
 
     const rfColor = rf == null ? 'var(--muted)' : rf >= 0 ? 'var(--green)' : 'var(--red)';
 
-    const badge = isSell
+    const badge = e.isTransfer
+
+      ? '<span class="badge" style="background:#0c4a6e;color:#7dd3fc">TRASPASO</span>'
+
+      : (isSell
 
       ? '<span class="badge" style="background:#450a0a;color:#fca5a5">VENTA</span>'
 
-      : '<span class="badge" style="background:#14532d;color:#86efac">COMPRA</span>';
+      : '<span class="badge" style="background:#14532d;color:#86efac">COMPRA</span>');
 
     const pctCell = (!isSell && totalAportado > 0) ? `${(e.amount / totalAportado * 100).toFixed(1)}%` : '–';
 
@@ -5492,6 +5543,11 @@ function getOrCreateTxDestPosition(sourcePos) {
   const managementType = getSelectedTxManagementType() || sourcePos?.managementType || '';
   if (!name) return { error: 'Indica el nombre del nuevo producto destino.' };
 
+  const existing = findPositionByIdentity(name, isin);
+  if (existing && (!sourcePos || Number(existing.id) !== Number(sourcePos.id))) {
+    return { position: existing, created: false };
+  }
+
   const maxId = positions.length ? Math.max(...positions.map(p => p.id)) : 0;
   const pos = {
     id: maxId + 1,
@@ -5787,6 +5843,11 @@ async function saveTransferTransaction(dateTime, note, saveBtn) {
     investmentTransactions.push(outTx, inTx);
     applyTransactionToPosition(outTx, +1);
     applyTransactionToPosition(inTx, +1);
+    if ((Number(source.units) || 0) < 1e-6 || (Number(source.value) || 0) < 1) {
+      source.units = 0;
+      source.value = 0;
+      source.cost = 0;
+    }
 
     savePositions(positions);
     saveInvestmentTransactions();
@@ -6240,7 +6301,157 @@ function groupTransactionsForHistory(rows, mode) {
   return groups;
 }
 
+function escHtml(v) {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function findPositionByIdentity(name, isin) {
+  const isinKey = String(isin || '').trim().toUpperCase();
+  const nameKey = String(name || '').trim().toLowerCase();
+  if (isinKey && isinKey !== '–' && isinKey !== '-') {
+    const byIsin = positions.find(p => String(p.isin || '').trim().toUpperCase() === isinKey);
+    if (byIsin) return byIsin;
+  }
+  if (!nameKey) return null;
+  return positions.find(p => String(p.name || '').trim().toLowerCase() === nameKey) || null;
+}
+
+function formatTransferUnits(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return '0';
+  return x.toLocaleString('es-ES', { maximumFractionDigits: 4 });
+}
+
+function unitsBalanceAsOf(positionId, asOf) {
+  const txs = getUnitTradesForPosition(positionId, { asOf });
+  let open = 0;
+  txs.forEach(tx => {
+    if (tx.isAportacion) return;
+    const q = Math.abs(Number(tx.qty) || 0);
+    if (isSellTx(tx)) open -= q;
+    else open += q;
+  });
+  return Math.max(0, open);
+}
+
+function collapseTransferHistoryRows(rows) {
+  const seen = new Set();
+  const result = [];
+  rows.forEach(tx => {
+    if (!isTransferTx(tx)) {
+      result.push(tx);
+      return;
+    }
+    const tid = tx.transferId != null ? String(tx.transferId) : String(tx.id);
+    if (seen.has(tid)) return;
+    seen.add(tid);
+    const pair = findTransferPair(tx);
+    const outTx = pair.find(isTransferOutTx) || (isTransferOutTx(tx) ? tx : null);
+    const inTx = pair.find(isTransferInTx) || (isTransferInTx(tx) ? tx : null);
+    const primary = outTx || inTx || tx;
+    result.push(Object.assign({}, primary, { _transferOut: outTx, _transferIn: inTx }));
+  });
+  return result;
+}
+
+function toggleTxTransferDetail(transferId) {
+  const row = document.getElementById('tx-xfer-detail-' + transferId);
+  const btn = document.getElementById('tx-xfer-toggle-' + transferId);
+  if (!row) return;
+  const open = row.hidden;
+  row.hidden = !open;
+  if (btn) {
+    btn.textContent = open ? '−' : '+';
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.setAttribute('aria-label', open ? 'Ocultar detalle del traspaso' : 'Ver detalle del traspaso');
+  }
+}
+
+function renderTxTransferDetailHtml(outTx, inTx) {
+  const sourceName = outTx?.product || inTx?.transferFromName || 'Origen';
+  const destName = inTx?.product || outTx?.transferToName || 'Destino';
+  const sentQty = Math.abs(Number(outTx?.qty) || 0);
+  const sentPrice = Number(outTx?.price) || 0;
+  const sentAmount = Math.abs(Number(outTx?.gross) || sentQty * sentPrice);
+  const remainUnits = outTx ? unitsBalanceAsOf(outTx.positionId, outTx.datetime) : 0;
+  const remainValue = remainUnits * sentPrice;
+  const originEmpty = remainUnits < 1e-6;
+  const destQty = Math.abs(Number(inTx?.qty) || 0);
+  const destPrice = Number(inTx?.price) || 0;
+  const destAmount = Math.abs(Number(inTx?.gross) || destQty * destPrice);
+  const costBasis = Number(outTx?.costBasis);
+  const originLeft = originEmpty
+    ? '<p><strong style="color:var(--red)">Queda sin fondos</strong> y pasa a inactivo.</p>'
+    : `<p>Quedan <strong style="color:var(--text)">${formatTransferUnits(remainUnits)}</strong> part. · ${fmt(remainValue)}</p>`;
+  const destArrived = inTx?.isAportacion
+    ? `<p>Llega <strong style="color:var(--text)">${fmt(destAmount || sentAmount)}</strong></p>`
+    : `<p>Llegan <strong style="color:var(--text)">${formatTransferUnits(destQty)}</strong> part. × ${fmtPrice(destPrice)} = <strong style="color:var(--text)">${fmt(destAmount)}</strong></p>`;
+  const costLine = Number.isFinite(costBasis)
+    ? `<p>Coste fiscal trasladado (FIFO): <strong style="color:var(--text)">${fmt(costBasis)}</strong></p>`
+    : '';
+  return `<div class="tx-xfer-grid">
+    <div class="tx-xfer-box">
+      <h4>Origen · ${escHtml(sourceName)}</h4>
+      <p>Salen <strong style="color:var(--text)">${outTx?.isAportacion ? fmt(sentAmount) : formatTransferUnits(sentQty) + ' part. × ' + fmtPrice(sentPrice)}</strong>${outTx?.isAportacion ? '' : ' = <strong style="color:var(--text)">' + fmt(sentAmount) + '</strong>'}</p>
+      ${originLeft}
+    </div>
+    <div class="tx-xfer-box">
+      <h4>Destino · ${escHtml(destName)}</h4>
+      ${destArrived}
+      ${costLine}
+    </div>
+  </div>`;
+}
+
+function renderTxTransferRow(tx) {
+  const outTx = tx._transferOut;
+  const inTx = tx._transferIn;
+  const tid = String(tx.transferId != null ? tx.transferId : tx.id);
+  const idJson = JSON.stringify(String((outTx || tx).id));
+  const sourceName = outTx?.product || inTx?.transferFromName || tx.product;
+  const destName = inTx?.product || outTx?.transferToName || 'destino';
+  const sentQty = Math.abs(Number(outTx?.qty) || 0);
+  const destQty = Math.abs(Number(inTx?.qty) || 0);
+  const sentPrice = Number(outTx?.price) || 0;
+  const destPrice = Number(inTx?.price) || 0;
+  const amount = Math.abs(Number(outTx?.gross) || Number(inTx?.gross) || 0);
+  const fee = Math.abs(Number(outTx?.fee) || 0);
+  const qtyHtml = (outTx?.isAportacion || inTx?.isAportacion)
+    ? `<span style="color:#38bdf8">${fmt(amount)}</span>`
+    : `<span style="color:#38bdf8">−${formatTransferUnits(sentQty)}</span><div style="font-size:.72rem;color:var(--green)">+${formatTransferUnits(destQty)}</div>`;
+  const priceHtml = (outTx?.isAportacion || inTx?.isAportacion)
+    ? '—'
+    : `${fmtPrice(sentPrice)}<div style="font-size:.72rem;color:var(--muted)">${fmtPrice(destPrice)}</div>`;
+  return `<tr>
+      <td style="white-space:nowrap">
+        <button type="button" class="tx-xfer-toggle" id="tx-xfer-toggle-${escHtml(tid)}" aria-expanded="false" aria-label="Ver detalle del traspaso" onclick="toggleTxTransferDetail('${escHtml(tid)}')">+</button>
+        ${formatTxDateTime(tx.datetime)}
+      </td>
+      <td><span style="color:#38bdf8;font-weight:600">Traspaso</span></td>
+      <td><strong>${escHtml(sourceName)}</strong><div style="font-size:.72rem;color:var(--muted)">→ ${escHtml(destName)}</div></td>
+      <td>${escHtml(tx.sector || 'Sin sector')}</td>
+      <td>${qtyHtml}</td>
+      <td>${priceHtml}</td>
+      <td>${fmt(fee)}</td>
+      <td>—</td>
+      <td><strong>${fmt(amount)}</strong></td>
+      <td style="color:var(--muted)">De ${escHtml(sourceName)} a ${escHtml(destName)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-secondary" style="padding:3px 8px;font-size:.72rem;margin-right:4px" onclick='editInvestmentTransaction(${idJson})'>✏️ Editar</button>
+        <button class="btn btn-danger" style="padding:3px 8px;font-size:.72rem" onclick='deleteInvestmentTransaction(${idJson})'>🗑 Eliminar</button>
+      </td>
+    </tr>
+    <tr class="tx-xfer-detail" id="tx-xfer-detail-${escHtml(tid)}" hidden>
+      <td colspan="11">${renderTxTransferDetailHtml(outTx, inTx)}</td>
+    </tr>`;
+}
+
 function renderTxHistoryRow(tx) {
+  if (tx._transferOut || tx._transferIn) return renderTxTransferRow(tx);
   const idJson = JSON.stringify(String(tx.id));
   let origenHtml;
   if (isTransferOutTx(tx)) {
@@ -6289,7 +6500,7 @@ function renderTransacciones() {
   const table = document.getElementById('table-transacciones');
   if (!table) return;
   const filtered = getFilteredTransactionsForCharts();
-  const sorted = sortTransactionsForTable(filtered);
+  const sorted = collapseTransferHistoryRows(sortTransactionsForTable(filtered));
   if (!filtered.length) {
     table.innerHTML = '<thead><tr><th>Estado</th></tr></thead><tbody><tr><td style="color:var(--muted)">No hay movimientos para los filtros seleccionados.</td></tr></tbody>';
     return;
