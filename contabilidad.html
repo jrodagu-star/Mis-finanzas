@@ -118,6 +118,20 @@
     .period-nav .period-label { font-size: .88rem; font-weight: 600; min-width: 130px; text-align: center; color: var(--text); }
     .period-nav .btn-all { font-size: .75rem; padding: 4px 10px; }
     .period-nav .btn-all.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    #table-txs tr.month-group-row td {
+      background: linear-gradient(90deg, rgba(108,99,255,.22), rgba(37,40,54,.95));
+      border-top: 1px solid rgba(108,99,255,.45);
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      font-size: .8rem;
+      font-weight: 700;
+      letter-spacing: .02em;
+      padding: 9px 12px;
+      position: sticky;
+      top: 28px;
+      z-index: 1;
+    }
+    #table-txs tr.month-group-row td .month-group-title { color: #c4b5fd; }
 
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.72); z-index: 100; align-items: center; justify-content: center; }
     .modal-overlay.open { display: flex; }
@@ -274,9 +288,11 @@
         </select>
         <input type="text" id="f-search" placeholder="Buscar..." oninput="renderTransacciones()" style="min-width:140px" />
         <button class="btn btn-secondary" style="padding:5px 12px;font-size:.78rem" onclick="setRangeFirstToToday()">Primer registro → hoy</button>
+        <button class="btn btn-primary" style="padding:5px 12px;font-size:.78rem" onclick="showTxGroupedByMonth()" title="Muestra todo el historial separado por meses">📅 Ver por meses</button>
         <button class="btn btn-secondary" style="padding:5px 12px;font-size:.78rem" onclick="clearFilters()">Limpiar</button>
         <span id="tx-review-count" style="font-size:.75rem;color:var(--muted)"></span>
       </div>
+      <div id="tx-group-hint" style="display:none;padding:8px 12px;margin-bottom:8px;font-size:.78rem;color:#c4b5fd;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.35);border-radius:8px"></div>
       <div class="table-box" style="padding:0; overflow:auto; max-height:calc(100vh - 170px)">
         <table id="table-txs"></table>
       </div>
@@ -354,7 +370,7 @@
     </div>
     <div style="display:flex;gap:10px">
       <div class="form-row" style="flex:1"><label>Fecha</label><input type="date" id="tx-fecha" /></div>
-      <div class="form-row" style="flex:1"><label>Importe (€)</label><input type="number" id="tx-importe" step="0.01" min="0" placeholder="0,00" /></div>
+      <div class="form-row" style="flex:1"><label>Importe (€)</label><input type="text" id="tx-importe" inputmode="decimal" placeholder="0,00" autocomplete="off" /></div>
     </div>
     <div class="form-row"><label>Descripción</label><input type="text" id="tx-desc" placeholder="Ej: Mercadona, Nómina..." oninput="autoFillCategory()" /></div>
     <div style="display:flex;gap:10px">
@@ -2418,10 +2434,25 @@ function updatePeriodUI() {
     : MONTHS_ES[period.month] + ' ' + period.year;
   document.getElementById('btn-all').classList.toggle('active', period.allTime);
 }
+function localISODate(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function txYearMonth(tx) {
+  const raw = String(tx?.date || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return { y: +raw.slice(0, 4), m: +raw.slice(5, 7) - 1 };
+  }
+  const d = new Date(raw + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return null;
+  return { y: d.getFullYear(), m: d.getMonth() };
+}
+
 function inPeriod(tx) {
   if (period.allTime) return true;
-  const d = new Date(tx.date + 'T00:00:00');
-  return d.getFullYear() === period.year && d.getMonth() === period.month;
+  const ym = txYearMonth(tx);
+  if (!ym) return false;
+  return ym.y === period.year && ym.m === period.month;
 }
 function periodTxs() { return txs.filter(inPeriod); }
 
@@ -2594,18 +2625,36 @@ function populateFilterSelects() {
 let sortCol = 'date', sortDir = -1;
 
 function getFilteredTxs() {
-  const desde  = document.getElementById('f-desde').value;
-  const hasta  = document.getElementById('f-hasta').value;
+  let desde  = document.getElementById('f-desde').value;
+  let hasta  = document.getElementById('f-hasta').value;
   const tipo   = document.getElementById('f-tipo').value;
   const cat    = document.getElementById('f-cat').value;
   const cuenta = document.getElementById('f-cuenta').value;
   const sub    = document.getElementById('f-sub').value;
   const review = document.getElementById('f-review')?.value || '';
   const search = document.getElementById('f-search').value.toLowerCase();
+
+  // Si "hasta" corta años que sí existen en los datos (p. ej. reloj del PC atrasado), ampliarlo
+  if (hasta) {
+    const maxDate = txs
+      .map(t => String(t.date || ''))
+      .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
+      .sort()
+      .at(-1);
+    if (maxDate && maxDate > hasta) {
+      hasta = maxDate;
+      document.getElementById('f-hasta').value = maxDate;
+    }
+  }
+
   const usePeriod = !desde && !hasta;
 
   return [...txs]
-    .filter(t => usePeriod ? inPeriod(t) : (!desde || t.date >= desde) && (!hasta || t.date <= hasta))
+    .filter(t => {
+      const d = String(t.date || '');
+      if (usePeriod) return inPeriod(t);
+      return (!desde || d >= desde) && (!hasta || d <= hasta);
+    })
     .filter(t => !tipo   || t.type === tipo)
     .filter(t => !cat    || t.cat === cat)
     .filter(t => !cuenta || t.account === cuenta)
@@ -2629,6 +2678,26 @@ function getFilteredTxs() {
 
 function setSort(col) {
   if (sortCol === col) sortDir *= -1; else { sortCol = col; sortDir = -1; }
+  if (col === 'date') showTxGroupedByMonth(false);
+  else renderTransacciones();
+}
+
+/** Muestra el listado separado por mes (Octubre / Septiembre / …). */
+function showTxGroupedByMonth(clearDateFilters = true) {
+  if (clearDateFilters) {
+    const desde = document.getElementById('f-desde');
+    const hasta = document.getElementById('f-hasta');
+    if (desde) desde.value = '';
+    if (hasta) hasta.value = '';
+  }
+  const desde = document.getElementById('f-desde')?.value;
+  const hasta = document.getElementById('f-hasta')?.value;
+  if (!desde && !hasta) {
+    period.allTime = true;
+    updatePeriodUI();
+  }
+  sortCol = 'date';
+  if (sortDir !== 1 && sortDir !== -1) sortDir = -1;
   renderTransacciones();
 }
 
@@ -2636,6 +2705,28 @@ function fmtDate(iso) {
   if (!iso) return '';
   const [y,m,d] = iso.split('-');
   return `${d}/${m}/${y}`;
+}
+
+function monthGroupKey(isoDate) {
+  return String(isoDate || '').slice(0, 7);
+}
+
+function monthGroupLabel(ym) {
+  if (!/^\d{4}-\d{2}$/.test(ym)) return ym || 'Sin fecha';
+  const [y, m] = ym.split('-');
+  return `${MONTHS_ES[parseInt(m, 10) - 1]} ${y}`;
+}
+
+function jumpPeriodToDate(isoDate) {
+  if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return;
+  const desde = document.getElementById('f-desde')?.value;
+  const hasta = document.getElementById('f-hasta')?.value;
+  if (desde || hasta) return;
+  period.allTime = false;
+  const d = new Date(isoDate + 'T00:00:00');
+  period.year = d.getFullYear();
+  period.month = d.getMonth();
+  updatePeriodUI();
 }
 
 function renderTransacciones() {
@@ -2652,7 +2743,10 @@ function renderTransacciones() {
   const totalIng = list.filter(t=>t.type==='INGRESO').reduce((s,t)=>s+t.amount,0);
   const totalGas = list.filter(t=>t.type==='GASTO').reduce((s,t)=>s+t.amount,0);
 
+  const distinctMonths = new Set(list.map(t => monthGroupKey(t.date)).filter(Boolean));
   const groupByCat = sortCol === 'cat';
+  // Agrupar por mes al ordenar por fecha, o siempre que haya más de un mes en el listado
+  const groupByMonth = !groupByCat && (sortCol === 'date' || distinctMonths.size > 1);
   const sortArrow  = d => d === sortDir ? '▲' : '▼';
   const thStyle    = 'cursor:pointer;user-select:none';
 
@@ -2661,24 +2755,6 @@ function renderTransacciones() {
   const thDesc  = `<th style="${thStyle}" onclick="setSort('desc')">Descripción ${sortCol==='desc'?sortArrow(1):''}</th>`;
   const thCat   = `<th style="${thStyle}" onclick="setSort('cat')">Categoría ${sortCol==='cat'?'📂':''}</th>`;
   const thAmt   = `<th style="${thStyle};text-align:right" onclick="setSort('amount')">Importe ${sortCol==='amount'?sortArrow(1):''}</th>`;
-
-  let bodyHTML = '';
-  if (groupByCat) {
-    const catGroups = {};
-    list.forEach(t => { if (!catGroups[t.cat]) catGroups[t.cat]=[]; catGroups[t.cat].push(t); });
-    Object.keys(catGroups).sort().forEach(cat => {
-      const grp = catGroups[cat];
-      const grpTotal = grp.reduce((s,t)=>s+t.amount,0);
-      const grpType  = grp[0].type;
-      bodyHTML += `<tr style="background:var(--surface2)">
-        <td colspan="9" style="font-size:.72rem;font-weight:700;color:var(--muted);padding:5px 10px">
-          ${catPill(cat, grpType)} ${grp.length} transacciones · ${grpType==='INGRESO'?'+':'-'}${fmt(grpTotal)}
-        </td></tr>`;
-      bodyHTML += grp.map(t => rowHTML(t)).join('');
-    });
-  } else {
-    bodyHTML = list.map(t => rowHTML(t)).join('');
-  }
 
   function rowHTML(t) {
     const marked = isTxMarkedForReview(t.id);
@@ -2702,7 +2778,61 @@ function renderTransacciones() {
       <button class="icon-btn" onclick="openTxModal('${t.id}')" title="Editar">✏️</button>
       <button class="icon-btn" onclick="confirmDelete('${t.id}')" title="Eliminar">🗑️</button>
     </td>
-  </tr>`; }
+  </tr>`;
+  }
+
+  let bodyHTML = '';
+  if (groupByCat) {
+    const catGroups = {};
+    list.forEach(t => { if (!catGroups[t.cat]) catGroups[t.cat]=[]; catGroups[t.cat].push(t); });
+    Object.keys(catGroups).sort().forEach(cat => {
+      const grp = catGroups[cat];
+      const grpTotal = grp.reduce((s,t)=>s+t.amount,0);
+      const grpType  = grp[0].type;
+      bodyHTML += `<tr style="background:var(--surface2)">
+        <td colspan="9" style="font-size:.72rem;font-weight:700;color:var(--muted);padding:5px 10px">
+          ${catPill(cat, grpType)} ${grp.length} transacciones · ${grpType==='INGRESO'?'+':'-'}${fmt(grpTotal)}
+        </td></tr>`;
+      bodyHTML += grp.map(t => rowHTML(t)).join('');
+    });
+  } else if (groupByMonth) {
+    const monthGroups = {};
+    const monthOrder = [];
+    list.forEach(t => {
+      const key = monthGroupKey(t.date) || 'sin-fecha';
+      if (!monthGroups[key]) {
+        monthGroups[key] = [];
+        monthOrder.push(key);
+      }
+      monthGroups[key].push(t);
+    });
+    monthOrder.forEach(ym => {
+      const grp = monthGroups[ym];
+      const grpIng = grp.filter(t => t.type === 'INGRESO').reduce((s, t) => s + t.amount, 0);
+      const grpGas = grp.filter(t => t.type === 'GASTO').reduce((s, t) => s + t.amount, 0);
+      bodyHTML += `<tr class="month-group-row">
+        <td colspan="9">
+          <span class="month-group-title">📅 ${monthGroupLabel(ym)}</span>
+          &nbsp;·&nbsp; ${grp.length} movimientos
+          &nbsp;·&nbsp; <span class="amount-ing">+${fmt(grpIng)}</span>
+          &nbsp;/&nbsp; <span class="amount-gas">-${fmt(grpGas)}</span>
+        </td></tr>`;
+      bodyHTML += grp.map(t => rowHTML(t)).join('');
+    });
+  } else {
+    bodyHTML = list.map(t => rowHTML(t)).join('');
+  }
+
+  const hint = document.getElementById('tx-group-hint');
+  if (hint) {
+    if (groupByMonth) {
+      hint.style.display = 'block';
+      hint.textContent = `Agrupado por mes · ${distinctMonths.size} periodo(s) visibles (cabeceras 📅 Octubre, 📅 Septiembre…)`;
+    } else {
+      hint.style.display = 'none';
+      hint.textContent = '';
+    }
+  }
 
   tbl.innerHTML = `<thead><tr>${thReview}${thDate}${thDesc}<th>Tipo</th>${thCat}<th>Cuenta</th>${thAmt}<th style="text-align:center">Suscripción</th><th style="text-align:center">Acc.</th></tr></thead>
   <tbody>${bodyHTML}</tbody>
@@ -2736,8 +2866,15 @@ function setRangeFirstToToday() {
     alert('No se encontraron fechas válidas en las transacciones.');
     return;
   }
+  const last = [...txs]
+    .map(t => t.date)
+    .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(String(d || '')))
+    .sort()
+    .at(-1);
+  const today = localISODate();
   document.getElementById('f-desde').value = first;
-  document.getElementById('f-hasta').value = new Date().toISOString().slice(0,10);
+  // Nunca cortar datos futuros respecto al reloj del PC
+  document.getElementById('f-hasta').value = (last && last > today) ? last : today;
   renderTransacciones();
 }
 
@@ -3067,7 +3204,7 @@ function openTxModal(id) {
     document.getElementById('tx-subcat').value      = tx.subcat     || '';
   } else {
     setTxType('GASTO');
-    document.getElementById('tx-fecha').value       = new Date().toISOString().slice(0,10);
+    document.getElementById('tx-fecha').value       = localISODate();
     document.getElementById('tx-importe').value     = '';
     document.getElementById('tx-desc').value        = '';
     populateAccountSelect(ACCOUNT_OPTIONS[0]);
@@ -3088,7 +3225,7 @@ function closeTxModal() {
 
 function saveTx() {
   const fecha   = document.getElementById('tx-fecha').value;
-  const importe = parseFloat(document.getElementById('tx-importe').value);
+  const importe = parseEurNum(document.getElementById('tx-importe').value);
   const desc    = document.getElementById('tx-desc').value.trim();
   const cat     = document.getElementById('tx-cat').value;
   const cuenta  = document.getElementById('tx-cuenta').value || ACCOUNT_OPTIONS[0];
@@ -3097,11 +3234,13 @@ function saveTx() {
   const subPeriodo = document.getElementById('tx-sub-periodo').value;
   const subcat     = document.getElementById('tx-subcat').value;
 
-  if (!fecha || !(importe > 0) || !desc) {
-    alert('Completa fecha, importe (> 0) y descripción.'); return;
-  }
+  if (!fecha) { alert('Indica la fecha.'); return; }
+  if (!(importe > 0)) { alert('Indica un importe válido mayor que 0 (puedes usar coma: 12,50).'); return; }
+  if (!desc) { alert('Indica la descripción.'); return; }
+  if (!cat) { alert('Selecciona una categoría.'); return; }
 
   const prevTx = editTxId ? txs.find(t => t.id === editTxId) : null;
+  const savedId = editTxId || nextId();
 
   if (editTxId) {
     const tx = txs.find(t => t.id === editTxId);
@@ -3112,28 +3251,49 @@ function saveTx() {
     }
   } else {
     txs.push({
-      id: nextId(), date: fecha, amount: importe, type: txType, desc, cat,
+      id: savedId, date: fecha, amount: importe, type: txType, desc, cat,
       account: cuenta, notes: notas, sub, subPeriodo, subcat, descUncertain: false,
     });
   }
   learnRule(desc, cat, sub, subcat, notas, subPeriodo, importe, desc);
   saveTxs();
+  if (typeof fbFlush === 'function') {
+    try { fbFlush(false); } catch (e) {}
+  }
   closeTxModal();
 
-  const changes = {};
-  if (sub) { changes.sub = true; changes.subPeriodo = subPeriodo; }
-  else if (prevTx?.sub && !sub) { changes.sub = false; changes.subPeriodo = ''; }
-  if (desc) changes.canonicalDesc = desc;
-
-  if (changes.sub !== undefined || changes.canonicalDesc) {
-    maybePromptSimilarUpdates({ desc, amount: importe }, editTxId, changes, () => {
-      renderActiveView();
-      if (activeView !== 'resumen') renderResumen();
-    });
-    return;
+  // Mostrar la nueva/editada: quitar filtros de fecha que la oculten y ir a su mes
+  const fDesde = document.getElementById('f-desde');
+  const fHasta = document.getElementById('f-hasta');
+  if (fDesde) fDesde.value = '';
+  if (fHasta) fHasta.value = '';
+  jumpPeriodToDate(fecha);
+  if (activeView !== 'transacciones') {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === 'transacciones'));
+    activeView = 'transacciones';
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-transacciones'));
+    document.getElementById('page-title').textContent = VIEW_TITLES.transacciones || 'Transacciones';
   }
   renderActiveView();
   if (activeView !== 'resumen') renderResumen();
+
+  const changes = {};
+  if (sub && (!prevTx || !prevTx.sub || (prevTx.subPeriodo || '') !== subPeriodo)) {
+    changes.sub = true;
+    changes.subPeriodo = subPeriodo;
+  } else if (prevTx?.sub && !sub) {
+    changes.sub = false;
+    changes.subPeriodo = '';
+  }
+  // Solo al editar y cambiar la descripción (no en altas nuevas)
+  if (prevTx && desc && desc !== prevTx.desc) changes.canonicalDesc = desc;
+
+  if (changes.sub !== undefined || changes.canonicalDesc) {
+    maybePromptSimilarUpdates({ desc, amount: importe }, savedId, changes, () => {
+      renderActiveView();
+      if (activeView !== 'resumen') renderResumen();
+    });
+  }
 }
 
 function deleteTx() {

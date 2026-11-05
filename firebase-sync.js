@@ -174,12 +174,13 @@ if (typeof firebase === 'undefined') {
       }
 
       _SYNC_KEYS.forEach(key => {
-        if (data[key] !== undefined) {
-          const incoming = JSON.stringify(data[key]);
-          if (localStorage.getItem(key) !== incoming) {
-            _lsSet(key, incoming);
-            changed = true;
-          }
+        if (data[key] === undefined) return;
+        // No pisar claves con cambios locales pendientes de subir
+        if (_fbPendingData[key] !== undefined || _fbInFlight) return;
+        const incoming = JSON.stringify(data[key]);
+        if (localStorage.getItem(key) !== incoming) {
+          _lsSet(key, incoming);
+          changed = true;
         }
       });
 

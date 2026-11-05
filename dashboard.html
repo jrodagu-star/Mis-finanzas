@@ -1092,8 +1092,15 @@
             <button type="button" class="btn btn-secondary" id="tx-side-sell" onclick="setTxSide('sell')" style="flex:1">▼ Venta / Retiro</button>
             <button type="button" class="btn btn-secondary" id="tx-side-transfer" onclick="setTxSide('transfer')" style="flex:1">⇄ Traspaso</button>
           </div>
-          <div id="tx-sell-hint" style="display:none;font-size:.75rem;color:var(--accent2);margin-top:6px">Indica las participaciones (o euros) a vender, el precio, la comisión y la retención. La venta de fondos consume lotes por <strong>FIFO</strong> (España).</div>
+          <div id="tx-sell-hint" style="display:none;font-size:.75rem;color:var(--accent2);margin-top:6px">Puedes indicar <strong>cantidad + precio por acción</strong> o <strong>cantidad + importe total</strong> obtenido; el otro valor se calcula solo. Comisión y retención aparte. La venta consume lotes por <strong>FIFO</strong>.</div>
           <div id="tx-transfer-hint" style="display:none;font-size:.75rem;color:var(--accent2);margin-top:6px">Elige cómo indicar la cantidad: participaciones, valor unitario o importe en euros. El coste fiscal se traspasa por <strong>FIFO</strong> al fondo destino (sin plusvalía).</div>
+        </div>
+        <div id="tx-trade-mode-row" class="form-row" style="display:none;margin-bottom:12px">
+          <label id="tx-trade-mode-label">Cómo indicar la operación</label>
+          <div class="tx-mode-btns">
+            <button type="button" class="btn btn-secondary" id="tx-trade-mode-price" onclick="setTxTradeMode('price')">Precio × cantidad</button>
+            <button type="button" class="btn btn-secondary" id="tx-trade-mode-amount" onclick="setTxTradeMode('amount')">Importe total (€)</button>
+          </div>
         </div>
         <div id="tx-transfer-mode-row" class="form-row" style="display:none;margin-bottom:12px">
           <label>Cantidad traspasada</label>
@@ -1106,33 +1113,30 @@
         <div class="tx-form-grid" id="tx-standard-trade-fields">
           <div class="form-row" id="tx-qty-row" style="margin-bottom:0">
             <label id="tx-qty-label">Cantidad comprada</label>
-            <input type="number" id="tx-qty" min="0" step="0.000001" placeholder="0" oninput="onTxQtyInput()" />
+            <input type="text" id="tx-qty" inputmode="decimal" placeholder="0" autocomplete="off" oninput="onTxQtyInput()" />
           </div>
           <div class="form-row" id="tx-price-row" style="margin-bottom:0">
             <label id="tx-price-label">Valor de mercado por unidad (€)</label>
-            <input type="number" id="tx-price" min="0" step="0.0001" placeholder="0.00" oninput="onTxQtyInput()" />
+            <input type="text" id="tx-price" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="onTxPriceInput()" />
           </div>
           <div class="form-row" id="tx-amount-row" style="display:none;margin-bottom:0">
-            <label id="tx-amount-label">Importe traspasado (€)</label>
-            <input type="number" id="tx-amount" min="0" step="0.01" placeholder="0.00" oninput="onTxTransferAmountInput()" />
+            <label id="tx-amount-label">Importe total (€)</label>
+            <input type="text" id="tx-amount" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="onTxAmountInput()" />
           </div>
           <div class="form-row span-2" id="tx-btc-price-row" style="display:none;margin-bottom:0">
             <label id="tx-btc-price-label">Valor BTC (€/BTC)</label>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-              <input type="number" id="tx-btc-price" min="0" step="0.01" placeholder="0.00" oninput="onTxQtyInput()" style="flex:1;min-width:120px" />
-              <button class="btn btn-secondary" type="button" onclick="fetchBtcPriceForTransaction()" style="white-space:nowrap">Buscar BTC/EUR</button>
-            </div>
-            <div id="tx-btc-price-status" style="margin-top:6px;font-size:.75rem;color:var(--muted)"></div>
+            <input type="text" id="tx-btc-price" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="onTxPriceInput()" />
           </div>
           <div class="form-row" id="tx-fee-row" style="margin-bottom:0">
             <label>Comisión (€)</label>
-            <input type="number" id="tx-fee" min="0" step="0.01" value="0" oninput="onTxQtyInput()" />
+            <input type="text" id="tx-fee" inputmode="decimal" value="0" autocomplete="off" oninput="onTxQtyInput()" />
           </div>
           <div class="form-row" id="tx-retention-row" style="display:none;margin-bottom:0">
             <label>Retención (€)</label>
-            <input type="number" id="tx-retention" min="0" step="0.01" value="0" oninput="onTxQtyInput()" />
+            <input type="text" id="tx-retention" inputmode="decimal" value="0" autocomplete="off" oninput="onTxQtyInput()" />
           </div>
         </div>
+        <div id="tx-trade-calc" style="display:none;margin-top:10px;font-size:.78rem;color:var(--accent2)"></div>
         <div id="tx-transfer-calc" style="display:none;margin-top:10px;font-size:.78rem;color:var(--muted)"></div>
         <div id="tx-dest-section" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
           <div class="tx-form-section-title" style="margin-bottom:10px">Fondo destino</div>
@@ -1142,7 +1146,7 @@
           </div>
           <div class="form-row" id="tx-dest-price-row" style="margin-bottom:0">
             <label>Valor unitario destino (€) — opcional</label>
-            <input type="number" id="tx-dest-price" min="0" step="0.0001" placeholder="Si lo dejas vacío, se usan las mismas participaciones" oninput="updateTxTransferCalc()" />
+            <input type="text" id="tx-dest-price" inputmode="decimal" placeholder="Si lo dejas vacío, se usan las mismas participaciones" autocomplete="off" oninput="updateTxTransferCalc()" />
             <div style="font-size:.72rem;color:var(--muted);margin-top:4px">Si lo indicas, las participaciones destino = importe ÷ valor unitario destino.</div>
           </div>
           <div id="tx-dest-new-fields" style="display:none;border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:12px;background:var(--surface2)">
@@ -1306,17 +1310,17 @@
     <div style="display:flex;gap:10px">
       <div class="form-row" style="flex:1">
         <label id="cm-qty-label">Cantidad (BTC)</label>
-        <input type="number" id="cm-qty" step="0.00000001" min="0" placeholder="0.00000000" oninput="updateCriptoPreview()" />
+        <input type="text" id="cm-qty" inputmode="decimal" placeholder="hasta 9 decimales" autocomplete="off" oninput="updateCriptoPreview()" />
       </div>
       <div class="form-row" style="flex:1">
         <label id="cm-spot-label">Spot (€/BTC)</label>
-        <input type="number" id="cm-spot" step="0.01" min="0" placeholder="0.00" oninput="updateCriptoPreview()" />
+        <input type="text" id="cm-spot" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="updateCriptoPreview()" />
       </div>
     </div>
 
     <div class="form-row">
       <label>Comisión (€)</label>
-      <input type="number" id="cm-comision" step="0.01" min="0" value="0" oninput="updateCriptoPreview()" />
+      <input type="text" id="cm-comision" inputmode="decimal" value="0" autocomplete="off" oninput="updateCriptoPreview()" />
     </div>
 
     <!-- Sección PERMUTA -->
@@ -1337,11 +1341,11 @@
       <div style="display:flex;gap:10px">
         <div class="form-row" style="flex:1">
           <label id="cm-qty2-label">Cantidad recibida</label>
-          <input type="number" id="cm-qty2" step="0.00000001" min="0" placeholder="0.00000000" oninput="updateCriptoPreview()" />
+          <input type="text" id="cm-qty2" inputmode="decimal" placeholder="hasta 9 decimales" autocomplete="off" oninput="updateCriptoPreview()" />
         </div>
         <div class="form-row" style="flex:1">
           <label id="cm-spot2-label">Spot recibido (€/unidad)</label>
-          <input type="number" id="cm-spot2" step="0.01" min="0" placeholder="0.00" oninput="updateCriptoPreview()" />
+          <input type="text" id="cm-spot2" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="updateCriptoPreview()" />
         </div>
       </div>
     </div>
@@ -1599,6 +1603,8 @@ let editingOriginalTx = null;
 let editingVirtualId = null;
 let txSide = 'buy'; // 'buy' | 'sell' | 'transfer'
 let txTransferMode = 'units'; // 'units' | 'price' | 'amount'
+let txTradeMode = 'price'; // 'price' | 'amount' — compra/venta: precio unitario o importe total
+let _txTradeSyncing = false;
 let _txTransferSyncing = false;
 let hiddenVirtualTxIds = loadHiddenVirtualTxIds();
 let txTableSort = { key: 'datetime', dir: 'desc' };
@@ -1678,14 +1684,65 @@ function color(i) { return PALETTE[i % PALETTE.length]; }
 // ─────────────────────────────────────────────
 //  UTILS
 // ─────────────────────────────────────────────
+const DEC_MONEY = 3;       // euros / precios en moneda
+const DEC_CRYPTO_QTY = 9;  // cantidades de criptomonedas
+const DEC_SHARE_QTY = 9;   // participaciones / títulos
+
+function parseDecimalInput(raw) {
+  if (raw == null) return NaN;
+  let s = String(raw).trim().replace(/[€$\s]/g, '');
+  if (!s) return NaN;
+  if (/\d\.\d{3},/.test(s) || (s.includes(',') && !s.includes('.'))) {
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (s.includes(',') && s.includes('.')) {
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) s = s.replace(/\./g, '').replace(',', '.');
+    else s = s.replace(/,/g, '');
+  }
+  const n = Number(s);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+/** Recorta decimales sin redondear (trunca hacia 0). */
+function truncateDecimals(n, maxDec) {
+  if (!Number.isFinite(n)) return n;
+  const max = Math.max(0, maxDec | 0);
+  const sign = n < 0 ? -1 : 1;
+  const abs = Math.abs(n);
+  if (abs === 0) return 0;
+  const str = abs.toString();
+  if (/e/i.test(str)) {
+    const f = 10 ** max;
+    return sign * Math.trunc(abs * f) / f;
+  }
+  const [intPart, frac = ''] = str.split('.');
+  if (!frac || max === 0) return sign * Number(intPart);
+  return sign * Number(`${intPart}.${frac.slice(0, max)}`);
+}
+
+function formatDecimalTrim(n, maxDec) {
+  if (!Number.isFinite(n)) return '0';
+  return truncateDecimals(n, maxDec).toString();
+}
+
+function qtyDecimalsForPosition(posOrTx) {
+  if (!posOrTx) return DEC_SHARE_QTY;
+  if (posOrTx.sector === 'Criptomonedas') return DEC_CRYPTO_QTY;
+  if (posOrTx.source === 'crypto') return DEC_CRYPTO_QTY;
+  if (posOrTx.positionId && CRYPTO_POSITION_IDS?.has?.(posOrTx.positionId)) return DEC_CRYPTO_QTY;
+  if (posOrTx.id && CRYPTO_POSITION_IDS?.has?.(posOrTx.id)) return DEC_CRYPTO_QTY;
+  const isin = String(posOrTx.isin || '').toUpperCase();
+  if (typeof CRYPTO_CONFIG !== 'undefined' && isin && isin in CRYPTO_CONFIG) return DEC_CRYPTO_QTY;
+  return DEC_SHARE_QTY;
+}
+
 function fmt(n) { return new Intl.NumberFormat('es-ES', { style:'currency', currency:'EUR', maximumFractionDigits:0 }).format(n); }
 function fmtPrice(n) {
   return new Intl.NumberFormat('es-ES', {
     style: 'currency',
     currency: 'EUR',
     minimumFractionDigits: 0,
-    maximumFractionDigits: 2
-  }).format(Number(n) || 0);
+    maximumFractionDigits: DEC_MONEY
+  }).format(truncateDecimals(Number(n) || 0, DEC_MONEY));
 }
 function pct(n) { return (n >= 0 ? '+' : '') + n.toFixed(1) + '%'; }
 function pnl(pos) { return pos.value - pos.cost; }
@@ -2079,12 +2136,12 @@ function renderRoboadvisor() {
 //  CRIPTOMONEDAS
 // ─────────────────────────────────────────────
 const CRYPTO_CONFIG = {
-  BTC:  { label:'Bitcoin',  symbol:'₿',    color:'#f7931a', bg:'rgba(247,147,26,.12)',  posId:12, cgId:'bitcoin',      spotFmt: v => '€'+Math.round(v/1000)+'k',      holdFmt: v => v.toFixed(5)+' ₿'    },
-  ETH:  { label:'Ethereum', symbol:'Ξ',    color:'#627eea', bg:'rgba(98,126,234,.12)',  posId:14, cgId:'ethereum',     spotFmt: v => '€'+(v/1000).toFixed(1)+'k',     holdFmt: v => v.toFixed(5)+' Ξ'    },
-  XRP:  { label:'XRP',      symbol:'XRP',  color:'#00aae4', bg:'rgba(0,170,228,.12)',   posId:15, cgId:'ripple',       spotFmt: v => '€'+v.toFixed(2),                holdFmt: v => v.toFixed(2)+' XRP'  },
-  USDC: { label:'USDC',     symbol:'USDC', color:'#2775ca', bg:'rgba(39,117,202,.12)',  posId:16, cgId:'usd-coin',     spotFmt: v => '€'+v.toFixed(3),                holdFmt: v => v.toFixed(2)+' USDC' },
-  BNB:  { label:'BNB',      symbol:'BNB',  color:'#f3ba2f', bg:'rgba(243,186,47,.12)',  posId:17, cgId:'binancecoin',  spotFmt: v => '€'+Math.round(v),               holdFmt: v => v.toFixed(4)+' BNB'  },
-  BTM:  { label:'BTM',      symbol:'BTM',  color:'#00c4a0', bg:'rgba(0,196,160,.12)',   posId:18, cgId:'bytom',        spotFmt: v => '€'+v.toFixed(4),                holdFmt: v => v.toFixed(2)+' BTM'  },
+  BTC:  { label:'Bitcoin',  symbol:'₿',    color:'#f7931a', bg:'rgba(247,147,26,.12)',  posId:12, cgId:'bitcoin',      spotFmt: v => '€'+formatDecimalTrim(v, DEC_MONEY), holdFmt: v => formatCryptoQty(v)+' ₿'    },
+  ETH:  { label:'Ethereum', symbol:'Ξ',    color:'#627eea', bg:'rgba(98,126,234,.12)',  posId:14, cgId:'ethereum',     spotFmt: v => '€'+formatDecimalTrim(v, DEC_MONEY), holdFmt: v => formatCryptoQty(v)+' Ξ'    },
+  XRP:  { label:'XRP',      symbol:'XRP',  color:'#00aae4', bg:'rgba(0,170,228,.12)',   posId:15, cgId:'ripple',       spotFmt: v => '€'+formatDecimalTrim(v, DEC_MONEY), holdFmt: v => formatCryptoQty(v)+' XRP'  },
+  USDC: { label:'USDC',     symbol:'USDC', color:'#2775ca', bg:'rgba(39,117,202,.12)',  posId:16, cgId:'usd-coin',     spotFmt: v => '€'+formatDecimalTrim(v, DEC_MONEY), holdFmt: v => formatCryptoQty(v)+' USDC' },
+  BNB:  { label:'BNB',      symbol:'BNB',  color:'#f3ba2f', bg:'rgba(243,186,47,.12)',  posId:17, cgId:'binancecoin',  spotFmt: v => '€'+formatDecimalTrim(v, DEC_MONEY), holdFmt: v => formatCryptoQty(v)+' BNB'  },
+  BTM:  { label:'BTM',      symbol:'BTM',  color:'#00c4a0', bg:'rgba(0,196,160,.12)',   posId:18, cgId:'bytom',        spotFmt: v => '€'+formatDecimalTrim(v, DEC_MONEY), holdFmt: v => formatCryptoQty(v)+' BTM'  },
 };
 const CRYPTO_POSITION_IDS = new Set(Object.values(CRYPTO_CONFIG).map(c => c.posId));
 
@@ -2178,7 +2235,7 @@ function renderCripto() {
 
   // ── KPIs ──
   document.getElementById('cripto-kpis').innerHTML = [
-    { label: ticker + ' en cartera',   value: holdingsCrypto.toFixed(8) + ' ' + symbol, sub: fmt(currentValue) + ' valor actual',      color:'accent'                               },
+    { label: ticker + ' en cartera',   value: formatCryptoQty(holdingsCrypto) + ' ' + symbol, sub: fmt(currentValue) + ' valor actual',      color:'accent'                               },
     { label:'Precio actual',            value: fmt(currentPrice),                         sub: 'Precio implícito en cartera',            color:''                                     },
     { label:'Precio medio compra',      value: fmt(avgCostPerUnit),                       sub: 'Coste medio por unidad adquirida (CMC)', color:''                                     },
     { label:'G/P no realizado',         value: fmt(unrealizedPnl),                        sub: pct(unrealizedPnl / costBasis * 100),     color: unrealizedPnl >= 0 ? 'green' : 'red'  },
@@ -2231,7 +2288,7 @@ function renderCripto() {
   let running = 0;
   const holdingsData = txData.map(tx => {
     running += tx.qty;
-    return parseFloat(running.toFixed(8));
+    return truncateDecimals(running, DEC_CRYPTO_QTY);
   });
   mkChart('chart-cripto-holdings', {
     type: 'line',
@@ -2337,11 +2394,11 @@ function renderCripto() {
       <td style="color:var(--muted)">${tx.time}</td>
       <td>${badge}</td>
       <td style="color:var(--muted)">${platCell}</td>
-      <td style="text-align:right;color:${qtyColor};font-weight:600">${qtySign}${tx.qty.toFixed(8)}</td>
-      <td style="text-align:right">${tx.spot ? fmt(tx.spot) : '–'}</td>
+      <td style="text-align:right;color:${qtyColor};font-weight:600">${qtySign}${formatCryptoQty(tx.qty)}</td>
+      <td style="text-align:right">${tx.spot ? fmtPrice(tx.spot) : '–'}</td>
       <td style="text-align:right;color:${importeColor}">${isFee || !tx.spot ? '–' : ((isBuy?'-':'+')+fmt(gross))}</td>
-      <td style="text-align:right;color:var(--muted)">${(tx.comision||0).toFixed(1)} €</td>
-      <td style="text-align:right;font-weight:700">${runningQty.toFixed(8)} ${symbol}</td>
+      <td style="text-align:right;color:var(--muted)">${formatDecimalTrim(tx.comision||0, DEC_MONEY)} €</td>
+      <td style="text-align:right;font-weight:700">${formatCryptoQty(runningQty)} ${symbol}</td>
     </tr>`;
   });
   tbody += '</tbody>';
@@ -2502,7 +2559,7 @@ function renderCriptoFiscalidad() {
           <td>${e.date}</td>
           <td>${badge}${detail}</td>
           <td style="font-weight:600">${e.ticker}</td>
-          <td style="text-align:right;font-family:monospace;font-size:.78rem">${e.qty.toFixed(6)}</td>
+          <td style="text-align:right;font-family:monospace;font-size:.78rem">${formatCryptoQty(e.qty)}</td>
           <td style="text-align:right">${fmt(e.spot)}/ud.</td>
           <td style="text-align:right;color:var(--green)">${fmt(e.proceeds)}</td>
           <td style="text-align:right;color:var(--muted)">${fmt(e.costBasis)}
@@ -2633,25 +2690,27 @@ function updateCriptoPreview() {
   const tipo     = document.getElementById('cm-tipo').value;
   const activo   = document.getElementById('cm-activo').value;
   const other    = document.getElementById('cm-activo2').value;
-  const qty      = parseFloat(document.getElementById('cm-qty').value)      || 0;
-  const spot     = parseFloat(document.getElementById('cm-spot').value)     || 0;
-  const comision = parseFloat(document.getElementById('cm-comision').value) || 0;
+  const qty      = truncateDecimals(parseDecimalInput(document.getElementById('cm-qty').value) || 0, DEC_CRYPTO_QTY);
+  const spot     = truncateDecimals(parseDecimalInput(document.getElementById('cm-spot').value) || 0, DEC_MONEY);
+  const comision = truncateDecimals(parseDecimalInput(document.getElementById('cm-comision').value) || 0, DEC_MONEY);
   const el       = document.getElementById('cm-preview');
 
   if (!qty || !spot) { el.textContent = 'Introduce cantidad y precio spot para ver el resumen.'; return; }
 
-  const gross = qty * spot;
+  const gross = truncateDecimals(qty * spot, DEC_MONEY);
+  const qtyTxt = formatCryptoQty(qty);
+  const feeTxt = formatDecimalTrim(comision, DEC_MONEY);
   if (tipo === 'COMPRA') {
-    el.innerHTML = `Pagas <strong style="color:var(--text)">${fmt(gross + comision)}</strong> (bruto ${fmt(gross)} + comisión ${comision.toFixed(2)} €) &rarr; recibes <strong style="color:var(--green)">${qty.toFixed(8)} ${activo}</strong>`;
+    el.innerHTML = `Pagas <strong style="color:var(--text)">${fmt(gross + comision)}</strong> (bruto ${fmt(gross)} + comisión ${feeTxt} €) &rarr; recibes <strong style="color:var(--green)">${qtyTxt} ${activo}</strong>`;
   } else if (tipo === 'VENTA') {
-    el.innerHTML = `Vendes <strong style="color:var(--text)">${qty.toFixed(8)} ${activo}</strong> &rarr; recibes <strong style="color:var(--green)">${fmt(gross - comision)}</strong> neto (${fmt(gross)} &minus; ${comision.toFixed(2)} € comisión)`;
+    el.innerHTML = `Vendes <strong style="color:var(--text)">${qtyTxt} ${activo}</strong> &rarr; recibes <strong style="color:var(--green)">${fmt(gross - comision)}</strong> neto (${fmt(gross)} &minus; ${feeTxt} € comisión)`;
   } else {
-    const qty2  = parseFloat(document.getElementById('cm-qty2').value)  || 0;
-    const spot2 = parseFloat(document.getElementById('cm-spot2').value) || 0;
-    if (!qty2 || !spot2) { el.innerHTML = `Entregas <strong style="color:var(--text)">${qty.toFixed(8)} ${activo}</strong> (${fmt(gross)}) &rarr; introduce los datos del activo recibido.`; return; }
-    const gross2 = qty2 * spot2;
+    const qty2  = truncateDecimals(parseDecimalInput(document.getElementById('cm-qty2').value) || 0, DEC_CRYPTO_QTY);
+    const spot2 = truncateDecimals(parseDecimalInput(document.getElementById('cm-spot2').value) || 0, DEC_MONEY);
+    if (!qty2 || !spot2) { el.innerHTML = `Entregas <strong style="color:var(--text)">${qtyTxt} ${activo}</strong> (${fmt(gross)}) &rarr; introduce los datos del activo recibido.`; return; }
+    const gross2 = truncateDecimals(qty2 * spot2, DEC_MONEY);
     const diff   = gross2 - gross;
-    el.innerHTML = `Entregas <strong style="color:var(--red)">${qty.toFixed(8)} ${activo}</strong> (${fmt(gross)}) &rarr; recibes <strong style="color:var(--green)">${qty2.toFixed(8)} ${other}</strong> (${fmt(gross2)}) · diferencia ${diff >= 0 ? '+' : ''}${fmt(diff)} · comisión ${comision.toFixed(2)} €`;
+    el.innerHTML = `Entregas <strong style="color:var(--red)">${qtyTxt} ${activo}</strong> (${fmt(gross)}) &rarr; recibes <strong style="color:var(--green)">${formatCryptoQty(qty2)} ${other}</strong> (${fmt(gross2)}) · diferencia ${diff >= 0 ? '+' : ''}${fmt(diff)} · comisión ${feeTxt} €`;
   }
 }
 
@@ -2661,25 +2720,25 @@ function saveCriptoTx() {
   const fecha     = document.getElementById('cm-fecha').value;
   const hora      = document.getElementById('cm-hora').value.slice(0, 5);
   const plataforma = document.getElementById('cm-plataforma').value.trim() || 'Sin especificar';
-  const qty       = parseFloat(document.getElementById('cm-qty').value);
-  const spot      = parseFloat(document.getElementById('cm-spot').value);
-  const comision  = parseFloat(document.getElementById('cm-comision').value) || 0;
+  const qty       = truncateDecimals(parseDecimalInput(document.getElementById('cm-qty').value), DEC_CRYPTO_QTY);
+  const spot      = truncateDecimals(parseDecimalInput(document.getElementById('cm-spot').value), DEC_MONEY);
+  const comision  = truncateDecimals(parseDecimalInput(document.getElementById('cm-comision').value) || 0, DEC_MONEY);
 
   if (!fecha || !hora || !(qty > 0) || !(spot > 0)) {
-    alert('Completa fecha, hora, cantidad (> 0) y precio spot (> 0).'); return;
+    alert('Completa fecha, hora, cantidad (> 0, máx. 9 decimales) y precio spot (> 0, máx. 3 decimales).'); return;
   }
   if (!USER_CRIPTO[activo]) USER_CRIPTO[activo] = [];
 
   if (tipo === 'PERMUTA') {
     const other = document.getElementById('cm-activo2').value;
-    const qty2  = parseFloat(document.getElementById('cm-qty2').value);
-    const spot2 = parseFloat(document.getElementById('cm-spot2').value);
+    const qty2  = truncateDecimals(parseDecimalInput(document.getElementById('cm-qty2').value), DEC_CRYPTO_QTY);
+    const spot2 = truncateDecimals(parseDecimalInput(document.getElementById('cm-spot2').value), DEC_MONEY);
     if (!(qty2 > 0) || !(spot2 > 0)) {
       alert('Para una permuta, introduce también cantidad y precio del activo recibido (> 0).'); return;
     }
-    USER_CRIPTO[activo].push({ date:fecha, time:hora, qty:-qty,  tipo:'VENTA',  plataforma, comision,  spot,  permuta:'→ '+qty2.toFixed(8)+' '+other  });
+    USER_CRIPTO[activo].push({ date:fecha, time:hora, qty:-qty,  tipo:'VENTA',  plataforma, comision,  spot,  permuta:'→ '+formatCryptoQty(qty2)+' '+other  });
     if (!USER_CRIPTO[other]) USER_CRIPTO[other] = [];
-    USER_CRIPTO[other].push({  date:fecha, time:hora, qty:qty2,  tipo:'COMPRA', plataforma, comision:0, spot:spot2, permuta:'← '+qty.toFixed(8)+' '+activo });
+    USER_CRIPTO[other].push({  date:fecha, time:hora, qty:qty2,  tipo:'COMPRA', plataforma, comision:0, spot:spot2, permuta:'← '+formatCryptoQty(qty)+' '+activo });
   } else {
     USER_CRIPTO[activo].push({ date:fecha, time:hora, qty: tipo==='VENTA' ? -qty : qty, tipo, plataforma, comision, spot });
   }
@@ -3820,9 +3879,9 @@ function showHistory(posId) {
 
     { label: closed ? 'G/P realizado' : 'Ganancias', value: fmt(gpHist), sub: pct(gpHistPct), color: gpHist>=0?'green':'red' },
 
-    { label:'Participaciones', value: totalShares.toFixed(3), sub: closed ? 'Todo vendido' : 'Abiertas ahora', color:'' },
+    { label:'Participaciones', value: formatDecimalTrim(totalShares, DEC_SHARE_QTY), sub: closed ? 'Todo vendido' : 'Abiertas ahora', color:'' },
 
-    { label:'Precio medio compra', value: precioMedio.toFixed(2)+'€', sub: 'Coste medio ponderado', color:'yellow' },
+    { label:'Precio medio compra', value: formatDecimalTrim(precioMedio, DEC_MONEY)+'€', sub: 'Coste medio ponderado', color:'yellow' },
 
   ].map(k => `<div class="kpi-card ${k.color}">
 
@@ -4068,9 +4127,9 @@ function showHistory(posId) {
 
       <td style="text-align:right;font-weight:700;color:${isSell?'var(--green)':'var(--text)'}">${fmt(e.amount)}</td>
 
-      <td style="text-align:right;color:var(--muted)">${e.shares.toFixed(3)}</td>
+      <td style="text-align:right;color:var(--muted)">${formatDecimalTrim(e.shares, DEC_SHARE_QTY)}</td>
 
-      <td style="text-align:right;color:var(--accent2)">${e.price.toFixed(2)} €</td>
+      <td style="text-align:right;color:var(--accent2)">${formatDecimalTrim(e.price, DEC_MONEY)} €</td>
 
       <td style="text-align:right">${isSell ? '–' : fmt(e.marketValue)}</td>
 
@@ -4088,9 +4147,9 @@ function showHistory(posId) {
 
     <td style="text-align:right">${fmt(totalAportado)}</td>
 
-    <td style="text-align:right">${totalShares.toFixed(3)}</td>
+    <td style="text-align:right">${formatDecimalTrim(totalShares, DEC_SHARE_QTY)}</td>
 
-    <td style="text-align:right;color:var(--accent2)">${precioMedio.toFixed(2)} € <span style="font-size:.7rem;color:var(--muted)">(medio)</span></td>
+    <td style="text-align:right;color:var(--accent2)">${formatDecimalTrim(precioMedio, DEC_MONEY)} € <span style="font-size:.7rem;color:var(--muted)">(medio)</span></td>
 
     <td style="text-align:right">${fmt(totalMercado)}</td>
 
@@ -4661,16 +4720,16 @@ function txDateTimeSortKey(value) {
   return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
 }
 
-function formatUnitsForInput(n) {
+function formatUnitsForInput(n, maxDec = DEC_SHARE_QTY) {
   const x = Number(n);
   if (!Number.isFinite(x) || x <= 0) return '';
-  return parseFloat(x.toFixed(8)).toString();
+  return formatDecimalTrim(x, maxDec);
 }
 
-function formatUnitsDisplay(n) {
+function formatUnitsDisplay(n, maxDec = DEC_SHARE_QTY) {
   const x = Number(n);
   if (!Number.isFinite(x)) return '0';
-  return parseFloat(x.toFixed(8)).toString();
+  return formatDecimalTrim(x, maxDec);
 }
 
 function getEditingTxExcludeId() {
@@ -4880,21 +4939,150 @@ function onTxQtyInput() {
     updateTxFifoPanel();
     return;
   }
+  // En modo importe: al cambiar cantidad se recalcula el precio (se conserva el total).
+  // En modo precio: al cambiar cantidad o precio se recalcula el importe total.
+  syncTxTradeFields(txTradeMode === 'amount' ? 'amount' : 'qty');
+  updateTxTradeCalc();
   if (txSide === 'sell') updateTxFifoPanel();
 }
 
 function getTxUnitPriceFromForm(pos = selectedPositionForTx()) {
   if (isBitcoinPosition(pos)) {
-    return parseFloat(document.getElementById('tx-btc-price')?.value) || 0;
+    return truncateDecimals(parseDecimalInput(document.getElementById('tx-btc-price')?.value) || 0, DEC_MONEY);
   }
-  return parseFloat(document.getElementById('tx-price')?.value) || 0;
+  return truncateDecimals(parseDecimalInput(document.getElementById('tx-price')?.value) || 0, DEC_MONEY);
+}
+
+function onTxPriceInput() {
+  if (txSide === 'transfer') {
+    syncTxTransferFields('price');
+    updateTxTransferCalc();
+    updateTxFifoPanel();
+    return;
+  }
+  // Editar precio → recalcular importe (modo precio × cantidad)
+  if (txTradeMode === 'amount') {
+    txTradeMode = 'price';
+    paintTxTradeModeButtons();
+    updateTxFormFields();
+  }
+  syncTxTradeFields('price');
+  updateTxTradeCalc();
+  if (txSide === 'sell') updateTxFifoPanel();
+}
+
+function onTxAmountInput() {
+  if (txSide === 'transfer') {
+    syncTxTransferFields('amount');
+    updateTxTransferCalc();
+    updateTxFifoPanel();
+    return;
+  }
+  // Editar importe → recalcular precio unitario
+  if (txTradeMode !== 'amount') {
+    txTradeMode = 'amount';
+    paintTxTradeModeButtons();
+    updateTxFormFields();
+  }
+  syncTxTradeFields('amount');
+  updateTxTradeCalc();
+  if (txSide === 'sell') updateTxFifoPanel();
 }
 
 function onTxTransferAmountInput() {
-  if (txSide !== 'transfer') return;
-  syncTxTransferFields('amount');
-  updateTxTransferCalc();
-  updateTxFifoPanel();
+  onTxAmountInput();
+}
+
+function setTxTradeMode(mode) {
+  txTradeMode = mode === 'amount' ? 'amount' : 'price';
+  paintTxTradeModeButtons();
+  updateTxFormFields();
+  syncTxTradeFields(txTradeMode === 'amount' ? 'amount' : 'price');
+  updateTxTradeCalc();
+  if (txSide === 'sell') updateTxFifoPanel();
+}
+
+function paintTxTradeModeButtons() {
+  ['price', 'amount'].forEach(m => {
+    const btn = document.getElementById('tx-trade-mode-' + m);
+    if (!btn) return;
+    const on = txTradeMode === m;
+    btn.style.background = on ? 'var(--accent)' : 'var(--surface2)';
+    btn.style.color = on ? '#fff' : 'var(--text)';
+  });
+}
+
+/** Sincroniza cantidad / precio unitario / importe total en compra y venta. */
+function syncTxTradeFields(changed) {
+  if (_txTradeSyncing || txSide === 'transfer') return;
+  const pos = selectedPositionForTx();
+  if (isAportacionProduct(pos)) return;
+  _txTradeSyncing = true;
+  try {
+    const qtyEl = document.getElementById('tx-qty');
+    const priceEl = isBitcoinPosition(pos)
+      ? document.getElementById('tx-btc-price')
+      : document.getElementById('tx-price');
+    const amountEl = document.getElementById('tx-amount');
+    if (!qtyEl || !priceEl || !amountEl) return;
+
+    const qtyDec = qtyDecimalsForPosition(pos);
+    let qty = truncateDecimals(parseDecimalInput(qtyEl.value) || 0, qtyDec);
+    let price = truncateDecimals(parseDecimalInput(priceEl.value) || 0, DEC_MONEY);
+    let amount = truncateDecimals(parseDecimalInput(amountEl.value) || 0, DEC_MONEY);
+
+    if (changed === 'amount') {
+      if (qty > 0 && amount > 0) {
+        price = truncateDecimals(amount / qty, DEC_MONEY);
+        priceEl.value = formatDecimalTrim(price, DEC_MONEY);
+      }
+    } else {
+      // qty o price: recalcular importe total
+      if (qty > 0 && price > 0) {
+        amount = truncateDecimals(qty * price, DEC_MONEY);
+        amountEl.value = formatDecimalTrim(amount, DEC_MONEY);
+      }
+    }
+  } finally {
+    _txTradeSyncing = false;
+  }
+}
+
+function updateTxTradeCalc() {
+  const el = document.getElementById('tx-trade-calc');
+  if (!el) return;
+  if (txSide === 'transfer' || isAportacionProduct(selectedPositionForTx())) {
+    el.style.display = 'none';
+    el.textContent = '';
+    return;
+  }
+  const pos = selectedPositionForTx();
+  const qtyDec = qtyDecimalsForPosition(pos);
+  const qty = truncateDecimals(parseDecimalInput(document.getElementById('tx-qty')?.value) || 0, qtyDec);
+  const price = getTxUnitPriceFromForm(pos);
+  const amount = truncateDecimals(parseDecimalInput(document.getElementById('tx-amount')?.value) || 0, DEC_MONEY);
+  const fee = truncateDecimals(parseDecimalInput(document.getElementById('tx-fee')?.value) || 0, DEC_MONEY);
+  const retention = txSide === 'sell'
+    ? truncateDecimals(parseDecimalInput(document.getElementById('tx-retention')?.value) || 0, DEC_MONEY)
+    : 0;
+
+  if (!(qty > 0) || (!(price > 0) && !(amount > 0))) {
+    el.style.display = 'none';
+    el.textContent = '';
+    return;
+  }
+  const gross = amount > 0 ? amount : truncateDecimals(qty * price, DEC_MONEY);
+  const unit = price > 0 ? price : (qty > 0 ? truncateDecimals(gross / qty, DEC_MONEY) : 0);
+  const neto = txSide === 'sell'
+    ? truncateDecimals(Math.max(0, gross - fee - retention), DEC_MONEY)
+    : truncateDecimals(gross + fee, DEC_MONEY);
+  const verb = txSide === 'sell' ? 'Venta' : 'Compra';
+  el.style.display = 'block';
+  el.innerHTML = txSide === 'sell'
+    ? `<strong>${verb}:</strong> ${formatDecimalTrim(qty, qtyDec)} × ${formatDecimalTrim(unit, DEC_MONEY)} € = <strong>${formatDecimalTrim(gross, DEC_MONEY)} €</strong> brutos` +
+      (fee || retention ? ` · neto tras comisión/retención: <strong>${formatDecimalTrim(neto, DEC_MONEY)} €</strong>` : '')
+    : `<strong>${verb}:</strong> ${formatDecimalTrim(qty, qtyDec)} × ${formatDecimalTrim(unit, DEC_MONEY)} € = <strong>${formatDecimalTrim(gross, DEC_MONEY)} €</strong>` +
+      (fee ? ` · coste total con comisión: <strong>${formatDecimalTrim(neto, DEC_MONEY)} €</strong>` : '');
 }
 
 function setTxTransferMode(mode) {
@@ -4921,25 +5109,27 @@ function syncTxTransferFields(changed) {
     const priceEl = document.getElementById('tx-price');
     const amountEl = document.getElementById('tx-amount');
     if (!qtyEl || !priceEl || !amountEl) return;
-    let qty = parseFloat(qtyEl.value) || 0;
-    let price = getTxUnitPriceFromForm();
-    let amount = parseFloat(amountEl.value) || 0;
+    const pos = selectedPositionForTx();
+    const qtyDec = qtyDecimalsForPosition(pos);
+    let qty = truncateDecimals(parseDecimalInput(qtyEl.value) || 0, qtyDec);
+    let price = getTxUnitPriceFromForm(pos);
+    let amount = truncateDecimals(parseDecimalInput(amountEl.value) || 0, DEC_MONEY);
 
     if (changed === 'qty' || changed === 'price') {
       if (qty > 0 && price > 0) {
-        amountEl.value = (qty * price).toFixed(2);
+        amountEl.value = formatDecimalTrim(qty * price, DEC_MONEY);
       }
     } else if (changed === 'amount') {
-      amount = parseFloat(amountEl.value) || 0;
+      amount = truncateDecimals(parseDecimalInput(amountEl.value) || 0, DEC_MONEY);
       if (amount > 0 && price > 0) {
-        qtyEl.value = formatUnitsForInput(amount / price);
-      } else if (amount > 0 && qty > 0 && !(parseFloat(priceEl.value) > 0)) {
-        const unit = amount / qty;
-        if (isBitcoinPosition(selectedPositionForTx())) {
+        qtyEl.value = formatUnitsForInput(amount / price, qtyDec);
+      } else if (amount > 0 && qty > 0 && !(parseDecimalInput(priceEl.value) > 0)) {
+        const unit = truncateDecimals(amount / qty, DEC_MONEY);
+        if (isBitcoinPosition(pos)) {
           const btcEl = document.getElementById('tx-btc-price');
-          if (btcEl) btcEl.value = unit.toFixed(2);
+          if (btcEl) btcEl.value = formatDecimalTrim(unit, DEC_MONEY);
         } else {
-          priceEl.value = unit.toFixed(4);
+          priceEl.value = formatDecimalTrim(unit, DEC_MONEY);
         }
       }
     }
@@ -4951,36 +5141,37 @@ function syncTxTransferFields(changed) {
 function getTxTransferValues() {
   const pos = selectedPositionForTx();
   const isAport = isAportacionProduct(pos);
-  let qty = parseFloat(document.getElementById('tx-qty')?.value) || 0;
+  const qtyDec = qtyDecimalsForPosition(pos);
+  let qty = truncateDecimals(parseDecimalInput(document.getElementById('tx-qty')?.value) || 0, qtyDec);
   let price = getTxUnitPriceFromForm(pos);
-  let amount = parseFloat(document.getElementById('tx-amount')?.value) || 0;
+  let amount = truncateDecimals(parseDecimalInput(document.getElementById('tx-amount')?.value) || 0, DEC_MONEY);
 
   if (isAport) {
-    amount = parseFloat(document.getElementById('tx-qty')?.value) || amount || 0;
+    amount = truncateDecimals(parseDecimalInput(document.getElementById('tx-qty')?.value) || amount || 0, DEC_MONEY);
     qty = 0;
     price = 0;
   } else if (txTransferMode === 'amount') {
-    amount = parseFloat(document.getElementById('tx-amount')?.value) || 0;
-    if (amount > 0 && price > 0) qty = amount / price;
-    else if (qty > 0 && price > 0) amount = qty * price;
+    amount = truncateDecimals(parseDecimalInput(document.getElementById('tx-amount')?.value) || 0, DEC_MONEY);
+    if (amount > 0 && price > 0) qty = truncateDecimals(amount / price, qtyDec);
+    else if (qty > 0 && price > 0) amount = truncateDecimals(qty * price, DEC_MONEY);
   } else if (txTransferMode === 'price') {
-    amount = parseFloat(document.getElementById('tx-amount')?.value) || 0;
-    if (amount > 0 && price > 0) qty = amount / price;
-    else if (qty > 0 && price > 0) amount = qty * price;
+    amount = truncateDecimals(parseDecimalInput(document.getElementById('tx-amount')?.value) || 0, DEC_MONEY);
+    if (amount > 0 && price > 0) qty = truncateDecimals(amount / price, qtyDec);
+    else if (qty > 0 && price > 0) amount = truncateDecimals(qty * price, DEC_MONEY);
   } else {
-    if (qty > 0 && price > 0) amount = qty * price;
-    else if (amount > 0 && price > 0) qty = amount / price;
+    if (qty > 0 && price > 0) amount = truncateDecimals(qty * price, DEC_MONEY);
+    else if (amount > 0 && price > 0) qty = truncateDecimals(amount / price, qtyDec);
   }
   return { qty, price, amount, isAport };
 }
 
 function getTxDestUnitsAndPrice(sourceAmount, sourceQty, sourcePrice) {
-  const destPrice = parseFloat(document.getElementById('tx-dest-price')?.value) || 0;
+  const destPrice = truncateDecimals(parseDecimalInput(document.getElementById('tx-dest-price')?.value) || 0, DEC_MONEY);
   if (destPrice > 0 && sourceAmount > 0) {
-    return { destQty: sourceAmount / destPrice, destPrice };
+    return { destQty: truncateDecimals(sourceAmount / destPrice, DEC_SHARE_QTY), destPrice };
   }
   if (sourceQty > 0) {
-    return { destQty: sourceQty, destPrice: sourcePrice || (sourceAmount / sourceQty) };
+    return { destQty: sourceQty, destPrice: sourcePrice || truncateDecimals(sourceAmount / sourceQty, DEC_MONEY) };
   }
   return { destQty: 0, destPrice: destPrice || sourcePrice || 0 };
 }
@@ -5057,10 +5248,20 @@ function updateTxFormFields() {
   const destSection = document.getElementById('tx-dest-section');
   const qtyRow = document.getElementById('tx-qty-row');
 
+  const tradeModeRow = document.getElementById('tx-trade-mode-row');
   if (modeRow) modeRow.style.display = isXfer && !isAport ? '' : 'none';
+  if (tradeModeRow) tradeModeRow.style.display = (!isXfer && !isAport) ? '' : 'none';
+  const tradeModeLabel = document.getElementById('tx-trade-mode-label');
+  if (tradeModeLabel && !isXfer && !isAport) {
+    tradeModeLabel.textContent = isSell
+      ? 'Cómo indicar la venta'
+      : 'Cómo indicar la compra';
+  }
   if (destSection) destSection.style.display = isXfer ? '' : 'none';
 
   if (isXfer) {
+    const tradeCalc = document.getElementById('tx-trade-calc');
+    if (tradeCalc) { tradeCalc.style.display = 'none'; tradeCalc.textContent = ''; }
     paintTxTransferModeButtons();
     if (isAport) {
       if (qtyLabel) qtyLabel.textContent = 'Importe traspasado (€)';
@@ -5105,20 +5306,34 @@ function updateTxFormFields() {
     return;
   }
 
-  if (amountRow) amountRow.style.display = 'none';
   if (qtyLabel) {
     if (isAport) qtyLabel.textContent = isSell ? 'Importe retirado (€)' : 'Cantidad comprada (€ aportados)';
-    else qtyLabel.textContent = isSell ? 'Cantidad vendida' : 'Cantidad comprada';
+    else qtyLabel.textContent = isSell ? 'Cantidad vendida (acciones / part.)' : 'Cantidad comprada (acciones / part.)';
   }
-  if (priceLabel) priceLabel.textContent = isSell ? 'Precio de venta por unidad (€)' : 'Valor de mercado por unidad (€)';
-  if (btcLabel) btcLabel.textContent = isSell ? 'Precio de venta BTC (€/BTC)' : 'Valor BTC (€/BTC)';
+  if (priceLabel) {
+    priceLabel.textContent = isSell
+      ? (txTradeMode === 'amount' ? 'Precio unitario (€) — calculado' : 'Precio de venta por unidad (€)')
+      : (txTradeMode === 'amount' ? 'Precio unitario (€) — calculado' : 'Valor de mercado por unidad (€)');
+  }
+  if (btcLabel) {
+    btcLabel.textContent = isSell
+      ? (txTradeMode === 'amount' ? 'Precio BTC (€/BTC) — calculado' : 'Precio de venta BTC (€/BTC)')
+      : (txTradeMode === 'amount' ? 'Valor BTC (€/BTC) — calculado' : 'Valor BTC (€/BTC)');
+  }
+  const amtLabel = document.getElementById('tx-amount-label');
+  if (amtLabel) {
+    amtLabel.textContent = isSell
+      ? (txTradeMode === 'amount' ? 'Importe total obtenido (€)' : 'Importe total (€) — calculado')
+      : (txTradeMode === 'amount' ? 'Importe total pagado (€)' : 'Importe total (€) — calculado');
+  }
   if (qtyInput) {
-    qtyInput.step = isAport ? '0.01' : '0.000001';
+    qtyInput.step = isAport ? '0.01' : 'any';
     qtyInput.placeholder = isAport ? 'Ej: 200' : '0';
   }
   if (qtyRow) qtyRow.style.display = '';
   if (priceRow) priceRow.style.display = (!isAport && !isBtc) ? '' : 'none';
   if (btcRow) btcRow.style.display = (!isAport && isBtc) ? '' : 'none';
+  if (amountRow) amountRow.style.display = isAport ? 'none' : '';
   if (feeRow) feeRow.style.display = '';
   if (retentionRow) retentionRow.style.display = isSell ? '' : 'none';
   if (hint) {
@@ -5131,6 +5346,14 @@ function updateTxFormFields() {
   }
   const calc = document.getElementById('tx-transfer-calc');
   if (calc) { calc.style.display = 'none'; calc.textContent = ''; }
+  paintTxTradeModeButtons();
+  if (!isAport) {
+    syncTxTradeFields(txTradeMode === 'amount' ? 'amount' : 'price');
+    updateTxTradeCalc();
+  } else {
+    const tradeCalc = document.getElementById('tx-trade-calc');
+    if (tradeCalc) { tradeCalc.style.display = 'none'; tradeCalc.textContent = ''; }
+  }
   updateTxRegionFieldsVisibility();
   updateTxProductMetaFieldsVisibility();
   updateTxFifoPanel();
@@ -5143,65 +5366,7 @@ function isBitcoinPosition(pos) {
   return isin === 'BTC';
 }
 
-function setTxBtcStatus(msg, isError = false) {
-  const el = document.getElementById('tx-btc-price-status');
-  if (!el) return;
-  el.style.color = isError ? 'var(--red)' : 'var(--muted)';
-  el.textContent = msg || '';
-}
-
-function nearestBtcEurPrice(prices, targetMs) {
-  if (!Array.isArray(prices) || !prices.length) return null;
-  let best = prices[0];
-  let bestDelta = Math.abs(prices[0][0] - targetMs);
-  for (let i = 1; i < prices.length; i++) {
-    const d = Math.abs(prices[i][0] - targetMs);
-    if (d < bestDelta) { best = prices[i]; bestDelta = d; }
-  }
-  return { ts: best[0], price: best[1], deltaMs: bestDelta };
-}
-
-async function fetchBtcPriceForTransaction(auto = false) {
-  const pos = selectedPositionForTx();
-  if (!isBitcoinPosition(pos)) {
-    if (!auto) setTxBtcStatus('Selecciona el activo Bitcoin para buscar su cotización histórica.');
-    return;
-  }
-  const dt = getTxDateTimeFromInputs();
-  if (!dt) {
-    if (!auto) setTxBtcStatus('Introduce fecha y hora para consultar BTC/EUR.');
-    return;
-  }
-  const targetMs = new Date(dt).getTime();
-  if (!Number.isFinite(targetMs)) {
-    if (!auto) setTxBtcStatus('Fecha/hora no válida.', true);
-    return;
-  }
-
-  try {
-    setTxBtcStatus('Consultando cotización histórica BTC/EUR...');
-    const from = Math.floor((targetMs - 4 * 3600 * 1000) / 1000);
-    const to = Math.floor((targetMs + 4 * 3600 * 1000) / 1000);
-    const url = `https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=eur&from=${from}&to=${to}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('No se pudo consultar CoinGecko');
-    const data = await res.json();
-    const nearest = nearestBtcEurPrice(data?.prices, targetMs);
-    if (!nearest) throw new Error('Sin datos de cotización para ese momento');
-
-    const btcEl = document.getElementById('tx-btc-price');
-    if (btcEl) btcEl.value = Number(nearest.price).toFixed(2);
-    onTxQtyInput();
-    const sampleTime = new Date(nearest.ts).toLocaleString('es-ES');
-    setTxBtcStatus(`BTC/EUR: ${fmt(nearest.price)} (muestra más cercana: ${sampleTime})`);
-  } catch (e) {
-    setTxBtcStatus(`No se pudo obtener BTC/EUR: ${e.message || 'error desconocido'}`, true);
-  }
-}
-
 function onTxDateTimeChange() {
-  const pos = selectedPositionForTx();
-  if (isBitcoinPosition(pos)) fetchBtcPriceForTransaction(true);
   updateTxFifoPanel();
 }
 
@@ -5256,15 +5421,8 @@ function onTxProductChange() {
     } else {
       setTxRegionStatus('');
     }
-    if (isBitcoinPosition(pos)) {
-      setTxBtcStatus('Puedes autocompletar el valor con la cotización BTC/EUR de la fecha/hora.');
-      onTxDateTimeChange();
-    } else {
-      setTxBtcStatus('');
-    }
   } else if (sel.value === '__new__') {
     setSectorValue('');
-    setTxBtcStatus('');
     setTxRegionValue('');
     setTxRegionStatus('');
     setTxProductKindValue('');
@@ -5446,9 +5604,7 @@ function isCryptoTransaction(tx) {
 }
 
 function formatCryptoQty(qty) {
-  const n = Number(qty);
-  if (!Number.isFinite(n)) return '0';
-  return parseFloat(n.toFixed(12)).toString();
+  return formatDecimalTrim(Number(qty), DEC_CRYPTO_QTY);
 }
 
 function formatTxQtyDisplay(tx) {
@@ -5459,7 +5615,8 @@ function formatTxQtyDisplay(tx) {
     return `<span style="color:var(--accent2);font-weight:600">${sign}${amt}</span> <span style="font-size:.72rem;color:var(--muted)">${tag}</span>`;
   }
   const qty = Math.abs(Number(tx.qty) || 0);
-  const formatted = isCryptoTransaction(tx) ? formatCryptoQty(qty) : qty.toFixed(3);
+  const maxDec = isCryptoTransaction(tx) ? DEC_CRYPTO_QTY : DEC_SHARE_QTY;
+  const formatted = formatDecimalTrim(qty, maxDec);
   if (isTransferOutTx(tx)) return `<span style="color:#38bdf8">−${formatted}</span>`;
   if (isTransferInTx(tx)) return `<span style="color:#38bdf8">+${formatted}</span>`;
   return isSellTx(tx) ? `<span style="color:var(--red)">−${formatted}</span>` : formatted;
@@ -5666,7 +5823,6 @@ function resetTransactionForm() {
   document.getElementById('tx-time').value = def.time;
   syncTxDatePickerFromText();
   setSectorValue('');
-  setTxBtcStatus('');
   setTxRegionValue('');
   setTxRegionStatus('');
   setTxProductKindValue('');
@@ -5674,6 +5830,7 @@ function resetTransactionForm() {
   ['tx-new-name', 'tx-new-isin', 'tx-new-broker'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('tx-new-tipo').value = 'RV';
   txTransferMode = 'units';
+  txTradeMode = 'price';
   setTxSide('buy');
   onTxProductChange();
 }
@@ -5899,14 +6056,15 @@ async function saveInvestmentTransaction() {
   const isSell = txSide === 'sell';
 
   let qty, price, fee, retention, gross, totalCost, aportacion;
-  fee = parseFloat(document.getElementById('tx-fee').value) || 0;
-  retention = isSell ? (parseFloat(document.getElementById('tx-retention')?.value) || 0) : 0;
+  const qtyDec = qtyDecimalsForPosition(p);
+  fee = truncateDecimals(parseDecimalInput(document.getElementById('tx-fee').value) || 0, DEC_MONEY);
+  retention = isSell ? truncateDecimals(parseDecimalInput(document.getElementById('tx-retention')?.value) || 0, DEC_MONEY) : 0;
   if (fee < 0 || retention < 0) {
     alert('La comisión y la retención no pueden ser negativas.');
     return;
   }
   if (isAport) {
-    aportacion = parseFloat(document.getElementById('tx-qty').value) || 0;
+    aportacion = truncateDecimals(parseDecimalInput(document.getElementById('tx-qty').value) || 0, DEC_MONEY);
     if (aportacion <= 0) {
       alert(isSell ? 'Indica el importe retirado en euros (mayor que 0).' : 'Indica la cantidad aportada en euros (mayor que 0).');
       document.getElementById('tx-qty')?.focus();
@@ -5915,22 +6073,44 @@ async function saveInvestmentTransaction() {
     qty = 0;
     price = 0;
     gross = aportacion;
-    totalCost = isSell ? Math.max(0, aportacion - fee - retention) : aportacion + fee;
+    totalCost = truncateDecimals(isSell ? Math.max(0, aportacion - fee - retention) : aportacion + fee, DEC_MONEY);
   } else {
-    qty = parseFloat(document.getElementById('tx-qty').value) || 0;
+    qty = truncateDecimals(parseDecimalInput(document.getElementById('tx-qty').value) || 0, qtyDec);
+    let amount = truncateDecimals(parseDecimalInput(document.getElementById('tx-amount')?.value) || 0, DEC_MONEY);
     price = getTxUnitPriceFromForm(p);
-    if (qty <= 0 || price <= 0) {
-      alert(isSell
-        ? (isBitcoinPosition(p)
-          ? 'La cantidad vendida y el valor BTC deben ser mayores que 0.'
-          : 'La cantidad vendida y el precio de venta deben ser mayores que 0.')
-        : (isBitcoinPosition(p)
-          ? 'La cantidad y el valor BTC deben ser mayores que 0.'
-          : 'La cantidad y el valor de mercado deben ser mayores que 0.'));
-      return;
+
+    // Modo importe total: cantidad + dinero → precio unitario
+    if (txTradeMode === 'amount') {
+      if (!(qty > 0) || !(amount > 0)) {
+        alert(isSell
+          ? 'Indica la cantidad vendida y el importe total obtenido (> 0).'
+          : 'Indica la cantidad comprada y el importe total pagado (> 0).');
+        return;
+      }
+      price = truncateDecimals(amount / qty, DEC_MONEY);
+      const priceEl = isBitcoinPosition(p)
+        ? document.getElementById('tx-btc-price')
+        : document.getElementById('tx-price');
+      if (priceEl) priceEl.value = formatDecimalTrim(price, DEC_MONEY);
+      gross = amount;
+    } else {
+      // Modo precio × cantidad
+      if (qty > 0 && price > 0 && !(amount > 0)) {
+        amount = truncateDecimals(qty * price, DEC_MONEY);
+      }
+      if (!(qty > 0) || !(price > 0)) {
+        alert(isSell
+          ? (isBitcoinPosition(p)
+            ? 'La cantidad vendida y el valor BTC deben ser mayores que 0.'
+            : 'La cantidad vendida y el precio de venta deben ser mayores que 0.')
+          : (isBitcoinPosition(p)
+            ? 'La cantidad y el valor BTC deben ser mayores que 0.'
+            : 'La cantidad y el valor de mercado deben ser mayores que 0.'));
+        return;
+      }
+      gross = truncateDecimals(qty * price, DEC_MONEY);
     }
-    gross = qty * price;
-    totalCost = isSell ? Math.max(0, gross - fee - retention) : gross + fee;
+    totalCost = truncateDecimals(isSell ? Math.max(0, gross - fee - retention) : gross + fee, DEC_MONEY);
   }
 
   let availableUnits = Number(p.units) || 0;
@@ -6155,7 +6335,7 @@ function editInvestmentTransaction(id) {
         document.getElementById('tx-price').value = unitPrice;
       }
       const amountEl = document.getElementById('tx-amount');
-      if (amountEl) amountEl.value = Math.abs(sourceTx.gross || (sourceTx.qty * sourceTx.price) || 0).toFixed(2);
+      if (amountEl) amountEl.value = formatDecimalTrim(Math.abs(sourceTx.gross || (sourceTx.qty * sourceTx.price) || 0), DEC_MONEY);
     }
     document.getElementById('tx-fee').value = Math.abs(sourceTx.fee || 0);
     setTxDateTimeInputs(sourceTx.datetime);
@@ -6182,23 +6362,29 @@ function editInvestmentTransaction(id) {
     if (btcEl) btcEl.value = '';
     document.getElementById('tx-fee').value = Math.abs(tx.fee || 0);
   } else {
-    document.getElementById('tx-qty').value = Math.abs(tx.qty || 0);
+    txTradeMode = 'price';
+    document.getElementById('tx-qty').value = formatDecimalTrim(Math.abs(tx.qty || 0), qtyDecimalsForPosition(pos || tx));
     const unitPrice = Math.abs(tx.price || 0);
     if (isBitcoinPosition(pos)) {
       document.getElementById('tx-price').value = '';
       const btcEl = document.getElementById('tx-btc-price');
-      if (btcEl) btcEl.value = unitPrice;
+      if (btcEl) btcEl.value = formatDecimalTrim(unitPrice, DEC_MONEY);
     } else {
-      document.getElementById('tx-price').value = unitPrice;
+      document.getElementById('tx-price').value = formatDecimalTrim(unitPrice, DEC_MONEY);
       const btcEl = document.getElementById('tx-btc-price');
       if (btcEl) btcEl.value = '';
     }
-    document.getElementById('tx-fee').value = Math.abs(tx.fee || 0);
+    const amountEl = document.getElementById('tx-amount');
+    if (amountEl) {
+      amountEl.value = formatDecimalTrim(Math.abs(tx.gross || (tx.qty * tx.price) || 0), DEC_MONEY);
+    }
+    document.getElementById('tx-fee').value = formatDecimalTrim(Math.abs(tx.fee || 0), DEC_MONEY);
   }
   const retentionEl = document.getElementById('tx-retention');
-  if (retentionEl) retentionEl.value = Math.abs(tx.retention || 0);
+  if (retentionEl) retentionEl.value = formatDecimalTrim(Math.abs(tx.retention || 0), DEC_MONEY);
   setTxDateTimeInputs(tx.datetime);
   document.getElementById('tx-note').value = tx.note || '';
+  updateTxFormFields();
   updateTxFifoPanel();
   openTxModal({ reset: false, title: 'Editar movimiento' });
 }
