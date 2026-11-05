@@ -2754,10 +2754,18 @@ function saveCriptoTx() {
 
 /** Tickers Yahoo Finance por ISIN (mercado EUR / XETRA cuando aplica). */
 const SECURITY_YAHOO_BY_ISIN = {
-  LU1829219390: 'LYBK.DE', // Lyxor/Amundi Euro Stoxx Banks DR
-  DE000A0S9GB0: '4GLD.DE', // Xetra-Gold ETC
-  LU1681046006: 'CWE.PA',  // Amundi Global Bioenergy UCITS ETF EUR Acc (París; también CWE.MI)
-  'IB1T.DE': 'IB1T.DE',    // iShares Bitcoin ETP/ETN (Xetra)
+  LU1829219390: 'LYBK.DE',       // Lyxor/Amundi Euro Stoxx Banks DR
+  DE000A0S9GB0: '4GLD.DE',       // Xetra-Gold ETC
+  LU1681046006: 'CWE.PA',        // Amundi Global Bioenergy UCITS ETF EUR Acc
+  'IB1T.DE': 'IB1T.DE',          // iShares Bitcoin ETP/ETN (Xetra)
+  FR00140081Y1: '0P0001P1UF.F',  // Carmignac Credit 2027 A EUR Acc
+  LU1706854152: '0P0001CZJI.F',  // Amundi SF Diversified Short-Term Bond
+  LU0034353002: 'DI4A.F',        // DWS Floating Rate Notes
+  LU0996175948: 'LU0996175948.LU', // Amundi Core MSCI Emerging Markets
+  ES0128520006: '0P0000KY8J.F',  // Renta 4 Renta Fija 6 Meses FI
+  LU0491217419: 'LU0491217419.SG', // Robeco Indian Equities D EUR
+  IE00BFTW8Y10: '0P00013BBH.F',  // Magna MENA G Acc
+  'SPCX.US': 'SPCX',             // SpaceX (ticker XTB → Yahoo NASDAQ)
 };
 
 async function fetchYahooMarketPrice(symbol) {
@@ -2784,13 +2792,32 @@ async function fetchYahooMarketPrice(symbol) {
   return { price, currency: meta?.currency || 'EUR', name: meta?.longName || meta?.shortName || symbol };
 }
 
+/** Convierte un precio Yahoo a EUR si viene en otra divisa. */
+async function toEurPrice(price, currency) {
+  const cur = String(currency || 'EUR').toUpperCase();
+  if (cur === 'EUR') return price;
+  if (cur === 'USD') {
+    const fx = await fetchYahooMarketPrice('EURUSD=X');
+    const eurusd = Number(fx.price);
+    if (!(eurusd > 0)) throw new Error('Sin tipo de cambio EUR/USD');
+    return price / eurusd;
+  }
+  throw new Error('Divisa no soportada: ' + cur);
+}
+
 function getPositionOpenQty(posId) {
   try {
     const fifo = buildFifoOpenLots(posId);
-    if (fifo?.availableQty > 1e-8) return fifo.availableQty;
+    // Si FIFO responde (aunque sea 0), no caer al historial legado:
+    // evita reabrir posiciones ya vendidas/traspasadas.
+    if (fifo && Number.isFinite(fifo.availableQty)) {
+      return Math.max(0, fifo.availableQty);
+    }
   } catch { /* buildFifo puede no estar listo en arranque temprano */ }
   const pos = positions.find(p => p.id === posId);
   if (pos && Number(pos.units) > 1e-8) return Number(pos.units);
+  const hasLedgerTx = investmentTransactions.some(t => Number(t.positionId) === Number(posId));
+  if (hasLedgerTx) return Math.max(0, Number(pos?.units) || 0);
   const hist = INVESTMENT_HISTORY[posId];
   if (hist?.entries?.length) {
     return hist.entries.reduce((s, e) => s + (Number(e.shares) || 0), 0);
@@ -2798,31 +2825,86 @@ function getPositionOpenQty(posId) {
   return 0;
 }
 
+/** Busca ticker Yahoo por ISIN si no está en el mapa local. */
+async function resolveYahooSymbolForIsin(isin) {
+  const clean = String(isin || '').replace(/\s+/g, '').toUpperCase();
+  if (!clean || clean === '–' || clean === '-') return null;
+  if (SECURITY_YAHOO_BY_ISIN[clean]) return SECURITY_YAHOO_BY_ISIN[clean];
+  try {
+    const res = await fetch(
+      `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(clean)}&quotesCount=5&newsCount=0`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const quotes = Array.isArray(data?.quotes) ? data.quotes : [];
+    const preferred = quotes.find(q => /MUTUALFUND|ETF|EQUITY/i.test(q.quoteType || '')) || quotes[0];
+    return preferred?.symbol || null;
+  } catch {
+    return null;
+  }
+}
+
 /** Actualiza valor de mercado de ETFs/fondos con ISIN (p. ej. Lyxor Banks en XETRA). */
 async function updateListedSecurityPrices() {
   let updated = 0;
+  const details = [];
   for (const pos of positions) {
     if (CRYPTO_POSITION_IDS.has(pos.id)) continue;
     const isin = String(pos.isin || '').replace(/\s+/g, '').toUpperCase();
     if (!isin || isin === '–' || isin === '-') continue;
     const qty = getPositionOpenQty(pos.id);
-    if (qty < 1e-8) continue;
+    if (qty < 1e-8) {
+      // Solo anular valor en productos cotizados realmente cerrados (no carteras/aportaciones sin participaciones)
+      if (
+        !isAportacionProduct(pos) &&
+        pos.tipo !== 'CASH' &&
+        pos.tipo !== 'MIX' &&
+        pos.tipo !== 'PP' &&
+        (Number(pos.units) || 0) < 1e-8 &&
+        (Number(pos.cost) || 0) < 1e-8 &&
+        (Number(pos.value) || 0) !== 0
+      ) {
+        pos.value = 0;
+        updated++;
+        details.push({ id: pos.id, name: pos.name, qty: 0, price: null, value: 0, closed: true });
+      }
+      continue;
+    }
 
-    const symbol = pos.yahooSymbol || SECURITY_YAHOO_BY_ISIN[isin];
-    if (!symbol) continue;
+    let symbol = pos.yahooSymbol || SECURITY_YAHOO_BY_ISIN[isin];
+    if (!symbol) {
+      symbol = await resolveYahooSymbolForIsin(isin);
+      if (symbol) SECURITY_YAHOO_BY_ISIN[isin] = symbol;
+    }
+    if (!symbol) {
+      details.push({ id: pos.id, name: pos.name, qty, error: 'sin símbolo' });
+      continue;
+    }
 
     try {
-      const { price } = await fetchYahooMarketPrice(symbol);
+      const quote = await fetchYahooMarketPrice(symbol);
+      const price = await toEurPrice(quote.price, quote.currency);
       pos.lastPrice = price;
       pos.yahooSymbol = symbol;
       pos.value = parseFloat((qty * price).toFixed(2));
+      // Mantener units alineadas con FIFO abierto (fondos con historial legado)
+      if (!(Number(pos.units) > 1e-8) || Math.abs((Number(pos.units) || 0) - qty) > 1e-6) {
+        pos.units = qty;
+      }
       updated++;
-    } catch {
-      /* sin cotización para este símbolo */
+      details.push({
+        id: pos.id, name: pos.name, qty, symbol,
+        price, currency: 'EUR',
+        rawPrice: quote.price, rawCurrency: quote.currency,
+        value: pos.value
+      });
+    } catch (e) {
+      details.push({ id: pos.id, name: pos.name, qty, symbol, error: String(e.message || e) });
     }
   }
   if (updated > 0) savePositions(positions);
-  return { ok: updated > 0, updated };
+  return { ok: updated > 0, updated, details };
 }
 
 async function updateCryptoPrices() {
